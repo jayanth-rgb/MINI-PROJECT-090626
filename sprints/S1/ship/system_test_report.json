@@ -1,0 +1,73 @@
+{
+  "sprint_id": "S1",
+  "executed_at": "2026-06-20T00:00:00Z",
+  "scenarios": [
+    {
+      "id": "ST-001",
+      "type": "security",
+      "nfr_ref": "non_functional.security",
+      "description": "Server-side input validation rejects malformed master payloads with HTTP 422.",
+      "threshold": "100% of 7 malformed-input variants return HTTP 422 (none returns 5xx or 2xx)",
+      "result": "pass",
+      "actual_value": "7/7 (100%) returned 422; 0/7 returned 5xx; 0/7 returned 2xx",
+      "details": "Pydantic schemas at the API boundary reject empty strings on supplier_name, place, staff_name, dealer_name, grade_code, size, design_name as documented by AC-001/004/007/010/013. No 500s observed.",
+      "severity_if_failed": "critical"
+    },
+    {
+      "id": "ST-002",
+      "type": "security",
+      "nfr_ref": "risks.R-004",
+      "description": "V1 endpoints accessible without an Authorization header (DS-005 / R-004 non-regression).",
+      "threshold": "All 6 GET endpoints return 2xx without an Authorization header (none returns 401/403)",
+      "result": "pass",
+      "actual_value": "6/6 (100%) returned 2xx; 0/6 returned 401; 0/6 returned 403",
+      "details": "GET /api/v1/{suppliers,staff,dealers,grades,designs,design-grade-map} all succeed without auth — DS-005 V1 invariant holds. If a future PR accidentally adds an auth middleware to V1, this scenario fails fast.",
+      "severity_if_failed": "major"
+    },
+    {
+      "id": "ST-003",
+      "type": "error_handling",
+      "nfr_ref": "risks.R-005",
+      "description": "Soft-delete preserves rows; FK references stay queryable (R-005 mitigation).",
+      "threshold": "After soft-deleting 1 supplier + 1 grade + 1 design + 1 design-grade-map row, 4 rows are still SELECT-able by their PKs (no DELETE happened)",
+      "result": "pass",
+      "actual_value": "4/4 (100%) rows present after soft-delete with is_active=false; design_grade_map mapping's FKs still resolve to the soft-deleted design and grade",
+      "details": "After DELETE /api/v1/{suppliers/{id}, grades/{id}, designs/{id}, design-grade-map/{id}}, db_session.get() on each PK returns the row. The mapping's design_id and grade_id columns still reference the (now soft-deleted) parent rows — the historical join S2 reports need is preserved.",
+      "severity_if_failed": "critical"
+    },
+    {
+      "id": "ST-004",
+      "type": "performance",
+      "nfr_ref": "non_functional.performance",
+      "description": "PRD performance NFRs (dashboard < 1s, form save < 500ms, sales report < 2s) — DEFERRED to S3.",
+      "threshold": "n/a — deferred",
+      "result": "skip",
+      "actual_value": null,
+      "details": "S3 dependency. PRD non_functional.performance numeric targets all require the stock-ledger (M-003) and reports (M-004/M-005) which are not delivered in S1. test_cases.json open_items_for_sprint_gate explicitly notes 'Performance NFR PRD AC-045 (dashboard sub-second) is testable only after S3'. Tracked for /ases-system-test S3.",
+      "severity_if_failed": "high"
+    },
+    {
+      "id": "ST-005",
+      "type": "load",
+      "nfr_ref": "risks.R-001",
+      "description": "Stock ledger concurrent-write race (R-001 mitigation) — DEFERRED to S3.",
+      "threshold": "n/a — deferred",
+      "result": "skip",
+      "actual_value": null,
+      "details": "S2 dependency. tbl_stock_ledger and apply_*() functions are not delivered in S1. DS-002's SELECT FOR UPDATE mitigation can only be exercised once the ledger exists. Tracked for /ases-system-test S3.",
+      "severity_if_failed": "critical"
+    }
+  ],
+  "verdict": "pass",
+  "critical_failures": [],
+  "execution_summary": {
+    "total_designed": 5,
+    "executed": 3,
+    "passed": 3,
+    "failed": 0,
+    "skipped_with_reason": 2,
+    "test_function_count": 14,
+    "duration_seconds": 23.78,
+    "run_cmd": "cd backend && .venv/Scripts/python.exe -m pytest tests/system/ -v"
+  }
+}

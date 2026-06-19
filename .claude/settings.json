@@ -56,7 +56,10 @@
       "Skill(ases-test-run)",
       "Skill(ases-test-run:*)",
       "Bash(.venv/Scripts/python.exe -m pytest --version)",
-      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v --tb=short)"
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v --tb=short)",
+      "Skill(ases-integration-test)",
+      "Skill(ases-integration-test:*)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/integration/test_integration_is00*.py -v --tb=short)"
     ],
     "deny": [
       "Write(./.env)",

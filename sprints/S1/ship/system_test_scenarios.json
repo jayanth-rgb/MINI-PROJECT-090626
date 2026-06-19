@@ -1,0 +1,66 @@
+{
+  "sprint_id": "S1",
+  "design_notes": "S1's surface is master CRUD + the DF-006 grades projection. PRD non_functional.performance items (dashboard sub-second, form save < 500ms, sales report < 2s) all require S2/S3 modules and are deferred. HLD risks R-001/R-002/R-003 depend on the stock ledger (S2/S3) and are deferred. S1-relevant items: PRD non_functional.security ('All inputs validated server-side') is fully testable; HLD R-004 (V1 no auth) is verified as an explicit non-regression; HLD R-005 (soft-delete preserves rows) is the safety net for downstream report joins and is asserted explicitly even though IS-003/IS-004 already cover it.",
+  "scenarios": [
+    {
+      "id": "ST-001",
+      "type": "security",
+      "name": "Server-side input validation rejects malformed master payloads with HTTP 422",
+      "nfr_ref": "non_functional.security",
+      "description": "PRD non_functional.security: 'All inputs validated server-side (date bounds, integer types, FK existence)'. For S1's master CRUD: every Create payload that violates a Pydantic constraint (empty string for required field, wrong type, missing required key) must produce HTTP 422 from the API layer — never a 500 or a silent INSERT. Covers AC-001, AC-004, AC-007, AC-010, AC-013 at the boundary layer.",
+      "threshold": "100% of 7 malformed-input variants return HTTP 422 (none returns 5xx or 2xx)",
+      "test_file": "backend/tests/system/test_system_st001_input_validation.py",
+      "priority": "critical",
+      "result": "pass",
+      "actual_value": "7/7 malformed-input variants returned HTTP 422 (0 returned 5xx, 0 returned 2xx)"
+    },
+    {
+      "id": "ST-002",
+      "type": "security",
+      "name": "V1 endpoints accessible without an Authorization header (DS-005 / R-004 non-regression)",
+      "nfr_ref": "risks.R-004",
+      "description": "HLD R-004 mitigation is documentation-only ('trusted internal network'). The software-level invariant for V1 is that NO endpoint requires auth — if an auth middleware were ever accidentally introduced, every endpoint would fail with 401/403. This scenario provides a regression backstop: each of the 6 master GET endpoints returns 2xx with no Authorization header. Documented as DS-005.",
+      "threshold": "All 6 GET endpoints return 2xx without an Authorization header (none returns 401/403)",
+      "test_file": "backend/tests/system/test_system_st002_no_auth_required_v1.py",
+      "priority": "high",
+      "result": "pass",
+      "actual_value": "6/6 master GET endpoints returned 2xx with no Authorization header (0 returned 401, 0 returned 403)"
+    },
+    {
+      "id": "ST-003",
+      "type": "error_handling",
+      "name": "Soft-delete preserves rows; FK references stay queryable (R-005 mitigation)",
+      "nfr_ref": "risks.R-005",
+      "description": "HLD R-005: deactivating a Design-Grade mapping while transactions exist could orphan reports. Mitigation: soft-delete only; historical rows remain joinable on FK. S1 has no transactions yet, but the invariant — that a soft-deleted master row stays physically present and the design_grade_map row pointing at it is still resolvable via JOIN — must hold for S2 reports to work. Asserted across 3 master types.",
+      "threshold": "After soft-deleting 1 supplier + 1 grade + 1 design + 1 design-grade-map row, 4 rows are still SELECT-able by their PKs (no DELETE happened)",
+      "test_file": "backend/tests/system/test_system_st003_soft_delete_preserves_rows.py",
+      "priority": "critical",
+      "result": "pass",
+      "actual_value": "4 soft-deleted rows (supplier + grade + design + design-grade-map) all SELECT-able by PK with is_active=false; mapping's design_id/grade_id FKs still resolve"
+    },
+    {
+      "id": "ST-004",
+      "type": "performance",
+      "name": "PRD performance NFRs (dashboard < 1s, form save < 500ms, sales report < 2s) — DEFERRED to S3",
+      "nfr_ref": "non_functional.performance",
+      "description": "PRD non_functional.performance enumerates three numeric targets, all of which require the stock-ledger and reporting modules (M-003, M-004, M-005) not delivered in S1. Per test_cases.json open_items_for_sprint_gate: 'Performance NFR PRD AC-045 (dashboard sub-second) is testable only after S3'. Recorded as `skip` here so the S1 final-audit lens 'risk_review' has the explicit deferral on file rather than missing it.",
+      "threshold": "n/a — deferred",
+      "test_file": null,
+      "priority": "high",
+      "result": "skip",
+      "skip_reason": "S3 dependency (M-003/M-004/M-005 not delivered until then). Tracked for /ases-system-test S3."
+    },
+    {
+      "id": "ST-005",
+      "type": "load",
+      "name": "Stock ledger concurrent-write race (R-001 mitigation) — DEFERRED to S3",
+      "nfr_ref": "risks.R-001",
+      "description": "HLD R-001 (critical): concurrent saves on (design_id, grade_id) ledger row can race. Mitigation: SELECT FOR UPDATE on the latest ledger row (DS-002). The stock_ledger table itself does not exist in S1 (it is created by the S2 migration). Documented here so the deferral is explicit at /ases-final-audit time.",
+      "threshold": "n/a — deferred",
+      "test_file": null,
+      "priority": "critical",
+      "result": "skip",
+      "skip_reason": "S2 dependency (tbl_stock_ledger and apply_*() functions not delivered until S2/S3). Tracked for /ases-system-test S3."
+    }
+  ]
+}

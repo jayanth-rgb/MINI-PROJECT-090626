@@ -30,7 +30,13 @@
       "Bash(claude:*)",
       "Bash(.venv/Scripts/python.exe -m ruff check quantflo/analytics/drawdown.py)",
       "Bash(.venv/Scripts/python.exe -m mypy --strict quantflo/analytics/drawdown.py)",
-      "Bash(python -c ':*)"
+      "Bash(python -c ':*)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/integration/ -v --tb=short)",
+      "Skill(ases-system-test)",
+      "Skill(ases-system-test:*)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/system/ -v --tb=short)",
+      "Skill(ases-uat)",
+      "Skill(ases-uat:*)"
     ]
   }
 }
