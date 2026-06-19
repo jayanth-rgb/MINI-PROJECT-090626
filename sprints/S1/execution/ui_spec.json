@@ -1,0 +1,900 @@
+{
+  "document": "ui_spec",
+  "produced_by": "/ases-ui-design S1",
+  "consumed_by": [
+    "/ases-ui-review",
+    "/ases-ui-scaffold",
+    "/ases-dev",
+    "/ases-critique"
+  ],
+  "sprint_id": "S1",
+  "scope_tasks": [
+    "T-026",
+    "T-027",
+    "T-028",
+    "T-029",
+    "T-030",
+    "T-031",
+    "T-032",
+    "T-033",
+    "T-034",
+    "T-035",
+    "T-036",
+    "T-037",
+    "T-038",
+    "T-039",
+    "T-040"
+  ],
+  "tech_stack": {
+    "framework": "Next.js 15 (App Router, RSC + 'use client' boundaries)",
+    "react": "19.0.0",
+    "ui_library": "shadcn/ui 4.x (radix-nova style)",
+    "css": "TailwindCSS 3.4 + CSS variables (oklch color space)",
+    "form_management": "react-hook-form 7.54 + @hookform/resolvers/zod",
+    "validation": "zod 3.24",
+    "data_fetching": "@tanstack/react-query 5.62",
+    "http_client": "axios 1.7",
+    "icons": "lucide-react",
+    "toast": "sonner 2.x",
+    "font": "Inter (Google Fonts via next/font/google)"
+  },
+  "design_system": {
+    "color_palette": {
+      "note": "Uses oklch CSS variables from shadcn radix-nova. Dark mode supported via .dark class.",
+      "primary": "oklch(0.205 0 0) / dark: oklch(0.922 0 0)",
+      "secondary": "oklch(0.97 0 0) / dark: oklch(0.269 0 0)",
+      "accent": "oklch(0.97 0 0) / dark: oklch(0.269 0 0)",
+      "destructive": "oklch(0.577 0.245 27.325) / dark: oklch(0.704 0.191 22.216)",
+      "background": "oklch(1 0 0) / dark: oklch(0.145 0 0)",
+      "foreground": "oklch(0.145 0 0) / dark: oklch(0.985 0 0)",
+      "muted": "oklch(0.97 0 0) / dark: oklch(0.269 0 0)",
+      "muted_foreground": "oklch(0.556 0 0) / dark: oklch(0.708 0 0)",
+      "sidebar_bg": "oklch(0.985 0 0) / dark: oklch(0.205 0 0)"
+    },
+    "border_radius": "0.625rem (var(--radius))",
+    "typography": {
+      "font_family": "Inter, system-ui, -apple-system, sans-serif",
+      "h1": "text-3xl font-bold tracking-tight",
+      "h2": "text-xl font-semibold",
+      "body": "text-sm",
+      "label": "text-sm font-medium",
+      "error": "text-sm text-destructive"
+    },
+    "spacing": {
+      "page_padding": "p-6 lg:p-8",
+      "card_padding": "p-6",
+      "form_gap": "space-y-4",
+      "sidebar_width": "w-64",
+      "content_max_width": "max-w-6xl"
+    },
+    "transitions": {
+      "default": "transition-colors duration-200",
+      "sidebar_hover": "transition-all duration-200 ease-in-out",
+      "dialog_enter": "tw-animate-css fade-in + slide-in-from-bottom-4 duration-300"
+    }
+  },
+  "layout_structure": {
+    "root_layout": {
+      "task_ref": "T-031",
+      "file": "frontend/src/app/layout.tsx",
+      "structure": "<html lang='en'><body className={inter.className}><QueryProvider>{children}<Toaster richColors closeButton position='top-right' /></QueryProvider></body></html>",
+      "metadata": {
+        "title": "Jayanth Trading Tiles",
+        "description": "Trading tiles management system — master data administration"
+      },
+      "font_loading": "next/font/google Inter with weight [400,500,600,700]"
+    },
+    "home_redirect": {
+      "task_ref": "T-031",
+      "file": "frontend/src/app/page.tsx",
+      "behavior": "Server component that calls redirect('/admin/suppliers') from next/navigation"
+    },
+    "admin_layout": {
+      "task_ref": "T-032",
+      "file": "frontend/src/app/admin/layout.tsx",
+      "structure": "flex min-h-screen",
+      "sidebar": {
+        "width": "w-64",
+        "position": "fixed left-0 top-0 h-full",
+        "style": "border-r bg-sidebar text-sidebar-foreground flex flex-col",
+        "header": {
+          "content": "Jayanth Trading",
+          "sub": "Tiles Management",
+          "style": "p-6 border-b flex items-center gap-3",
+          "icon": "lucide-react Layers (or LayoutGrid)"
+        },
+        "nav_items": [
+          {
+            "label": "Suppliers",
+            "href": "/admin/suppliers",
+            "icon": "Truck"
+          },
+          {
+            "label": "Staff",
+            "href": "/admin/staff",
+            "icon": "Users"
+          },
+          {
+            "label": "Dealers",
+            "href": "/admin/dealers",
+            "icon": "Store"
+          },
+          {
+            "label": "Grades",
+            "href": "/admin/grades",
+            "icon": "Tags"
+          },
+          {
+            "label": "Designs",
+            "href": "/admin/designs",
+            "icon": "Palette"
+          },
+          {
+            "label": "Design-Grade Map",
+            "href": "/admin/design-grade-map",
+            "icon": "GitBranch"
+          }
+        ],
+        "active_indicator": "bg-sidebar-accent text-sidebar-accent-foreground font-medium",
+        "inactive_style": "text-muted-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+        "link_style": "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-200"
+      },
+      "main_content": {
+        "style": "ml-64 flex-1 min-h-screen bg-background",
+        "inner": "p-6 lg:p-8 max-w-6xl"
+      }
+    }
+  },
+  "shared_components": {
+    "MasterDataTable": {
+      "task_ref": "T-033",
+      "file": "frontend/src/components/admin/MasterDataTable.tsx",
+      "description": "Generic table used by all 6 admin pages.",
+      "type_signature": "MasterDataTable<T extends Record<string, unknown>>",
+      "props": {
+        "rows": {
+          "type": "T[]",
+          "required": true,
+          "description": "Array of data items to render"
+        },
+        "columns": {
+          "type": "{ key: keyof T; label: string }[]",
+          "required": true,
+          "description": "Column definitions mapping data keys to display labels"
+        },
+        "rowKey": {
+          "type": "(row: T) => string | number",
+          "required": true,
+          "description": "Unique key extractor for React rendering"
+        },
+        "isActive": {
+          "type": "(row: T) => boolean",
+          "required": true,
+          "description": "Returns whether a row is active; used for muted styling"
+        },
+        "onEdit": {
+          "type": "(row: T) => void",
+          "required": true,
+          "description": "Callback when Edit button clicked"
+        },
+        "onToggleActive": {
+          "type": "(row: T) => void",
+          "required": true,
+          "description": "Callback when Deactivate/Reactivate button clicked"
+        },
+        "isLoading": {
+          "type": "boolean",
+          "required": false,
+          "description": "Shows skeleton loader when true"
+        }
+      },
+      "ui_elements": {
+        "header_row": "bg-muted/50 text-muted-foreground text-xs uppercase tracking-wider font-medium",
+        "body_row_active": "border-b hover:bg-muted/30 transition-colors",
+        "body_row_inactive": "border-b opacity-50 bg-muted/10",
+        "actions_column": "Actions — right-aligned",
+        "edit_button": "variant='ghost' size='sm' with Pencil icon",
+        "deactivate_button": "variant='ghost' size='sm' with EyeOff icon + destructive text",
+        "reactivate_button": "variant='ghost' size='sm' with Eye icon + text-emerald-600",
+        "empty_state": "Centered text 'No records found.' with muted styling p-8",
+        "loading_state": "5 Skeleton rows matching column widths"
+      },
+      "shadcn_deps": [
+        "Table",
+        "TableHeader",
+        "TableBody",
+        "TableRow",
+        "TableHead",
+        "TableCell",
+        "Button",
+        "Skeleton"
+      ],
+      "lucide_icons": [
+        "Pencil",
+        "EyeOff",
+        "Eye"
+      ],
+      "test_ids": {
+        "table": "master-data-table",
+        "edit_button": "edit-btn-{rowKey}",
+        "toggle_button": "toggle-btn-{rowKey}"
+      }
+    },
+    "MasterFormDialog": {
+      "task_ref": "T-034",
+      "file": "frontend/src/components/admin/MasterFormDialog.tsx",
+      "description": "Reusable Dialog wrapper for create+edit flows across all 6 masters.",
+      "props": {
+        "open": {
+          "type": "boolean",
+          "required": true
+        },
+        "onOpenChange": {
+          "type": "(open: boolean) => void",
+          "required": true
+        },
+        "title": {
+          "type": "string",
+          "required": true,
+          "description": "'Add Supplier' / 'Edit Supplier' etc."
+        },
+        "children": {
+          "type": "ReactNode",
+          "required": true,
+          "description": "Form fields rendered inside dialog body"
+        },
+        "formId": {
+          "type": "string",
+          "required": true,
+          "description": "The id of the child <form> to trigger submit from footer Save button"
+        },
+        "isSubmitting": {
+          "type": "boolean",
+          "required": true,
+          "description": "Disables Save button and shows spinner"
+        }
+      },
+      "ui_elements": {
+        "overlay": "bg-black/40 backdrop-blur-sm",
+        "dialog_panel": "sm:max-w-[480px] rounded-xl border shadow-lg",
+        "header": "DialogTitle text-lg font-semibold",
+        "description": "DialogDescription sr-only (accessibility)",
+        "body": "px-6 py-4",
+        "footer": "flex justify-end gap-3 px-6 py-4 border-t bg-muted/30",
+        "cancel_button": "variant='outline'",
+        "save_button": "variant='default' type='submit' form={formId}; disabled + loader when isSubmitting"
+      },
+      "shadcn_deps": [
+        "Dialog",
+        "DialogContent",
+        "DialogHeader",
+        "DialogTitle",
+        "DialogDescription",
+        "DialogFooter",
+        "Button"
+      ],
+      "lucide_icons": [
+        "Loader2"
+      ],
+      "test_ids": {
+        "dialog": "master-form-dialog",
+        "save_button": "dialog-save-btn",
+        "cancel_button": "dialog-cancel-btn"
+      }
+    }
+  },
+  "per_entity_pages": {
+    "common_pattern": {
+      "description": "All 6 admin pages follow the same structure with entity-specific data.",
+      "page_header": {
+        "layout": "flex items-center justify-between mb-6",
+        "title": "<h1> with entity name",
+        "add_button": "Button variant='default' with Plus icon + 'Add {Entity}'"
+      },
+      "state_management": {
+        "list_query": "useQuery({ queryKey: ['{entity}'], queryFn: {entity}Api.list })",
+        "create_mutation": "useMutation({ mutationFn: {entity}Api.create, onSuccess: invalidateQueries, onError: toast.error })",
+        "update_mutation": "useMutation({ mutationFn: (args) => {entity}Api.update(args.id, args.data), onSuccess: invalidateQueries, onError: toast.error })",
+        "remove_mutation": "useMutation({ mutationFn: {entity}Api.remove, onSuccess: invalidateQueries, onError: toast.error })",
+        "dialog_state": "useState<{ mode: 'create' | 'edit'; data?: T } | null>(null)"
+      },
+      "toast_behavior": {
+        "on_create_success": "toast.success('{Entity} created successfully')",
+        "on_update_success": "toast.success('{Entity} updated successfully')",
+        "on_deactivate_success": "toast.success('{Entity} deactivated')",
+        "on_reactivate_success": "toast.success('{Entity} reactivated')",
+        "on_409_error": "toast.error(error.response.data.message || 'Duplicate entry')",
+        "on_generic_error": "toast.error('An error occurred. Please try again.')"
+      },
+      "form_pattern": {
+        "hook": "useForm<{Entity}Create>({ resolver: zodResolver({entity}Schema), defaultValues })",
+        "form_element": "<form id={formId} onSubmit={handleSubmit(onSubmit)}>",
+        "field_layout": "space-y-4",
+        "field_pattern": "<div><Label htmlFor='{field}'>{Label}</Label><Input id='{field}' {...register('{field}')} />{errors.{field} && <p className='text-sm text-destructive mt-1'>{errors.{field}.message}</p>}</div>",
+        "form_id_convention": "{entity}-form"
+      }
+    },
+    "suppliers": {
+      "task_ref": "T-035",
+      "page_file": "frontend/src/app/admin/suppliers/page.tsx",
+      "form_file": "frontend/src/components/admin/suppliers/SupplierForm.tsx",
+      "ac_refs": [
+        "AC-001",
+        "AC-002"
+      ],
+      "page_title": "Suppliers",
+      "add_button_label": "Add Supplier",
+      "query_key": "suppliers",
+      "api_namespace": "suppliersApi",
+      "table_columns": [
+        {
+          "key": "supplier_id",
+          "label": "ID"
+        },
+        {
+          "key": "supplier_name",
+          "label": "Name"
+        },
+        {
+          "key": "place",
+          "label": "Place"
+        },
+        {
+          "key": "is_active",
+          "label": "Status"
+        }
+      ],
+      "row_key": "row.supplier_id",
+      "form_fields": [
+        {
+          "name": "supplier_name",
+          "label": "Supplier Name",
+          "type": "Input",
+          "placeholder": "Enter supplier name",
+          "required": true
+        },
+        {
+          "name": "place",
+          "label": "Place",
+          "type": "Input",
+          "placeholder": "Enter place",
+          "required": true
+        }
+      ],
+      "zod_schema": "supplierSchema",
+      "test_ids": {
+        "page": "suppliers-page",
+        "add_button": "add-supplier-btn",
+        "supplier_name_input": "supplier-name-input",
+        "place_input": "supplier-place-input"
+      }
+    },
+    "staff": {
+      "task_ref": "T-036",
+      "page_file": "frontend/src/app/admin/staff/page.tsx",
+      "form_file": "frontend/src/components/admin/staff/StaffForm.tsx",
+      "ac_refs": [
+        "AC-004",
+        "AC-005"
+      ],
+      "page_title": "Staff",
+      "add_button_label": "Add Staff",
+      "query_key": "staff",
+      "api_namespace": "staffApi",
+      "table_columns": [
+        {
+          "key": "staff_id",
+          "label": "ID"
+        },
+        {
+          "key": "staff_name",
+          "label": "Name"
+        },
+        {
+          "key": "is_active",
+          "label": "Status"
+        }
+      ],
+      "row_key": "row.staff_id",
+      "form_fields": [
+        {
+          "name": "staff_name",
+          "label": "Staff Name",
+          "type": "Input",
+          "placeholder": "Enter staff name",
+          "required": true
+        }
+      ],
+      "zod_schema": "staffSchema",
+      "test_ids": {
+        "page": "staff-page",
+        "add_button": "add-staff-btn",
+        "staff_name_input": "staff-name-input"
+      }
+    },
+    "dealers": {
+      "task_ref": "T-037",
+      "page_file": "frontend/src/app/admin/dealers/page.tsx",
+      "form_file": "frontend/src/components/admin/dealers/DealerForm.tsx",
+      "ac_refs": [
+        "AC-007",
+        "AC-008"
+      ],
+      "page_title": "Dealers",
+      "add_button_label": "Add Dealer",
+      "query_key": "dealers",
+      "api_namespace": "dealersApi",
+      "table_columns": [
+        {
+          "key": "dealer_id",
+          "label": "ID"
+        },
+        {
+          "key": "dealer_name",
+          "label": "Name"
+        },
+        {
+          "key": "place",
+          "label": "Place"
+        },
+        {
+          "key": "is_active",
+          "label": "Status"
+        }
+      ],
+      "row_key": "row.dealer_id",
+      "form_fields": [
+        {
+          "name": "dealer_name",
+          "label": "Dealer Name",
+          "type": "Input",
+          "placeholder": "Enter dealer name",
+          "required": true
+        },
+        {
+          "name": "place",
+          "label": "Place",
+          "type": "Input",
+          "placeholder": "Enter place",
+          "required": true
+        }
+      ],
+      "zod_schema": "dealerSchema",
+      "test_ids": {
+        "page": "dealers-page",
+        "add_button": "add-dealer-btn",
+        "dealer_name_input": "dealer-name-input",
+        "place_input": "dealer-place-input"
+      }
+    },
+    "grades": {
+      "task_ref": "T-038",
+      "page_file": "frontend/src/app/admin/grades/page.tsx",
+      "form_file": "frontend/src/components/admin/grades/GradeForm.tsx",
+      "ac_refs": [
+        "AC-011",
+        "AC-012"
+      ],
+      "page_title": "Grades",
+      "add_button_label": "Add Grade",
+      "query_key": "grades",
+      "api_namespace": "gradesApi",
+      "table_columns": [
+        {
+          "key": "grade_id",
+          "label": "ID"
+        },
+        {
+          "key": "grade_code",
+          "label": "Grade Code"
+        },
+        {
+          "key": "is_active",
+          "label": "Status"
+        }
+      ],
+      "row_key": "row.grade_id",
+      "form_fields": [
+        {
+          "name": "grade_code",
+          "label": "Grade Code",
+          "type": "Input",
+          "placeholder": "Enter grade code (e.g. 1, 2A, OB)",
+          "required": true
+        }
+      ],
+      "zod_schema": "gradeSchema",
+      "special_behavior": {
+        "duplicate_handling": "API returns 409 on duplicate grade_code → toast.error('Grade code already exists')"
+      },
+      "test_ids": {
+        "page": "grades-page",
+        "add_button": "add-grade-btn",
+        "grade_code_input": "grade-code-input"
+      }
+    },
+    "designs": {
+      "task_ref": "T-039",
+      "page_file": "frontend/src/app/admin/designs/page.tsx",
+      "form_file": "frontend/src/components/admin/designs/DesignForm.tsx",
+      "ac_refs": [
+        "AC-013",
+        "AC-015"
+      ],
+      "page_title": "Trading Designs",
+      "add_button_label": "Add Design",
+      "query_key": "designs",
+      "api_namespace": "designsApi",
+      "table_columns": [
+        {
+          "key": "design_id",
+          "label": "ID"
+        },
+        {
+          "key": "size",
+          "label": "Size"
+        },
+        {
+          "key": "design_name",
+          "label": "Design Name"
+        },
+        {
+          "key": "is_active",
+          "label": "Status"
+        }
+      ],
+      "row_key": "row.design_id",
+      "form_fields": [
+        {
+          "name": "size",
+          "label": "Size",
+          "type": "Input",
+          "placeholder": "Enter size (e.g. 16X10)",
+          "required": true
+        },
+        {
+          "name": "design_name",
+          "label": "Design Name",
+          "type": "Input",
+          "placeholder": "Enter design name",
+          "required": true
+        }
+      ],
+      "zod_schema": "designSchema",
+      "test_ids": {
+        "page": "designs-page",
+        "add_button": "add-design-btn",
+        "size_input": "design-size-input",
+        "design_name_input": "design-name-input"
+      }
+    },
+    "design_grade_map": {
+      "task_ref": "T-040",
+      "page_file": "frontend/src/app/admin/design-grade-map/page.tsx",
+      "form_file": "frontend/src/components/admin/design-grade-map/DesignGradeMapForm.tsx",
+      "ac_refs": [
+        "AC-016",
+        "AC-017"
+      ],
+      "page_title": "Design-Grade Map",
+      "add_button_label": "Add Mapping",
+      "query_key": "design-grade-map",
+      "api_namespace": "designGradeMapApi",
+      "table_columns": [
+        {
+          "key": "map_id",
+          "label": "ID"
+        },
+        {
+          "key": "design_name",
+          "label": "Design"
+        },
+        {
+          "key": "grade_code",
+          "label": "Grade"
+        },
+        {
+          "key": "is_active",
+          "label": "Status"
+        }
+      ],
+      "row_key": "row.map_id",
+      "form_fields": [
+        {
+          "name": "design_id",
+          "label": "Design",
+          "type": "Select",
+          "placeholder": "Select a design",
+          "required": true,
+          "options_source": "designsApi.list (active only)"
+        },
+        {
+          "name": "grade_id",
+          "label": "Grade",
+          "type": "Select",
+          "placeholder": "Select a grade",
+          "required": true,
+          "options_source": "gradesApi.list (active only)"
+        }
+      ],
+      "zod_schema": "designGradeMapSchema",
+      "special_behavior": {
+        "additional_queries": [
+          "useQuery({ queryKey: ['designs'], queryFn: designsApi.list }) for Select options",
+          "useQuery({ queryKey: ['grades'], queryFn: gradesApi.list }) for Select options"
+        ],
+        "duplicate_handling": "API returns 409 on duplicate (design_id, grade_id) pair → toast.error('This design-grade combination already exists')",
+        "select_wiring": "react-hook-form Controller wrapping shadcn Select; onValueChange converts string to number via parseInt"
+      },
+      "test_ids": {
+        "page": "design-grade-map-page",
+        "add_button": "add-mapping-btn",
+        "design_select": "design-select",
+        "grade_select": "grade-select"
+      }
+    }
+  },
+  "plumbing_components": {
+    "types_masters": {
+      "task_ref": "T-026",
+      "file": "frontend/src/types/masters.ts",
+      "types": [
+        {
+          "name": "Supplier",
+          "fields": "supplier_id: number; supplier_name: string; place: string; is_active: boolean; created_at: string"
+        },
+        {
+          "name": "SupplierCreate",
+          "fields": "supplier_name: string; place: string"
+        },
+        {
+          "name": "SupplierUpdate",
+          "fields": "supplier_name?: string; place?: string; is_active?: boolean"
+        },
+        {
+          "name": "Staff",
+          "fields": "staff_id: number; staff_name: string; is_active: boolean; created_at: string"
+        },
+        {
+          "name": "StaffCreate",
+          "fields": "staff_name: string"
+        },
+        {
+          "name": "StaffUpdate",
+          "fields": "staff_name?: string; is_active?: boolean"
+        },
+        {
+          "name": "Dealer",
+          "fields": "dealer_id: number; dealer_name: string; place: string; is_active: boolean; created_at: string"
+        },
+        {
+          "name": "DealerCreate",
+          "fields": "dealer_name: string; place: string"
+        },
+        {
+          "name": "DealerUpdate",
+          "fields": "dealer_name?: string; place?: string; is_active?: boolean"
+        },
+        {
+          "name": "Grade",
+          "fields": "grade_id: number; grade_code: string; is_active: boolean"
+        },
+        {
+          "name": "GradeCreate",
+          "fields": "grade_code: string"
+        },
+        {
+          "name": "GradeUpdate",
+          "fields": "grade_code?: string; is_active?: boolean"
+        },
+        {
+          "name": "Design",
+          "fields": "design_id: number; size: string; design_name: string; is_active: boolean; created_at: string"
+        },
+        {
+          "name": "DesignCreate",
+          "fields": "size: string; design_name: string"
+        },
+        {
+          "name": "DesignUpdate",
+          "fields": "size?: string; design_name?: string; is_active?: boolean"
+        },
+        {
+          "name": "DesignGradeMap",
+          "fields": "map_id: number; design_id: number; grade_id: number; is_active: boolean; design_name: string; grade_code: string"
+        },
+        {
+          "name": "DesignGradeMapCreate",
+          "fields": "design_id: number; grade_id: number"
+        },
+        {
+          "name": "DesignGradeMapUpdate",
+          "fields": "design_id?: number; grade_id?: number; is_active?: boolean"
+        },
+        {
+          "name": "DesignGradeMin",
+          "fields": "grade_id: number; grade_code: string"
+        }
+      ]
+    },
+    "api_client": {
+      "task_ref": "T-027",
+      "file": "frontend/src/lib/api/client.ts",
+      "behavior": {
+        "base_url": "process.env.NEXT_PUBLIC_API_URL",
+        "default_headers": "Content-Type: application/json",
+        "error_interceptor": "Catches AxiosError; throws { status: response.status, message: response.data.message || response.data.detail || 'Request failed' }"
+      }
+    },
+    "api_masters": {
+      "task_ref": "T-028",
+      "file": "frontend/src/lib/api/masters.ts",
+      "per_entity_shape": {
+        "list": "() => apiClient.get<T[]>('/{entity}').then(r => r.data)",
+        "create": "(data: TCreate) => apiClient.post<T>('/{entity}', data).then(r => r.data)",
+        "update": "(id: number, data: TUpdate) => apiClient.patch<T>('/{entity}/{id}', data).then(r => r.data)",
+        "remove": "(id: number) => apiClient.delete<T>('/{entity}/{id}').then(r => r.data)"
+      },
+      "extra": {
+        "designsApi.getGrades": "(designId: number) => apiClient.get<DesignGradeMin[]>(`/designs/${designId}/grades`).then(r => r.data)"
+      },
+      "entity_configs": [
+        {
+          "namespace": "suppliersApi",
+          "endpoint": "/suppliers"
+        },
+        {
+          "namespace": "staffApi",
+          "endpoint": "/staff"
+        },
+        {
+          "namespace": "dealersApi",
+          "endpoint": "/dealers"
+        },
+        {
+          "namespace": "gradesApi",
+          "endpoint": "/grades"
+        },
+        {
+          "namespace": "designsApi",
+          "endpoint": "/designs"
+        },
+        {
+          "namespace": "designGradeMapApi",
+          "endpoint": "/design-grade-map"
+        }
+      ]
+    },
+    "query_provider": {
+      "task_ref": "T-029",
+      "file": "frontend/src/lib/query/provider.tsx",
+      "config": {
+        "staleTime": 30000,
+        "refetchOnWindowFocus": false,
+        "retry": 1
+      }
+    },
+    "zod_schemas": {
+      "task_ref": "T-030",
+      "file": "frontend/src/lib/validation/master-schemas.ts",
+      "schemas": [
+        {
+          "name": "supplierSchema",
+          "shape": "{ supplier_name: z.string().min(1, 'Supplier name is required'), place: z.string().min(1, 'Place is required') }"
+        },
+        {
+          "name": "staffSchema",
+          "shape": "{ staff_name: z.string().min(1, 'Staff name is required') }"
+        },
+        {
+          "name": "dealerSchema",
+          "shape": "{ dealer_name: z.string().min(1, 'Dealer name is required'), place: z.string().min(1, 'Place is required') }"
+        },
+        {
+          "name": "gradeSchema",
+          "shape": "{ grade_code: z.string().min(1, 'Grade code is required') }"
+        },
+        {
+          "name": "designSchema",
+          "shape": "{ size: z.string().min(1, 'Size is required'), design_name: z.string().min(1, 'Design name is required') }"
+        },
+        {
+          "name": "designGradeMapSchema",
+          "shape": "{ design_id: z.number({ required_error: 'Please select a design' }).int().positive(), grade_id: z.number({ required_error: 'Please select a grade' }).int().positive() }"
+        }
+      ]
+    }
+  },
+  "interaction_patterns": {
+    "create_flow": [
+      "1. User clicks 'Add {Entity}' button on page header",
+      "2. Dialog opens with title 'Add {Entity}' and empty form",
+      "3. User fills fields → Zod validates on submit",
+      "4. On validation fail: inline errors appear below fields, dialog stays open",
+      "5. On validation pass: Save button shows Loader2 spinner, form disabled",
+      "6. On API success: dialog closes, query invalidated, success toast",
+      "7. On API 409: dialog stays open, error toast with server message",
+      "8. On generic error: dialog stays open, generic error toast"
+    ],
+    "edit_flow": [
+      "1. User clicks Edit (Pencil) button on a table row",
+      "2. Dialog opens with title 'Edit {Entity}' and pre-populated form",
+      "3. Same submit/validation flow as create",
+      "4. API call uses PATCH with only changed fields"
+    ],
+    "deactivate_flow": [
+      "1. User clicks Deactivate (EyeOff) on an active row",
+      "2. Mutation sends DELETE /{entity}/{id} (backend soft-deletes)",
+      "3. On success: row becomes muted in table, success toast",
+      "4. Reactivate flow: user clicks Reactivate (Eye) on an inactive row → PATCH /{entity}/{id} with { is_active: true }"
+    ],
+    "keyboard_accessibility": {
+      "tab_navigation": "All interactive elements focusable via Tab",
+      "dialog_trap": "Focus trapped in dialog when open (shadcn default)",
+      "form_submit": "Enter key submits form when Save button focused or input focused",
+      "escape_close": "Esc key closes dialog (shadcn default)"
+    }
+  },
+  "status_rendering": {
+    "active_badge": "Badge variant='default' with green-tinted background (bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400) — 'Active'",
+    "inactive_badge": "Badge variant='secondary' with muted styling — 'Inactive'"
+  },
+  "responsive_behavior": {
+    "breakpoints": {
+      "sidebar": "Hidden below md breakpoint; hamburger menu toggle",
+      "table": "Horizontal scroll on mobile (overflow-x-auto)",
+      "dialog": "Full-width on mobile (sm:max-w-[480px])",
+      "page_padding": "p-4 on mobile, p-6 lg:p-8 on desktop"
+    },
+    "mobile_sidebar": {
+      "trigger": "Menu icon button top-left",
+      "behavior": "Sheet (slide-in overlay) containing same nav items",
+      "close": "Click outside, X button, or nav item click"
+    }
+  },
+  "error_handling_ui": {
+    "query_error": "Red alert box with RefreshCw icon and 'Retry' button when useQuery fails",
+    "empty_state": "Centered illustration-less text block with muted styling",
+    "form_validation_errors": "Inline <p> below each invalid field in text-destructive text-sm mt-1",
+    "api_error_toasts": {
+      "409_conflict": "toast.error with server-provided message",
+      "404_not_found": "toast.error('Record not found. It may have been deleted.')",
+      "422_validation": "toast.error with server-provided validation details",
+      "500_generic": "toast.error('An unexpected error occurred. Please try again.')"
+    }
+  },
+  "integration_points": {
+    "design_grade_map_form_uses_designs_and_grades_apis": true,
+    "all_forms_use_react_hook_form_zod": true,
+    "all_pages_use_tanstack_query": true,
+    "all_mutations_invalidate_related_query_key": true,
+    "s2_contract_delivered": "designsApi.getGrades(designId) wired to GET /designs/{id}/grades"
+  },
+  "mock_strategy": {
+    "integration_boundary": "frontend/src/lib/api/masters.ts",
+    "mock_data_ref": "frontend/src/lib/mocks.ts",
+    "rule": "ALL components, hooks, and pages import only from the integration boundary (suppliersApi, staffApi, dealersApi, gradesApi, designsApi, designGradeMapApi). They MUST NOT import from mocks.ts directly. The integration boundary is the ONLY file Sonnet may rewrite during the backend-integration pass; every other frontend file is locked by /ases-ui-scaffold.",
+    "scaffold_phase": {
+      "purpose": "Allow the UI to render against deterministic in-memory data so /ases-ui-scaffold can produce a runnable Next.js app before the backend is ready.",
+      "mocks_ts_contents": [
+        "MOCK_SUPPLIERS: Supplier[] — 3 rows matching PRD AC-003 seed",
+        "MOCK_STAFF: Staff[] — 9 rows matching AC-006 seed",
+        "MOCK_DEALERS: Dealer[] — 3 rows matching AC-009 seed",
+        "MOCK_GRADES: Grade[] — 9 rows matching AC-010 seed",
+        "MOCK_DESIGNS: Design[] — 3 rows matching AC-014 seed",
+        "MOCK_DESIGN_GRADE_MAP: DesignGradeMap[] — 6 rows matching AC-018 seed",
+        "next_id_for(entity) helper — returns max(id)+1 to simulate BIGSERIAL on create",
+        "delay(ms) helper — small artificial latency so loading states are observable"
+      ],
+      "boundary_during_scaffold": "suppliersApi.list/create/update/remove operate on the in-memory MOCK_* arrays inside masters.ts; designsApi.getGrades reads the joined MOCK_DESIGN_GRADE_MAP. Throws a synthetic { status: 409, message: '(design_id, grade_id) already exists' } for duplicate creates so the toast flow (TC-043/TC-045) is testable end-to-end without a backend."
+    },
+    "integration_phase": {
+      "trigger": "Backend track reaches /ases-validate T-027 (or equivalent)",
+      "action": "Sonnet rewrites frontend/src/lib/api/masters.ts ONLY — replacing in-memory MOCK_* calls with axios calls through apiClient. mocks.ts is then deleted. types/masters.ts, components/**, app/admin/**, lib/validation/**, lib/query/** remain byte-identical from the scaffold output.",
+      "verification": "After rewrite: grep -r 'from .*mocks' frontend/src returns empty; npm run typecheck passes; jest TC-039..TC-046 still pass."
+    },
+    "tests_alignment": "Component-level tests (TC-039/041/042/044/046) exercise forms directly without importing the api boundary. Page-level tests (TC-040/043/045) mock the suppliersApi/gradesApi/designGradeMapApi module via jest.mock so the mocks.ts vs real-backend split is invisible to test code."
+  },
+  "next": "/ases-ui-review S1",
+  "produced_at": "2026-06-16T07:40:00+05:30"
+}

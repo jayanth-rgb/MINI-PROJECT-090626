@@ -1,0 +1,7 @@
+{
+  "task_id": "T-014",
+  "test_case_refs": ["TC-020", "TC-023"],
+  "test_files_to_create": ["backend/tests/unit/application/services/test_design_service.py"],
+  "framework": "pytest",
+  "covers_acs": ["AC-013", "AC-015"]
+}

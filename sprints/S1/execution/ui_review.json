@@ -1,0 +1,179 @@
+{
+  "$schema": "ases/v3.0/ui_review",
+  "document": "ui_review",
+  "produced_by": "/ases-ui-review",
+  "consumed_by": ["/ases-ui-scaffold", "/ases-dev"],
+  "sprint_id": "S1",
+  "reviewed_inputs": [
+    "sprints/S1/execution/ui_spec.json",
+    "sprints/S1/execution/ui_spec.md",
+    "contracts/prd.json",
+    "contracts/hld.json",
+    "sprints/S1/design/lld.json",
+    "sprints/S1/execution/tasks.json"
+  ],
+  "verdict": "APPROVED",
+  "scope_tasks_reviewed": [
+    "T-026", "T-027", "T-028", "T-029", "T-030", "T-031", "T-032", "T-033", "T-034",
+    "T-035", "T-036", "T-037", "T-038", "T-039", "T-040"
+  ],
+  "checks": {
+    "ac_coverage": {
+      "status": "PASS",
+      "ui_relevant_acs_in_scope": [
+        "AC-001", "AC-002", "AC-004", "AC-005", "AC-007", "AC-008",
+        "AC-011", "AC-012", "AC-013", "AC-015", "AC-016", "AC-017", "AC-019"
+      ],
+      "backend_only_acs_in_scope": ["AC-003", "AC-006", "AC-009", "AC-010", "AC-014", "AC-018"],
+      "ac_to_component": {
+        "AC-001": "per_entity_pages.suppliers (T-035) — supplier_name + place required, zodResolver(supplierSchema), inline errors",
+        "AC-002": "per_entity_pages.suppliers (T-035) — Deactivate action via remove_mutation; muted row rendering in MasterDataTable; reactivate via PATCH is_active=true",
+        "AC-004": "per_entity_pages.staff (T-036) — staff_name required, zodResolver(staffSchema)",
+        "AC-005": "per_entity_pages.staff (T-036) — Deactivate action; soft-delete via DELETE endpoint",
+        "AC-007": "per_entity_pages.dealers (T-037) — dealer_name + place required, zodResolver(dealerSchema)",
+        "AC-008": "per_entity_pages.dealers (T-037) — Deactivate action",
+        "AC-011": "per_entity_pages.grades (T-038) — special_behavior.duplicate_handling toast on 409; backend enforces UNIQUE",
+        "AC-012": "per_entity_pages.grades (T-038) — Deactivate action; downstream filter on active-only dropdowns enforced in DesignGradeMapForm",
+        "AC-013": "per_entity_pages.designs (T-039) — size + design_name required, zodResolver(designSchema)",
+        "AC-015": "per_entity_pages.designs (T-039) — Deactivate action; downstream filter active-only enforced in DesignGradeMapForm",
+        "AC-016": "per_entity_pages.design_grade_map (T-040) — special_behavior.duplicate_handling toast on 409; backend UNIQUE(design_id, grade_id)",
+        "AC-017": "per_entity_pages.design_grade_map (T-040) — Deactivate action; transactions unaffected (S2 concern)",
+        "AC-019": "plumbing_components.api_masters.extra.designsApi.getGrades — DF-006 contract wired even though no S1 UI calls it; satisfies S2 hand-off"
+      },
+      "notes": [
+        "Seed-only ACs (AC-003/006/009/010/014/018) correctly excluded from UI spec — verified by backend seed task T-025.",
+        "AC-005/008/012/015/017 mention behaviour in S2 transaction forms (dropdowns). For S1, the spec correctly limits UI scope to admin pages; backend services already filter active-only by default."
+      ]
+    },
+    "module_boundary": {
+      "status": "PASS",
+      "ui_module": "M-006 (Frontend Application)",
+      "in_scope_dependencies": ["M-001 (Master Data Management)"],
+      "violations": [],
+      "notes": [
+        "All endpoints called by S1 UI (/suppliers, /staff, /dealers, /grades, /designs, /design-grade-map, /designs/{id}/grades) belong to M-001's HLD interface set.",
+        "No M-002 (Transaction Forms), M-003 (Stock Ledger), M-004 (Stock Dashboard), or M-005 (Sales Reporting) endpoints are referenced — correctly out of S1 scope.",
+        "Frontend never reaches into the DB; all data flows through the typed API boundary (lib/api/masters.ts).",
+        "Admin shell (T-032) reserves no routes for S2/S3 (transactions, dashboard, reports) — clean module separation."
+      ]
+    },
+    "api_contract": {
+      "status": "PASS",
+      "endpoint_alignment": [
+        {
+          "ui_spec_namespace": "suppliersApi",
+          "ui_spec_endpoint": "/suppliers",
+          "lld_router": "T-017 routers/suppliers.py (prefix='/suppliers')",
+          "match": true
+        },
+        {
+          "ui_spec_namespace": "staffApi",
+          "ui_spec_endpoint": "/staff",
+          "lld_router": "T-018 routers/staff.py (prefix='/staff')",
+          "match": true
+        },
+        {
+          "ui_spec_namespace": "dealersApi",
+          "ui_spec_endpoint": "/dealers",
+          "lld_router": "T-019 routers/dealers.py (prefix='/dealers')",
+          "match": true
+        },
+        {
+          "ui_spec_namespace": "gradesApi",
+          "ui_spec_endpoint": "/grades",
+          "lld_router": "T-020 routers/grades.py (prefix='/grades')",
+          "match": true
+        },
+        {
+          "ui_spec_namespace": "designsApi",
+          "ui_spec_endpoint": "/designs",
+          "lld_router": "T-021 routers/designs.py (prefix='/designs')",
+          "match": true
+        },
+        {
+          "ui_spec_namespace": "designsApi.getGrades",
+          "ui_spec_endpoint": "/designs/{designId}/grades",
+          "lld_router": "T-021 routers/designs.py — list_grades_for_design endpoint",
+          "match": true
+        },
+        {
+          "ui_spec_namespace": "designGradeMapApi",
+          "ui_spec_endpoint": "/design-grade-map",
+          "lld_router": "T-022 routers/design_grade_map.py (prefix='/design-grade-map')",
+          "match": true
+        }
+      ],
+      "dto_field_alignment": [
+        { "ui_type": "Supplier", "lld_schema": "SupplierRead", "match": "supplier_id, supplier_name, place, is_active, created_at" },
+        { "ui_type": "Staff", "lld_schema": "StaffRead", "match": "staff_id, staff_name, is_active, created_at" },
+        { "ui_type": "Dealer", "lld_schema": "DealerRead", "match": "dealer_id, dealer_name, place, is_active, created_at" },
+        { "ui_type": "Grade", "lld_schema": "GradeRead", "match": "grade_id, grade_code, is_active (no created_at — correct per LLD models[GradeModel])" },
+        { "ui_type": "Design", "lld_schema": "DesignRead", "match": "design_id, size, design_name, is_active, created_at" },
+        { "ui_type": "DesignGradeMap", "lld_schema": "DesignGradeMapRead", "match": "map_id, design_id, grade_id, is_active, design_name (joined), grade_code (joined)" },
+        { "ui_type": "DesignGradeMin", "lld_schema": "DesignGradeReadMin", "match": "grade_id, grade_code (minimal projection for DF-006)" }
+      ],
+      "versioning": "ui_spec relies on NEXT_PUBLIC_API_URL to encode /api/v1 prefix per DS-010; backend mounts routers under /api/v1 in T-023. Consistent.",
+      "notes": [
+        "All 6 entity routers + the nested /designs/{id}/grades endpoint align byte-for-byte with LLD interface declarations.",
+        "DesignGradeMap Read body contains joined design_name + grade_code — UI table columns rely on these fields; matches T-015 list_mappings behaviour."
+      ]
+    }
+  },
+  "warnings": [
+    {
+      "id": "W-001",
+      "severity": "low",
+      "topic": "Error interceptor key precedence",
+      "where": "ui_spec.plumbing_components.api_client.behavior.error_interceptor",
+      "issue": "ui_spec prioritises `response.data.message` over `response.data.detail`. FastAPI HTTPException default response shape is `{detail: '...'}` (no `message`). Backend T-008 register_error_handlers maps DomainError to FastAPI HTTPException, so the live wire shape is `{detail}`.",
+      "impact": "Functionally OK — interceptor falls through to `detail` as second candidate. TC-043/TC-045 will still see toast text containing 'grade_code' / '(design_id, grade_id)'. But the priority order disagrees with LLD T-027 plan which puts `detail` first.",
+      "recommendation": "During /ases-ui-scaffold, implement the interceptor as: `detail ?? message ?? error.message ?? 'Request failed'`. Align with LLD T-027 plan.md."
+    },
+    {
+      "id": "W-002",
+      "severity": "low",
+      "topic": "Reactivate flow uses PATCH is_active=true",
+      "where": "ui_spec.interaction_patterns.deactivate_flow",
+      "issue": "Reactivate is documented as PATCH /{entity}/{id} { is_active: true }. LLD SupplierUpdate (et al.) schema description says 'All fields Optional; partial update' — does not explicitly list is_active in the Pydantic schema. Backend should accept it since service.update is a generic dict-patch via repo.update.",
+      "impact": "Works in practice (T-007 schemas + T-010 service propagate the dict). Strictly speaking, the LLD Pydantic Update schema should declare is_active: Optional[bool].",
+      "recommendation": "Make sure /ases-dev T-007 explicitly includes `is_active: bool | None` in each SupplierUpdate/StaffUpdate/etc. schema. The ui_spec.plumbing_components.types_masters already lists is_active? in TS Update DTOs — backend should mirror."
+    },
+    {
+      "id": "W-003",
+      "severity": "info",
+      "topic": "AC-019 contract surface unused by S1 admin UI",
+      "where": "ui_spec.integration_points.s2_contract_delivered",
+      "issue": "designsApi.getGrades is exposed but no S1 page calls it. AC-019 is covered at API + service test level only.",
+      "impact": "Acceptable — DF-006 contract is delivered for S2 (transaction forms) per LLD and tasks.json. No UI gap.",
+      "recommendation": "No action. /ases-ui-scaffold MUST still emit designsApi.getGrades so S2 can import it without rewriting masters.ts."
+    },
+    {
+      "id": "W-004",
+      "severity": "info",
+      "topic": "Mock 409 simulation in scaffold phase",
+      "where": "ui_spec.mock_strategy.scaffold_phase.boundary_during_scaffold",
+      "issue": "Scaffold-phase mocks throw synthetic 409 for duplicate grade_code (TC-043) and duplicate (design_id, grade_id) (TC-045). The thrown shape MUST match the live backend shape (`{detail: '...'}`) so the same toast handler works under both modes.",
+      "impact": "If mocks throw `{message: '...'}` the toast string will work but TC-043/045 assertions on the resolved error key may diverge between scaffold and integration phase.",
+      "recommendation": "In /ases-ui-scaffold, the mock-throwing code MUST emit the same `{ status, detail }` shape returned by apiClient's interceptor (which itself reads detail per W-001 recommendation). Document this in mocks.ts as a one-line comment."
+    },
+    {
+      "id": "W-005",
+      "severity": "info",
+      "topic": "Status badge cell rendering not specified for is_active column",
+      "where": "ui_spec.per_entity_pages.suppliers.table_columns (and staff, dealers, grades, designs, design_grade_map)",
+      "issue": "Every entity table_columns lists an `is_active` column with label 'Status', but MasterDataTable rendering logic in shared_components defaults to `String(row[key] ?? '')` for cell content. ui_spec.status_rendering describes Active/Inactive Badge styles but does not specify how MasterDataTable maps a boolean column key to those badges.",
+      "impact": "Without a per-column renderer override, the table will display literal 'true'/'false' text instead of the Active/Inactive Badge. Cosmetic — does not break ACs.",
+      "recommendation": "Either (a) extend MasterDataTable column definition with an optional `render?: (row: T) => ReactNode` per column, OR (b) special-case the `is_active` key inside MasterDataTable to render the Badge. /ases-ui-scaffold should pick one approach and apply uniformly across all 6 pages."
+    }
+  ],
+  "summary": {
+    "ac_coverage_pct": 100,
+    "module_violations": 0,
+    "api_contract_mismatches": 0,
+    "warnings_total": 5,
+    "warnings_blocking": 0,
+    "rationale": "All 13 UI-relevant ACs in S1 scope (AC-001/002/004/005/007/008/011/012/013/015/016/017/019) have at least one component implementing them. M-006 boundary is clean — only M-001 endpoints are consumed. All 7 endpoint namespaces and all 7 DTO type signatures match the LLD definitions byte-for-byte. Five non-blocking warnings flagged for /ases-ui-scaffold attention (error-key precedence, is_active Update schema field, AC-019 latent contract, mock 409 shape, is_active column renderer). None of these block scaffold execution."
+  },
+  "next": "/ases-ui-scaffold S1",
+  "produced_at": "2026-06-16"
+}

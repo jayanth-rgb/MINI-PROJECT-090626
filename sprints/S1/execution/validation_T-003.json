@@ -1,0 +1,68 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate",
+  "consumed_by": ["/ases-dev"],
+  "task_id": "T-003",
+  "sprint_id": "S1",
+  "verdict": "PROCEED",
+  "performed_at": "2026-06-16",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "reads_from_declared": [],
+      "evidence": "Task plan declares no input files (zero-dep create task). backend/src/domain/__init__.py already present from sprint-scaffold — target directory ready.",
+      "env_vars_declared": []
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[6] — backend/src/domain/exceptions.py",
+      "expected_exports": ["DomainError", "NotFoundError", "ConflictError", "ValidationError"],
+      "expected_signatures": [
+        { "name": "DomainError", "ctor": "(message: str)", "maps_to_http": 500 },
+        { "name": "NotFoundError", "ctor": "(entity: str, id_: int)", "maps_to_http": 404 },
+        { "name": "ConflictError", "ctor": "(message: str)", "maps_to_http": 409 },
+        { "name": "ValidationError", "ctor": "(message: str)", "maps_to_http": 422 }
+      ],
+      "drift_detected": false,
+      "notes": [
+        "Create task — no existing implementation to drift from.",
+        "Plan signatures match LLD files[6] verbatim.",
+        "Note: plan implements ConflictError + ValidationError as `pass`-only subclasses inheriting DomainError(message: str) constructor. NotFoundError overrides __init__ with (entity, id_) signature, formatting an internal message. This matches LLD description."
+      ]
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_files": ["backend/src/domain/exceptions.py"],
+      "do_not_touch_declared": ["any other file"],
+      "in_progress_task_overlap": [],
+      "evidence": "No other task lists backend/src/domain/exceptions.py in its output_files[]. T-005 (BaseRepository), T-008 (errors.py), T-010..T-015 (services) all reads_from this file but do not write to it."
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on_declared": [],
+      "evidence": "T-003 has zero dependencies — parallel-group 1 task per tasks.json (alongside T-001, T-007, T-026, T-029, T-030, T-032, T-033, T-034). Trivially satisfies the acyclic-DAG invariant."
+    }
+  },
+  "environment_check": {
+    "python_venv": "backend/.venv/Scripts/python.exe — PRESENT",
+    "dependencies_required": "stdlib only — no external packages needed for this task"
+  },
+  "instruction_packet_for_dev": {
+    "task_plan": "sprints/S1/execution/tasks/T-003-plan.md",
+    "task_plan_json": "sprints/S1/execution/tasks/T-003-plan.json",
+    "tests_spec": "sprints/S1/execution/tasks/T-003-tests.md (no direct test cases)",
+    "lld_slice": "lld.json files[6] (backend/src/domain/exceptions.py)",
+    "decisions": ["DS-007 (layering — domain layer is the inner-most, no dependencies on other project modules)"],
+    "schema_slice": "n/a — no DB tables touched",
+    "write_scope": ["backend/src/domain/exceptions.py"],
+    "success_check_command": "backend/.venv/Scripts/python.exe -c \"from src.domain.exceptions import DomainError, NotFoundError, ConflictError, ValidationError; raise NotFoundError('Foo', 1)\""
+  },
+  "summary": {
+    "verdict": "PROCEED",
+    "blocking_holds": 0,
+    "soft_notes": 0,
+    "rationale": "All four pre-flight checks pass. T-003 is a zero-dependency, stdlib-only create task. Target directory exists from sprint-scaffold. No other task writes to this file. Ready for immediate /ases-dev."
+  },
+  "next": "/ases-dev T-003 S1"
+}

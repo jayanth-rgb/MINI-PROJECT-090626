@@ -1,0 +1,17 @@
+{
+  "task_id": "T-033",
+  "title": "MasterDataTable (generic table)",
+  "module_ref": "M-006",
+  "output_files": ["frontend/src/components/admin/MasterDataTable.tsx"],
+  "scope": "Generic table component over row type T. Props: rows, columns ({key,label}[]), rowKey, isActive, onEdit, onToggleActive. Renders shadcn Table with header from columns, body rows, and an Actions column (Edit + Activate/Deactivate). Inactive rows render with muted style.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": [],
+  "success_criteria": {
+    "manual": "Render with seed rows; click Edit -> calls onEdit(row); click Deactivate -> calls onToggleActive(row).",
+    "automated": "TC-040 verifies muted-row rendering and api call on Deactivate.",
+    "definition_of_done": "Generic over T; inactive rows visually muted; Actions column always last."
+  },
+  "checkout_prompt": "'MasterDataTable — generic table with Edit + Activate/Deactivate actions.'"
+}

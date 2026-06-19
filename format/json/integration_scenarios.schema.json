@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "ases/v3.0/integration_scenarios",
+  "title": "ASES Integration Test Scenarios",
+  "description": "Produced by /ases-integration-test. Consumed by /ases-final-audit.",
+  "type": "object",
+  "required": ["sprint_id", "scenarios"],
+  "properties": {
+    "sprint_id": { "type": "string", "pattern": "^S\\d+$" },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "modules_involved", "entry_point", "exit_assertion", "priority"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^IS-\\d{3}$" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "modules_involved": { "type": "array", "items": { "type": "string" } },
+          "data_flow_ref": { "type": "string" },
+          "flow": { "type": "array", "items": { "type": "string" } },
+          "entry_point": { "type": "string" },
+          "exit_assertion": { "type": "string" },
+          "test_data": { "type": "object" },
+          "test_file": { "type": "string" },
+          "priority": { "type": "string", "enum": ["critical", "high", "low"] },
+          "result": { "type": "string", "enum": ["pass", "fail", "skip", "pending"] }
+        }
+      }
+    }
+  }
+}

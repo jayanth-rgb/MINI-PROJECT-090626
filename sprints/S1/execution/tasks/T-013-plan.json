@@ -1,0 +1,17 @@
+{
+  "task_id": "T-013",
+  "title": "GradeService (F-004)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/application/services/grade_service.py"],
+  "scope": "GradeService — list_grades / create_grade / update_grade / deactivate_grade. SPECIAL: create_grade pre-checks repo.get_by_code → raises ConflictError on duplicate. update_grade re-checks uniqueness if grade_code in patch.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-006", "T-007", "T-003"],
+  "test_case_refs": ["TC-017", "TC-019"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-012"],
+  "success_criteria": {
+    "manual": "4 methods + create raises ConflictError when grade_code already exists.",
+    "automated": "TC-017 (ConflictError on duplicate), TC-019 (deactivate hides via JOIN filter).",
+    "definition_of_done": "Pre-check via repo.get_by_code; ConflictError msg includes 'grade_code'."
+  },
+  "checkout_prompt": "'GradeService created with uniqueness pre-check. AC-011 + AC-012 covered.'"
+}

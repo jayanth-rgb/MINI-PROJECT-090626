@@ -1,0 +1,211 @@
+{
+  "document": "analysis",
+  "produced_by": "/ases-analyze",
+  "consumed_by": [
+    "/ases-sprint-scaffold",
+    "/ases-tasks"
+  ],
+  "sprint_id": "S1",
+  "timestamp": "2026-06-12T00:00:00Z",
+  "verdict": "READY",
+  "graph_assisted": true,
+  "graph_report_ref": "graphify-out/GRAPH_REPORT.md",
+  "graph_stats": {
+    "nodes": 3220,
+    "edges": 3253,
+    "communities": 336,
+    "extraction": "100% EXTRACTED"
+  },
+  "inputs_inspected": [
+    "sprints/S1/design/deps_manifest.json",
+    "sprints/S1/design/lld.json",
+    "sprints/S1/design/schema.json",
+    "contracts/scaffold.json",
+    ".env.example",
+    "backend/.env.example",
+    "frontend/.env.example",
+    "backend/ (recursive scan)",
+    "frontend/ (recursive scan)",
+    "graphify-out/GRAPH_REPORT.md"
+  ],
+  "blocking_gaps": [],
+  "non_blocking_gaps": [
+    {
+      "id": "ENV-001",
+      "description": "Env-var naming drift between scaffold-generated .env.example files and the LLD config.py field expectations. LLD declares pydantic Settings reads `api_cors_origins` and `api_env`; backend/.env.example exposes them as `APP_CORS_ORIGINS` and `APP_ENV`. LLD also expects `NEXT_PUBLIC_API_URL` for the frontend client (per LLD file `frontend/src/lib/api/client.ts` line 'baseURL: process.env.NEXT_PUBLIC_API_URL'); frontend/.env.example exposes `NEXT_PUBLIC_API_BASE_URL`. Pydantic-settings will silently fall back to defaults — code can be written but runtime cors/url config will be wrong unless aligned.",
+      "impact": "low",
+      "resolution": "During /ases-sprint-scaffold S1, rename .env.example variables to match LLD field names: APP_CORS_ORIGINS → API_CORS_ORIGINS, APP_ENV → API_ENV, NEXT_PUBLIC_API_BASE_URL → NEXT_PUBLIC_API_URL. Update root .env.example, backend/.env.example, and frontend/.env.example consistently. Affects 3 files; mechanical edit. Alternative: change LLD Settings field names to match scaffold convention — NOT recommended since LLD is the design source-of-truth at this stage."
+    },
+    {
+      "id": "DEP-001",
+      "description": "Frontend test framework (jest + @testing-library/react + @testing-library/jest-dom + @testing-library/user-event) is not in deps_manifest.json and not in scaffold.installed_packages_summary, yet 8 jest test cases exist in test_cases.json (TC-039 through TC-046). Tests are not runnable until installed. Note: this gap does not block /ases-dev — only blocks /ases-test-impl S1.",
+      "impact": "low",
+      "resolution": "Extend deps_manifest.json packages[] with jest@30.x + @testing-library/react@16.x + @testing-library/jest-dom@6.x + @testing-library/user-event@14.x as type='dev', required_by='frontend/src/**/__tests__/**'. Install via `npm install -D` during /ases-sprint-scaffold S1's frontend pass. Echo of sprint_gate.md W1."
+    },
+    {
+      "id": "INFRA-001",
+      "description": "Integration tests TC-018, TC-026, TC-033..TC-038 (8 cases) require a separate PostgreSQL test database. deps_manifest declares only the development DB service. testcontainers-postgres / pytest-postgresql / fresh-schema / sqlite-in-memory strategy is unsettled.",
+      "impact": "low",
+      "resolution": "Add one dedicated task in /ases-tasks S1 'Configure integration test database' that decides + implements the strategy. ASES default is testcontainers-postgres (matches HLD R-001 mitigation of using real PG semantics including SELECT FOR UPDATE for S2). If testcontainers chosen: add `testcontainers[postgres]==4.9.0` + Docker daemon dependency to deps_manifest. Echo of sprint_gate.md W2."
+    },
+    {
+      "id": "DB-001",
+      "description": "Database bootstrap is NOT YET VERIFIED per scaffold.json (`bootstrap_verified: false`). Docker not installed on host at scaffold time. bootstrap.sql is mounted to docker-init.d but has never executed against a live container.",
+      "impact": "low",
+      "resolution": "PO action — required BEFORE /ases-test-run S1 (not before /ases-dev). Steps: (1) install Docker Desktop on Windows host; (2) `docker-compose up -d db`; (3) `docker logs jayanth_db` shows `01_bootstrap.sql ... completed cleanly`; (4) verify `psql -U trading_app -d jayanth_trading -h localhost -c '\\dt'` returns empty list. Documented in scaffold.json.post_scaffold_actions_required_by_po."
+    },
+    {
+      "id": "SEC-001",
+      "description": "TD-003: Next.js 15.1.3 carries CVE-2025-66478. S1 LLD does not upgrade Next.js (acknowledged in lld.json open_items_for_sprint_gate[1]). Carries forward into S1 as open tech debt.",
+      "impact": "negligible",
+      "resolution": "Acknowledged carry-forward. Resolution path: /ases-sprint-close S1 reviews Next.js upgrade window; if upgrade is non-disruptive at that point, bump to latest 15.x patch in S2. Echo of sprint_gate.md W3."
+    },
+    {
+      "id": "MIGRATION-001",
+      "description": "`backend/db/migrations/env.py` exists in LLD files[] but does NOT exist on disk. The scaffold created `alembic.ini` and `backend/db/migrations/versions/0001_baseline.sql` (placeholder), but the alembic env wiring (sqlalchemy.url from settings, target_metadata = Base.metadata) was not generated. Required before `alembic revision --autogenerate -m 'master tables'` can run for migration 0002.",
+      "impact": "low",
+      "resolution": "/ases-sprint-scaffold S1 must run `alembic init` (or write env.py directly) and wire target_metadata + url. This is the first item /ases-sprint-scaffold S1 should produce so /ases-dev can then run `alembic revision --autogenerate -m 'master tables'` to materialise 0002_master_tables.py from the ORM (DS-009). Listed in scaffold-pending below; not a code gap (this is the expected handoff)."
+    }
+  ],
+  "codebase_drift": [
+    {
+      "lld_expects": "backend/.env.example exposes API_CORS_ORIGINS, API_ENV; frontend/.env.example exposes NEXT_PUBLIC_API_URL",
+      "actual_state": "mismatched",
+      "impact": "Pydantic Settings will fall back to defaults (empty CORS list, env='development'); Next.js axios client will see NEXT_PUBLIC_API_URL = undefined at build time → blank baseURL → requests hit relative paths.",
+      "sprint_ref": "S1",
+      "gap_ref": "ENV-001"
+    },
+    {
+      "lld_expects": "backend/db/migrations/env.py present and wired to target_metadata=Base.metadata + sqlalchemy.url from settings",
+      "actual_state": "missing",
+      "impact": "alembic autogenerate cannot run; migration 0002 cannot be produced until env.py is created.",
+      "sprint_ref": "S1",
+      "gap_ref": "MIGRATION-001"
+    }
+  ],
+  "scaffold_pending_files": {
+    "summary": "All LLD implementation files (33 backend + 23 frontend + 1 migration + 1 seed) are NOT YET ON DISK. This is the EXPECTED state at the analyze→sprint-scaffold handoff — NOT a gap. The next step (/ases-sprint-scaffold S1) creates the directory structure + __init__.py files + alembic env.py; /ases-tasks then plans per-feature implementation; /ases-dev fills in code.",
+    "count_pending": 58,
+    "backend_pending": [
+      "backend/src/config.py",
+      "backend/src/domain/__init__.py",
+      "backend/src/domain/exceptions.py",
+      "backend/src/infrastructure/__init__.py",
+      "backend/src/infrastructure/db/__init__.py",
+      "backend/src/infrastructure/db/base.py",
+      "backend/src/infrastructure/db/session.py",
+      "backend/src/infrastructure/db/models/__init__.py",
+      "backend/src/infrastructure/db/models/master.py",
+      "backend/src/infrastructure/db/repositories/__init__.py",
+      "backend/src/infrastructure/db/repositories/base.py",
+      "backend/src/infrastructure/db/repositories/master.py",
+      "backend/src/application/__init__.py",
+      "backend/src/application/services/__init__.py",
+      "backend/src/application/services/supplier_service.py",
+      "backend/src/application/services/staff_service.py",
+      "backend/src/application/services/dealer_service.py",
+      "backend/src/application/services/grade_service.py",
+      "backend/src/application/services/design_service.py",
+      "backend/src/application/services/design_grade_map_service.py",
+      "backend/src/presentation/__init__.py",
+      "backend/src/presentation/schemas/__init__.py",
+      "backend/src/presentation/schemas/master.py",
+      "backend/src/presentation/api/__init__.py",
+      "backend/src/presentation/api/dependencies.py",
+      "backend/src/presentation/api/errors.py",
+      "backend/src/presentation/api/routers/__init__.py",
+      "backend/src/presentation/api/routers/suppliers.py",
+      "backend/src/presentation/api/routers/staff.py",
+      "backend/src/presentation/api/routers/dealers.py",
+      "backend/src/presentation/api/routers/grades.py",
+      "backend/src/presentation/api/routers/designs.py",
+      "backend/src/presentation/api/routers/design_grade_map.py",
+      "backend/src/main.py",
+      "backend/db/migrations/env.py",
+      "backend/db/migrations/versions/0002_master_tables.py",
+      "backend/scripts/__init__.py",
+      "backend/scripts/seed_master_data.py"
+    ],
+    "frontend_pending": [
+      "frontend/src/lib/api/client.ts",
+      "frontend/src/lib/api/masters.ts",
+      "frontend/src/types/masters.ts",
+      "frontend/src/lib/query/provider.tsx",
+      "frontend/src/lib/validation/master-schemas.ts",
+      "frontend/src/app/layout.tsx",
+      "frontend/src/app/page.tsx",
+      "frontend/src/app/admin/layout.tsx",
+      "frontend/src/components/admin/MasterDataTable.tsx",
+      "frontend/src/components/admin/MasterFormDialog.tsx",
+      "frontend/src/app/admin/suppliers/page.tsx",
+      "frontend/src/components/admin/suppliers/SupplierForm.tsx",
+      "frontend/src/app/admin/staff/page.tsx",
+      "frontend/src/components/admin/staff/StaffForm.tsx",
+      "frontend/src/app/admin/dealers/page.tsx",
+      "frontend/src/components/admin/dealers/DealerForm.tsx",
+      "frontend/src/app/admin/grades/page.tsx",
+      "frontend/src/components/admin/grades/GradeForm.tsx",
+      "frontend/src/app/admin/designs/page.tsx",
+      "frontend/src/components/admin/designs/DesignForm.tsx",
+      "frontend/src/app/admin/design-grade-map/page.tsx",
+      "frontend/src/components/admin/design-grade-map/DesignGradeMapForm.tsx"
+    ]
+  },
+  "deps_match": {
+    "backend_runtime_match": true,
+    "backend_dev_match": true,
+    "frontend_runtime_match": true,
+    "frontend_test_framework_present": false,
+    "evidence": "scaffold.installed_packages lists exact-version match for fastapi 0.115.6, uvicorn 0.34.0, SQLAlchemy 2.0.36, psycopg 3.2.3, alembic 1.14.0, pydantic 2.10.4, pydantic-settings 2.7.0, python-dotenv 1.0.1, pytest 8.3.4, pytest-asyncio 0.25.0, httpx 0.28.1. Frontend package summary confirms next 15.1.3, react 19.0.0, @tanstack/react-query 5.62.7, axios 1.7.9, react-hook-form 7.54.2, @hookform/resolvers 3.9.1, zod 3.24.1, lucide-react 0.469.0. No jest / @testing-library entries in either inventory — gap DEP-001."
+  },
+  "env_var_check": {
+    "DATABASE_URL": {
+      "manifest_required": true,
+      "in_env_example": true,
+      "key_match": true
+    },
+    "DB_PASSWORD": {
+      "manifest_required": true,
+      "in_env_example": true,
+      "key_match": true
+    },
+    "API_CORS_ORIGINS": {
+      "manifest_required": false,
+      "in_env_example": false,
+      "key_match": false,
+      "drift": "APP_CORS_ORIGINS exposed instead — gap ENV-001"
+    },
+    "API_ENV": {
+      "manifest_required": false,
+      "in_env_example": false,
+      "key_match": false,
+      "drift": "APP_ENV exposed instead — gap ENV-001"
+    },
+    "NEXT_PUBLIC_API_URL": {
+      "manifest_required": true,
+      "in_env_example": false,
+      "key_match": false,
+      "drift": "NEXT_PUBLIC_API_BASE_URL exposed instead — gap ENV-001"
+    }
+  },
+  "previous_sprint_drift_check": {
+    "result": "n/a",
+    "note": "S1 is the first sprint per roadmap.json. No prior LLD or scaffold output to drift from."
+  },
+  "graph_findings": {
+    "note": "graphify-out/ is populated (graph.json + GRAPH_REPORT.md present). Graph was built from the current repo state which only contains scaffold output + design docs — backend src is empty so no application-code communities exist yet. Graph confirms the absence of cross-references for LLD-declared files (3220 nodes, 0 nodes under backend.src.application/infrastructure/presentation/domain). This is consistent with scaffold_pending_files[] and is NOT a drift signal.",
+    "god_nodes_relevant_to_S1": "None identified — S1 introduces new code that doesn't connect to a pre-existing community hub. Graph re-build via /ases-graphify after /ases-dev will produce the first meaningful per-feature communities.",
+    "dependency_drift_against_lld_depends_on": "Not applicable — no implementation files exist yet to compare LLD depends_on[] against."
+  },
+  "summary": {
+    "verdict": "READY",
+    "blocking_count": 0,
+    "non_blocking_count": 6,
+    "drift_entries": 2,
+    "files_pending_scaffold": 58,
+    "deps_verified_at_exact_version": 19,
+    "deps_missing_for_tests": 4,
+    "rationale": "All packages declared in deps_manifest for IMPLEMENTATION are installed at exact versions per scaffold.json. The only true drift is the env-var naming mismatch (ENV-001) and the absent alembic env.py (MIGRATION-001) — both have impact='low' and clear single-step resolutions during /ases-sprint-scaffold S1. The 58 missing implementation files are the expected handoff state, NOT a blocking gap. Sprint scaffold and dev can proceed. The 4 carry-forward warnings from sprint_gate (W1..W4) are re-echoed here as DEP-001 / INFRA-001 / SEC-001 / (TD-002 closure deferred to sprint-close)."
+  },
+  "next": "/ases-sprint-scaffold S1"
+}

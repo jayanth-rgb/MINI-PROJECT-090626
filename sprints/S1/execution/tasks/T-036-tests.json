@@ -1,0 +1,7 @@
+{
+  "task_id": "T-036",
+  "test_case_refs": ["TC-041"],
+  "test_files_to_create": ["frontend/src/components/admin/staff/__tests__/StaffForm.test.tsx"],
+  "framework": "jest",
+  "covers_acs": ["AC-004"]
+}

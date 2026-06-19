@@ -1,0 +1,25 @@
+[project]
+name = "jayanth-trading-backend"
+version = "0.1.0"
+description = "Jayanth Trading Tiles System — FastAPI backend"
+requires-python = ">=3.12"
+readme = "README.md"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+addopts = "-ra -q --strict-markers"
+markers = [
+  "unit: unit tests (no DB)",
+  "integration: integration tests (real DB)",
+  "system: end-to-end system tests",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]

@@ -1,0 +1,8 @@
+{
+  "task_id": "T-028",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "jest",
+  "covers_acs": [],
+  "note": "Wrappers exercised by page-level tests; type-checked through tsc."
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "T-029",
+  "title": "TanStack Query provider",
+  "module_ref": "M-006",
+  "output_files": ["frontend/src/lib/query/provider.tsx"],
+  "scope": "'use client' QueryProvider holding a QueryClient (staleTime 30s, refetchOnWindowFocus=false) in useState; wraps children in <QueryClientProvider>.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": [],
+  "success_criteria": {
+    "manual": "Wrapped in root layout (T-031); useQuery hooks resolve without errors.",
+    "automated": "Exercised indirectly when page tests render queries.",
+    "definition_of_done": "Single 'use client' boundary; QueryClient memoised in useState (not module-level — avoids cross-request leaks in App Router)."
+  },
+  "checkout_prompt": "'QueryProvider — useState-memoised client, staleTime 30s.'"
+}

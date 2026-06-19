@@ -1,0 +1,10 @@
+{
+  "task_id": "T-006",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "manual_verification": [
+    { "step": "Imports + finders", "command": "backend/.venv/Scripts/python.exe -c \"from src.infrastructure.db.repositories.master import SupplierRepository, StaffRepository, DealerRepository, GradeRepository, TradingDesignRepository, DesignGradeMapRepository; print(hasattr(GradeRepository, 'get_by_code'), hasattr(DesignGradeMapRepository, 'list_active_by_design'))\"", "expected": "True True" }
+  ],
+  "framework": "pytest",
+  "covered_indirectly_by": "TC-017 (get_by_code), TC-019 + TC-031 + TC-032 (list_active_by_design), TC-024 + TC-025 (get_by_pair)"
+}

@@ -1,0 +1,8 @@
+{
+  "task_id": "T-019",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "pytest",
+  "covers_acs": ["AC-007", "AC-008"],
+  "note": "No dedicated router-level tests; TC-012/TC-014 service tests cover the behaviour."
+}

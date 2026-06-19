@@ -1,0 +1,17 @@
+{
+  "task_id": "T-026",
+  "title": "TypeScript types for masters (frontend)",
+  "module_ref": "M-006",
+  "output_files": ["frontend/src/types/masters.ts"],
+  "scope": "Shared TS types mirroring backend Read/Create/Update DTOs for Supplier, Staff, Dealer, Grade, Design, DesignGradeMap, plus DesignGradeMin minimal projection.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": [],
+  "success_criteria": {
+    "manual": "tsc -p frontend passes; all type names importable.",
+    "automated": "Compile-checked only.",
+    "definition_of_done": "All Read/Create/Update types + DesignGradeMin exported; field names + types match backend Pydantic Read schemas exactly."
+  },
+  "checkout_prompt": "'TS types for 6 entities + DesignGradeMin — mirrors backend.'"
+}

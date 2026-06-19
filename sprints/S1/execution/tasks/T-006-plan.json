@@ -1,0 +1,17 @@
+{
+  "task_id": "T-006",
+  "title": "Per-entity Repositories (master.py)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/infrastructure/db/repositories/master.py"],
+  "scope": "Six entity-specific repositories. Five are thin BaseRepository[TModel] subclasses. GradeRepository + DesignGradeMapRepository add finders: GradeRepository.get_by_code(code) → GradeModel | None; DesignGradeMapRepository.get_by_pair(design_id, grade_id) → DesignGradeMapModel | None; DesignGradeMapRepository.list_active_by_design(design_id) → list[DesignGradeMapModel] (joined-loaded grade for AC-019).",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-004", "T-005"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-012"],
+  "success_criteria": {
+    "manual": "All 6 repos importable + GradeRepository.get_by_code + DesignGradeMapRepository.get_by_pair + DesignGradeMapRepository.list_active_by_design all defined.",
+    "automated": "Covered via service tests (TC-017 uses get_by_code, TC-024 + TC-025 use get_by_pair, TC-019 + TC-031 use list_active_by_design).",
+    "definition_of_done": "6 subclasses; 3 extra finders; no raw SQLAlchemy outside this file."
+  },
+  "checkout_prompt": "'6 master repositories created. GradeRepository.get_by_code + DesignGradeMapRepository.get_by_pair + list_active_by_design added.'"
+}

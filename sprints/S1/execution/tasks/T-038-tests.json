@@ -1,0 +1,7 @@
+{
+  "task_id": "T-038",
+  "test_case_refs": ["TC-043"],
+  "test_files_to_create": ["frontend/src/app/admin/grades/__tests__/page.test.tsx"],
+  "framework": "jest",
+  "covers_acs": ["AC-011"]
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "T-032",
+  "title": "Admin shell layout (left nav)",
+  "module_ref": "M-006",
+  "output_files": ["frontend/src/app/admin/layout.tsx"],
+  "scope": "Flex layout with fixed sidebar containing 6 next/link items (Suppliers, Staff, Dealers, Grades, Designs, Design-Grade Map) and main content rendering children. usePathname highlights the active link.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": [],
+  "success_criteria": {
+    "manual": "Nav between admin pages updates active highlight.",
+    "automated": "Manual smoke only.",
+    "definition_of_done": "Layout exports default AdminLayout; active link styled via usePathname."
+  },
+  "checkout_prompt": "'Admin shell — sidebar with 6 nav items, active highlight via usePathname.'"
+}

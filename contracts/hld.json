@@ -1,0 +1,190 @@
+{
+  "$schema": "ases/v3.0/hld",
+  "document": "hld",
+  "produced_by": "/ases-hld",
+  "consumed_by": ["/ases-lld", "/ases-schema", "/ases-roadmap", "/ases-analyze", "/ases-integration-test"],
+  "system_overview": "Three-tier monolith: Next.js 14 App Router frontend → FastAPI REST backend → PostgreSQL 16. Backend is layered as presentation (routers) / application (services) / domain (pure functions: stock calculations, carry-forward) / infrastructure (SQLAlchemy repositories + Alembic migrations). All transactional writes (Inward, Sales, Adjustment) and their resulting stock ledger updates run in a single SQLAlchemy database transaction with SELECT FOR UPDATE locks on the affected ledger rows. The Sales Report and Stock Dashboard read from a materialised stock_ledger table that stores the running balance per (design, grade, txn_date); month-end carry-forward is implemented as a deterministic lookup of the previous month's last-day closing balance rather than a scheduled job. No authentication in V1 — all endpoints are open; deployment is via Docker images intended for a trusted internal network.",
+  "modules": [
+    {
+      "id": "M-001",
+      "name": "Master Data Management",
+      "responsibility": "CRUD admin operations for all 6 master tables (Supplier, Staff, Dealer, Grade, Trading Size-Design, Design-Grade combinations) with soft-delete via is_active. Serves active-only dropdown feeds to all transaction forms and reports.",
+      "interfaces": [
+        "GET/POST/PATCH /suppliers",
+        "GET/POST/PATCH /staff",
+        "GET/POST/PATCH /dealers",
+        "GET/POST/PATCH /grades",
+        "GET/POST/PATCH /designs",
+        "GET/POST/PATCH /design-grade-map",
+        "GET /designs/{id}/grades — returns active mappings for a design"
+      ],
+      "dependencies": [],
+      "layer": "application"
+    },
+    {
+      "id": "M-002",
+      "name": "Transaction Forms",
+      "responsibility": "Persistence of Inward, Sales, and Adjustment forms — header + lines in a single DB transaction. Validates date bounds (today and 7 days prior), enforces RULE-005 / RULE-006 / RULE-017 row skipping, and dispatches stock ledger updates as part of the same transaction.",
+      "interfaces": [
+        "POST /inward — saveInward(header, lines[])",
+        "POST /sales  — saveSales(header, lines[])",
+        "POST /adjustments — saveAdjustment(header, lines[])",
+        "GET /designs/{id}/grades-with-cb?stock_date=YYYY-MM-DD — for Adjustment form"
+      ],
+      "dependencies": ["M-001", "M-003"],
+      "layer": "application"
+    },
+    {
+      "id": "M-003",
+      "name": "Stock Ledger",
+      "responsibility": "Maintains the canonical stock_ledger materialised table per (design_id, grade_id, txn_date) and exposes the running closing balance as of any date. Implements monthly carry-forward via FORMULA-002 (no scheduled job — lookup of last day of previous month). All ledger writes use SELECT FOR UPDATE on (design_id, grade_id) to serialize concurrent writes.",
+      "interfaces": [
+        "domain.stock.apply_inward(design_id, grade_id, date, nos)",
+        "domain.stock.apply_sale(design_id, grade_id, date, nos)",
+        "domain.stock.apply_adjustment(design_id, grade_id, date, difference)",
+        "domain.stock.closing_balance(design_id, grade_id, as_of_date) → int",
+        "domain.stock.opening_balance(design_id, grade_id, month_first_day) → int"
+      ],
+      "dependencies": ["M-001"],
+      "layer": "domain"
+    },
+    {
+      "id": "M-004",
+      "name": "Stock Dashboard",
+      "responsibility": "Read-only aggregation of Opening / Inward / Outward / Adjust / Closing per (active design, active grade) as of a selected date. Pure read path against tbl_inward_lines, tbl_sales_lines, tbl_adjustment_lines, and the stock_ledger.",
+      "interfaces": [
+        "GET /dashboard?as_of_date=YYYY-MM-DD — returns dashboard rows"
+      ],
+      "dependencies": ["M-003", "M-001"],
+      "layer": "application"
+    },
+    {
+      "id": "M-005",
+      "name": "Sales Reporting",
+      "responsibility": "Computes Consolidation (GROUP BY design_id, grade_id) and Transaction (per-line) views from sales tables with multi-select optional filters: date range, dealer, place, design. Returns both sections in a single response payload for simultaneous render.",
+      "interfaces": [
+        "GET /reports/sales?date_from=&date_to=&dealer_ids=&places=&design_ids= — returns {consolidation[], transactions[]}"
+      ],
+      "dependencies": ["M-001"],
+      "layer": "application"
+    },
+    {
+      "id": "M-006",
+      "name": "Frontend Application",
+      "responsibility": "Next.js 14 App Router SPA. Renders Master admin pages, Inward / Sales / Adjustment forms with reactive grade-row auto-population on design change, Stock Dashboard, and Sales Report dual-pane layout. Talks to backend via a typed fetch client.",
+      "interfaces": [
+        "/admin/suppliers /admin/staff /admin/dealers /admin/grades /admin/designs /admin/design-grade-map",
+        "/transactions/inward /transactions/sales /transactions/adjustment",
+        "/dashboard",
+        "/reports/sales"
+      ],
+      "dependencies": ["M-001", "M-002", "M-004", "M-005"],
+      "layer": "presentation"
+    },
+    {
+      "id": "M-007",
+      "name": "Persistence & Migrations",
+      "responsibility": "SQLAlchemy 2.x ORM models + Alembic migrations defining all 13 tables (6 masters + 6 transaction tables + 1 stock_ledger). Seed data scripts for grades, designs, suppliers, dealers, staff per the sample PRD.",
+      "interfaces": [
+        "alembic upgrade head",
+        "scripts/seed_master_data.py"
+      ],
+      "dependencies": [],
+      "layer": "infrastructure"
+    }
+  ],
+  "data_flow": [
+    {
+      "id": "DF-001",
+      "from": "M-006 (Inward Form)",
+      "to": "M-002 (POST /inward)",
+      "data": "{header: {purchase_date, supplier_id, place, entered_by}, lines: [{design_id, grade_id, nos}]}",
+      "protocol": "HTTP POST JSON"
+    },
+    {
+      "id": "DF-002",
+      "from": "M-002 (Transaction Forms)",
+      "to": "M-003 (Stock Ledger apply_*)",
+      "data": "in-process call within the same SQLAlchemy session; SELECT FOR UPDATE on (design_id, grade_id) ledger row",
+      "protocol": "Python function call inside DB transaction"
+    },
+    {
+      "id": "DF-003",
+      "from": "M-006 (Adjustment Form on design change)",
+      "to": "M-002 (GET /designs/{id}/grades-with-cb)",
+      "data": "design_id + stock_date → [{grade_id, grade_code, software_cb}]",
+      "protocol": "HTTP GET JSON"
+    },
+    {
+      "id": "DF-004",
+      "from": "M-006 (Dashboard)",
+      "to": "M-004 (GET /dashboard)",
+      "data": "as_of_date → [{design, grade, opening, inward, outward, adjust, closing}]",
+      "protocol": "HTTP GET JSON"
+    },
+    {
+      "id": "DF-005",
+      "from": "M-006 (Sales Report)",
+      "to": "M-005 (GET /reports/sales)",
+      "data": "filters → {consolidation: [{design_name, grade_code, total_nos}], transactions: [{date, dealer_name, place, design_name, grade_code, nos}]}",
+      "protocol": "HTTP GET JSON"
+    },
+    {
+      "id": "DF-006",
+      "from": "M-006 (any transaction form on design change)",
+      "to": "M-001 (GET /designs/{id}/grades)",
+      "data": "design_id → [{grade_id, grade_code}] active mappings",
+      "protocol": "HTTP GET JSON"
+    },
+    {
+      "id": "DF-007",
+      "from": "M-007 (Alembic + seed)",
+      "to": "PostgreSQL",
+      "data": "DDL + INSERT statements for master data per sample PRD",
+      "protocol": "psycopg / SQLAlchemy"
+    }
+  ],
+  "external_dependencies": [
+    "PostgreSQL 16",
+    "Python 3.11 + FastAPI + SQLAlchemy 2.x + Alembic + uvicorn",
+    "Node.js 20 + Next.js 15 + React 19",
+    "Docker + docker-compose"
+  ],
+  "risks": [
+    {
+      "id": "R-001",
+      "description": "Concurrent saves on the same (design_id, grade_id) ledger row can race and produce wrong closing balances.",
+      "severity": "critical",
+      "mitigation": "All stock ledger writes acquire SELECT FOR UPDATE on the latest row for (design_id, grade_id) before computing the new running balance. Documented as DS-002.",
+      "module_ref": "M-003"
+    },
+    {
+      "id": "R-002",
+      "description": "Stock Dashboard live SUM over inward/sales/adjust per (design, grade) becomes slow as transaction volume grows.",
+      "severity": "medium",
+      "mitigation": "Use the materialised stock_ledger running-balance table — dashboard reads the last ledger row <= as_of_date per (design, grade). Documented as DS-003.",
+      "module_ref": "M-004"
+    },
+    {
+      "id": "R-003",
+      "description": "Back-dated transactions in the 7-day window can land inside a previous month and invalidate that month's closing balance.",
+      "severity": "medium",
+      "mitigation": "Ledger writes recompute the running balance from the inserted row forward to the latest row for the affected (design, grade) within the same DB transaction.",
+      "module_ref": "M-003"
+    },
+    {
+      "id": "R-004",
+      "description": "V1 has no authentication — anyone on the network can submit transactions.",
+      "severity": "medium",
+      "mitigation": "Deployment guidance: trusted internal network only; document V1 limitation in README; V2 will add auth + RBAC. Documented as DS-005.",
+      "module_ref": "M-006"
+    },
+    {
+      "id": "R-005",
+      "description": "Deactivating a Design-Grade mapping while transactions exist for it could orphan reports or break form rendering.",
+      "severity": "low",
+      "mitigation": "Soft-delete only (is_active=false). Reports + dashboard JOIN against masters via FK and display the historical grade_code; forms filter by is_active for grade row rendering only.",
+      "module_ref": "M-001"
+    }
+  ]
+}

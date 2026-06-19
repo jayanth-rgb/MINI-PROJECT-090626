@@ -1,0 +1,7 @@
+{
+  "task_id": "T-039",
+  "test_case_refs": ["TC-044"],
+  "test_files_to_create": ["frontend/src/components/admin/designs/__tests__/DesignForm.test.tsx"],
+  "framework": "jest",
+  "covers_acs": ["AC-013"]
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "T-034",
+  "title": "MasterFormDialog (reusable dialog)",
+  "module_ref": "M-006",
+  "output_files": ["frontend/src/components/admin/MasterFormDialog.tsx"],
+  "scope": "Wrapper around shadcn Dialog. Props: open, onOpenChange, title, children, onSubmit, isSubmitting. Footer has Cancel (calls onOpenChange(false)) and Save (calls onSubmit; disabled while isSubmitting).",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": [],
+  "success_criteria": {
+    "manual": "Save button calls onSubmit; Cancel closes dialog.",
+    "automated": "Indirectly via TC-040 / TC-043 / TC-045.",
+    "definition_of_done": "Dialog wraps children form; Save disabled while isSubmitting."
+  },
+  "checkout_prompt": "'MasterFormDialog — Dialog wrapper with Save/Cancel footer.'"
+}

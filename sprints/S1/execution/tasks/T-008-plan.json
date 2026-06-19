@@ -1,0 +1,17 @@
+{
+  "task_id": "T-008",
+  "title": "Error Handlers (presentation/api/errors.py)",
+  "module_ref": "M-007",
+  "output_files": ["backend/src/presentation/api/errors.py"],
+  "scope": "register_error_handlers(app: FastAPI) adds @app.exception_handler entries: NotFoundError → 404, ConflictError → 409, ValidationError → 422, sqlalchemy.exc.IntegrityError → 409 with detail 'unique constraint violation'.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-003"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007"],
+  "success_criteria": {
+    "manual": "Import + invoke against a stub FastAPI instance returns None and registers handlers.",
+    "automated": "Exercised by TC-034 (404 on missing supplier), TC-035 (409 on duplicate grade), TC-038 (409 on duplicate pair).",
+    "definition_of_done": "register_error_handlers exported; 4 exception classes mapped to 4 status codes; JSON response shape {'detail': str}."
+  },
+  "checkout_prompt": "'Error handlers wired — NotFoundError→404, ConflictError→409, ValidationError→422, IntegrityError→409.'"
+}

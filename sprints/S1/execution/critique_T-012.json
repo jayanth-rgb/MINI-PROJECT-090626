@@ -1,0 +1,47 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-012",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-18",
+  "reviewed_files": ["backend/src/application/services/dealer_service.py"],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-012-plan.json",
+    "sprints/S1/design/lld.json (files[9])",
+    "sprints/S1/design/test_cases.json (TC-012, TC-014)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-007", "applicability": "application layer ✓" },
+    { "id": "DS-008", "applicability": "soft delete via repo.soft_delete ✓" },
+    { "id": "DS-012", "applicability": "BaseRepository[DealerModel] ✓" }
+  ],
+  "lenses": {
+    "spec": { "status": "PASS", "checks": ["4 methods (list_dealers, create_dealer, update_dealer, deactivate_dealer) match LLD files[9]"], "issues": [] },
+    "contract": { "status": "PASS", "expected_exports": ["DealerService"], "actual_exports_match": true, "downstream_callers_satisfied": ["T-016 get_dealer_service", "T-019 dealers router"], "issues": [] },
+    "test": {
+      "status": "PASS",
+      "test_case_refs_in_tasks_json": ["TC-012", "TC-014"],
+      "checks": [
+        "TC-012 (create_dealer with name+place): payload.model_dump() → repo.create → commit → DealerRead; Pydantic enforces both required (T-007 TC-013 verified)",
+        "TC-014 (deactivate_dealer + list excludes id=5): repo.soft_delete sets is_active=False; default list filters it out"
+      ],
+      "issues": []
+    },
+    "security": { "status": "PASS", "checks": ["Pydantic upstream validation; parameterised repo SQL; exclude_none=True on update"], "issues": [] },
+    "structural": { "status": "PASS", "checks": ["Single class, 4 methods, clean imports"] }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "soft_notes": [],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "Mirror of T-010 canonical pattern with Dealer types. TC-012 + TC-014 supported. AC-007 + AC-008 covered.",
+    "iteration_cap_state": "1/3"
+  },
+  "next": "/ases-validate T-013 S1 (GradeService — adds ConflictError pre-check + N-001 whitespace strip concern)"
+}

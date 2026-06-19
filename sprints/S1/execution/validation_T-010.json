@@ -1,0 +1,88 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate",
+  "consumed_by": ["/ases-dev"],
+  "task_id": "T-010",
+  "sprint_id": "S1",
+  "verdict": "PROCEED",
+  "performed_at": "2026-06-17",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "reads_from_declared": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/presentation/schemas/master.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "evidence": {
+        "backend/src/infrastructure/db/repositories/master.py": "PRESENT — exports SupplierRepository (T-006 complete)",
+        "backend/src/presentation/schemas/master.py": "PRESENT — exports SupplierCreate / SupplierUpdate / SupplierRead (T-007 complete)",
+        "backend/src/domain/exceptions.py": "PRESENT — NotFoundError available for partial-update path (T-003 complete)"
+      },
+      "env_vars_declared": []
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[7] — backend/src/application/services/supplier_service.py",
+      "expected_exports": ["SupplierService"],
+      "expected_methods": [
+        { "name": "__init__", "signature": "(session: Session)" },
+        { "name": "list_suppliers", "signature": "(include_inactive: bool = False) -> list[SupplierRead]" },
+        { "name": "create_supplier", "signature": "(payload: SupplierCreate) -> SupplierRead — commits" },
+        { "name": "update_supplier", "signature": "(supplier_id: int, patch: SupplierUpdate) -> SupplierRead — commits; raises NotFoundError via repo.update" },
+        { "name": "deactivate_supplier", "signature": "(supplier_id: int) -> SupplierRead — commits; raises NotFoundError via repo.soft_delete" }
+      ],
+      "drift_detected": false,
+      "notes": [
+        "Create task — no existing implementation to drift from.",
+        "plan.implementation matches LLD files[7].functions[] verbatim — 4 methods, all map ORM rows to Pydantic SupplierRead via model_validate.",
+        "Service owns transactional boundary (session.commit() after each write); repository only flushes (T-005 invariant).",
+        "DS-008: deactivate_supplier calls repo.soft_delete — NO repo.delete call (DS-008 invariant enforced upstream)."
+      ]
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_files": ["backend/src/application/services/supplier_service.py"],
+      "do_not_touch_declared": ["any other file"],
+      "in_progress_task_overlap": [],
+      "evidence": "No other task writes to supplier_service.py. Downstream consumers: T-016 (dependencies.py wires Session -> Repository -> Service), T-017 (suppliers router calls service methods)."
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on_declared": ["T-006", "T-007", "T-003"],
+      "depends_on_status": [
+        { "task_id": "T-006", "status": "complete" },
+        { "task_id": "T-007", "status": "complete" },
+        { "task_id": "T-003", "status": "complete" }
+      ],
+      "evidence": "All three dependencies complete with CLEAN critique verdicts (T-006 iteration 1, T-007 iteration 1, T-003 iteration 1). SupplierRepository, SupplierCreate/Update/Read schemas, and NotFoundError are all importable."
+    }
+  },
+  "environment_check": {
+    "python_venv": "backend/.venv/Scripts/python.exe — PRESENT",
+    "dependencies_required": "sqlalchemy.orm.Session, src.infrastructure.db.repositories.master.SupplierRepository, src.presentation.schemas.master.{SupplierCreate, SupplierUpdate, SupplierRead}",
+    "all_resolved": true
+  },
+  "ac_alignment": {
+    "AC-001": "Admin creates supplier with name + place; both required. create_supplier method: Pydantic SupplierCreate already enforces min_length=1 (T-007 verified); service persists + commits.",
+    "AC-002": "Admin deactivates supplier (soft delete); soft-deleted suppliers do not appear in active list. deactivate_supplier calls repo.soft_delete (sets is_active=False, never DELETE). list_suppliers(default=False) filters via repo.list (T-005 verified)."
+  },
+  "instruction_packet_for_dev": {
+    "task_plan": "sprints/S1/execution/tasks/T-010-plan.md",
+    "task_plan_json": "sprints/S1/execution/tasks/T-010-plan.json",
+    "tests_spec": "sprints/S1/execution/tasks/T-010-tests.md (TC-001, TC-004, TC-005, TC-006 implemented in /ases-test-impl)",
+    "lld_slice": "lld.json files[7] (backend/src/application/services/supplier_service.py)",
+    "decisions": ["DS-007 (application layer)", "DS-008 (soft delete)", "DS-012 (repository pattern)"],
+    "schema_slice": "n/a — service operates on ORM rows via repo + Pydantic at the API boundary",
+    "write_scope": ["backend/src/application/services/supplier_service.py"],
+    "success_check_command": "backend/.venv/Scripts/python.exe -c \"from src.application.services.supplier_service import SupplierService; print(sorted([m for m in dir(SupplierService) if not m.startswith('_')]))\""
+  },
+  "summary": {
+    "verdict": "PROCEED",
+    "blocking_holds": 0,
+    "soft_notes": 0,
+    "rationale": "All four pre-flight checks pass. T-006 + T-007 + T-003 all complete with CLEAN verdicts. Plan delivers a minimal, single-responsibility service (4 methods) following the canonical pattern that T-011..T-014 will mirror. AC-001 + AC-002 fully covered."
+  },
+  "next": "/ases-dev T-010 S1"
+}

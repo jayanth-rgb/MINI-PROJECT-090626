@@ -1,0 +1,17 @@
+{
+  "task_id": "T-003",
+  "title": "Domain exceptions",
+  "module_ref": "M-007",
+  "output_files": ["backend/src/domain/exceptions.py"],
+  "scope": "Exception hierarchy used by services + mapped to HTTP by T-008. DomainError (base, → 500), NotFoundError(entity, id_) (→ 404), ConflictError(message) (→ 409), ValidationError(message) (→ 422).",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007"],
+  "success_criteria": {
+    "manual": "`python -c 'from src.domain.exceptions import DomainError, NotFoundError, ConflictError, ValidationError; raise NotFoundError(\"Foo\", 1)'` raises with message including 'Foo' and '1'.",
+    "automated": "Indirectly tested via service tests (TC-017 ConflictError, TC-027/028 NotFoundError, TC-002/003/009/013/021 Pydantic ValidationError NOT domain ValidationError).",
+    "definition_of_done": "Four classes export; NotFoundError constructor takes (entity, id_); ConflictError + ValidationError take (message)."
+  },
+  "checkout_prompt": "On completion: 'Domain exceptions created — DomainError, NotFoundError, ConflictError, ValidationError. Mapped to HTTP by T-008.'"
+}

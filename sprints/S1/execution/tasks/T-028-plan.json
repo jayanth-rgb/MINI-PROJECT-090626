@@ -1,0 +1,17 @@
+{
+  "task_id": "T-028",
+  "title": "Typed CRUD wrappers (masters API)",
+  "module_ref": "M-006",
+  "output_files": ["frontend/src/lib/api/masters.ts"],
+  "scope": "Per-entity wrapper objects exposing list/create/update/remove built on apiClient. designsApi additionally exposes getGrades(design_id) for GET /designs/{id}/grades (delivers DF-006 contract on frontend even though S1 admin UI doesn't call it).",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-026", "T-027"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-010"],
+  "success_criteria": {
+    "manual": "Import suppliersApi.list etc; typed against Supplier interface.",
+    "automated": "Indirectly via page-level tests (TC-040 etc).",
+    "definition_of_done": "6 entity APIs each with list/create/update/remove; designsApi.getGrades returns DesignGradeMin[]; all paths under /<entity> (baseURL handles /api/v1)."
+  },
+  "checkout_prompt": "'Masters API — 6 typed CRUD wrappers + designsApi.getGrades DF-006 hook.'"
+}

@@ -1,0 +1,93 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-003",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-16",
+  "reviewed_files": ["backend/src/domain/exceptions.py"],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-003-plan.json",
+    "sprints/S1/execution/tasks/T-003-plan.md",
+    "sprints/S1/design/lld.json (files[6])",
+    "sprints/S1/design/test_cases.json (TC-017, TC-027, TC-028)",
+    ".ases/decisions.json (M-007 entries)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-007", "applicability": "layering — domain/ layer files must not import other project modules; current impl is stdlib-only ✓" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "DomainError(Exception) base class with __init__(message: str); stores self.message — matches LLD files[6].functions[0]",
+        "NotFoundError(DomainError) __init__(entity: str, id_: int); formats message as '{entity} with id {id_} not found'; stores self.entity + self.id_ — matches LLD files[6].functions[1] and TC-027/028 expected_output.error_entity assertions",
+        "ConflictError(DomainError) pass-only subclass; inherits DomainError(message) ctor — matches LLD files[6].functions[2]",
+        "ValidationError(DomainError) pass-only subclass; inherits DomainError(message) ctor — matches LLD files[6].functions[3]",
+        "Exactly 4 classes — no extra helpers, no scope creep"
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_exports": ["DomainError", "NotFoundError", "ConflictError", "ValidationError"],
+      "actual_exports_match": true,
+      "downstream_callers_satisfied": [
+        "T-005 BaseRepository.get/update/soft_delete: raises NotFoundError — ctor signature (entity, id_) matches",
+        "T-008 register_error_handlers: maps NotFoundError→404, ConflictError→409, ValidationError→422; needs message attribute — present on all 4 classes via self.message",
+        "T-013 GradeService.create_grade: raises ConflictError(f\"grade_code '{...}' already exists\") — ctor(message) inherited via DomainError",
+        "T-015 DesignGradeMapService.create_mapping: raises NotFoundError('TradingDesign', design_id) and NotFoundError('Grade', grade_id) and ConflictError(...) — all signatures satisfied",
+        "T-010..T-014 (other services): same pattern as T-013/T-015"
+      ],
+      "imports_check": [
+        "No imports — stdlib only (Exception is builtin). DS-007 layering invariant maintained (no inbound imports from other project modules)."
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs_in_tasks_json": [],
+      "indirect_test_refs": ["TC-017", "TC-027", "TC-028", "TC-035", "TC-038"],
+      "checks": [
+        "TC-017 (GradeService duplicate code → ConflictError, error_message_contains 'grade_code'): supported — service constructs message containing 'grade_code'; exception stores it in self.message",
+        "TC-027 (DesignGradeMapService missing design → NotFoundError, error_entity 'TradingDesign'): supported — NotFoundError stores self.entity attribute readable by the test",
+        "TC-028 (DesignGradeMapService missing grade → NotFoundError, error_entity 'Grade'): supported — same as TC-027",
+        "TC-035 (POST /grades 409 via IntegrityError mapping): T-008 handler reads exception message; supported",
+        "TC-038 (POST /design-grade-map 409 via IntegrityError mapping): T-008 handler reads exception message; supported",
+        "Manual verification during /ases-dev: NotFoundError('Foo', 1) → 'Foo with id 1 not found' with entity='Foo', id_=1 attributes set"
+      ],
+      "edge_cases_handled": [
+        "NotFoundError's stored entity + id_ attributes are independently readable by tests (TC-027/028 assert on error.entity, not just message string) — implementation exposes both",
+        "ConflictError / ValidationError accept arbitrary message strings via parent constructor — TC-017 message format is constructed by GradeService, not by the exception class itself"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "Exception messages constructed via f-string from typed parameters (entity: str, id_: int) — no injection surface even if entity comes from user input (it doesn't here — services hardcode 'TradingDesign'/'Grade')",
+        "No SQL, no shell, no file I/O — pure data classes",
+        "No exposed secrets or credentials",
+        "Inheritance chain is clean: NotFoundError → DomainError → Exception. No multiple inheritance, no metaclass tricks"
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "DEFERRED",
+      "reason": "4 leaf classes with zero current importers in the codebase — will be re-evaluated once T-005, T-008, T-010..T-015 add the inbound edges. Graphify rebuild after T-015 will produce meaningful structural insight."
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "soft_notes": [],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "Implementation is a 1:1 translation of plan pseudo-code. LLD files[6] interfaces match exactly. All 5 downstream service tasks satisfied. Test-case assertions (TC-017/027/028) supported by self.message + self.entity + self.id_ attribute exposure. Stdlib-only, no security surface, no injection vectors, layering invariant preserved. Manual smoke during /ases-dev confirmed all four constructors work and inheritance hierarchy is intact.",
+    "iteration_cap_state": "1/3 — well clear of escalation."
+  },
+  "next": "Mark T-003 status=complete and proceed to /ases-validate T-007 S1 (also in parallel-group 1 with zero deps; Pydantic schemas) — or /ases-validate T-004 S1 (depends on T-002 which is also complete, unlocks ORM models track)."
+}

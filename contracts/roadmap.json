@@ -1,0 +1,68 @@
+{
+  "$schema": "ases/v3.0/roadmap",
+  "document": "roadmap",
+  "produced_by": "/ases-roadmap",
+  "consumed_by": ["/ases-lld", "/ases-sprint-gate", "/ases-release"],
+  "version": 1,
+  "sprints": [
+    {
+      "id": "S1",
+      "goal": "Data Foundation — all 6 master tables (Supplier, Staff, Dealer, Grade, Trading Size-Design, Design-Grade map), CRUD admin screens, soft-delete, seed data per sample PRD, PostgreSQL schema, Alembic baseline migration.",
+      "features": ["F-001", "F-002", "F-003", "F-004", "F-005", "F-006"],
+      "modules": ["M-001", "M-007"],
+      "scope_notes": "Establishes the relational backbone before any transactional work. Includes the FastAPI + Next.js skeleton, Docker compose for Postgres, and the admin CRUD pages that prove the full stack works end-to-end. No transaction forms, no stock ledger logic yet.",
+      "dependencies_on": [],
+      "status": "planned"
+    },
+    {
+      "id": "S2",
+      "goal": "Transaction Forms + Stock Ledger — Inward, Sales, and Adjustment forms with grade-row auto-population, atomic header+lines+ledger writes, row-level locking on (design_id, grade_id), and basic ledger read API.",
+      "features": ["F-007", "F-008", "F-009"],
+      "modules": ["M-002", "M-003"],
+      "scope_notes": "Delivers all 3 transactional forms end-to-end. Stock ledger writes happen inside the same DB transaction as the form save (DS-002). Includes the GET /designs/{id}/grades-with-cb endpoint that Adjustment needs. F-012 (carry-forward) is implicitly enforced by the ledger logic but is explicitly tested in S3.",
+      "dependencies_on": ["S1"],
+      "status": "planned"
+    },
+    {
+      "id": "S3",
+      "goal": "Reporting & Carry-Forward — Stock Dashboard (date-filtered), Sales Report (Consolidation + Transaction dual-pane with multi-select filters), explicit verification of monthly carry-forward including back-dated transactions across month boundaries.",
+      "features": ["F-010", "F-011", "F-012"],
+      "modules": ["M-004", "M-005"],
+      "scope_notes": "Read-side completion of the system. Dashboard reads from materialised stock_ledger (DS-003); Sales Report executes the dual-payload query in M-005. Carry-forward is exercised via integration tests using back-dated transactions per AC-053.",
+      "dependencies_on": ["S1", "S2"],
+      "status": "planned"
+    }
+  ],
+  "deferred": [
+    {
+      "item": "User authentication and RBAC",
+      "reason": "Explicit V1 non-goal per HLD §2.2",
+      "target_sprint": "V2"
+    },
+    {
+      "item": "Pricing, invoicing, payment tracking",
+      "reason": "Out of scope for trading-tiles V1",
+      "target_sprint": "V2"
+    },
+    {
+      "item": "Manufacturing tiles module",
+      "reason": "Separate product; this PRD covers traded tiles only",
+      "target_sprint": "future-product"
+    },
+    {
+      "item": "Inward Report (mirror of Sales Report)",
+      "reason": "PRD V1 explicitly defers; same dual-section pattern is reusable when needed",
+      "target_sprint": "V2"
+    },
+    {
+      "item": "Report export to PDF / Excel",
+      "reason": "Not in scope V1",
+      "target_sprint": "V2"
+    },
+    {
+      "item": "Sales Report pagination",
+      "reason": "LLD open item #7 — defer until first real-data load test in S3 retrospective",
+      "target_sprint": "S3-retro"
+    }
+  ]
+}

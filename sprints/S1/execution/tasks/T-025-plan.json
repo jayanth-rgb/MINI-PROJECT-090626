@@ -1,0 +1,17 @@
+{
+  "task_id": "T-025",
+  "title": "Seed master data (idempotent)",
+  "module_ref": "M-007",
+  "output_files": ["backend/scripts/seed_master_data.py", "backend/scripts/__init__.py"],
+  "scope": "Idempotent seed of: 3 suppliers, 9 staff, 3 dealers, 9 grades, 3 designs, 6 design-grade combinations (33 rows total). CLI: `python -m scripts.seed_master_data`. Each seed_* function checks existence by natural key before INSERT. main() opens SessionLocal, runs the 6 seeders in a single transaction, commits.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-002", "T-004", "T-024"],
+  "test_case_refs": ["TC-007", "TC-011", "TC-015", "TC-016", "TC-022", "TC-030"],
+  "decisions_referenced": ["DS-009"],
+  "success_criteria": {
+    "manual": "`python -m scripts.seed_master_data` inserts 33 rows; re-run inserts 0 (idempotent).",
+    "automated": "TC-007, TC-011, TC-015, TC-016, TC-022, TC-030 — exact row counts + content match PRD samples.",
+    "definition_of_done": "All 6 seeders idempotent; design_grade_map seeder resolves design_id by (size, design_name) and grade_id by grade_code; CLI entrypoint exits 0."
+  },
+  "checkout_prompt": "'Seed master data — 33 rows (3+9+3+9+3+6), idempotent; AC-003/006/009/010/014/018 covered.'"
+}

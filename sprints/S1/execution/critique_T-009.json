@@ -1,0 +1,134 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-009",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-17",
+  "reviewed_files": [
+    "backend/tests/conftest.py",
+    "backend/requirements-dev.txt"
+  ],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-009-plan.json",
+    "sprints/S1/execution/tasks/T-009-plan.md",
+    "sprints/S1/execution/analysis.json (non_blocking_gaps[INFRA-001])",
+    ".ases/decisions.json (DS-001, DS-002 echoes)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-001", "applicability": "PostgreSQL 16 required for real semantics; testcontainers spins up the same major version ✓" },
+    { "id": "DS-002", "applicability": "Echoed via plan rationale: S2 needs SELECT FOR UPDATE row locking which only real PG implements faithfully — testcontainers gives real PG, not sqlite-in-memory ✓" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "3 fixtures present at the names downstream tests will import: pg_container (session-scoped), db_session (function-scoped), client (function-scoped)",
+        "pg_container uses PostgresContainer('postgres:16') context manager — auto-stop on session teardown",
+        "URL rewritten from default `postgresql+psycopg2://` to `postgresql+psycopg://` to match psycopg v3 driver in requirements.txt — verified working during /ases-dev pip install",
+        "Base.metadata.create_all(engine) runs inside the with-block — schema materialised once before the first test",
+        "Models module imported (with #noqa F401) so all 6 entity tables register on Base.metadata before create_all",
+        "db_session opens a connection + transaction, yields a Session bound to that connection, then rolls back — rollback-only isolation per test",
+        "client fixture overrides app.dependency_overrides[get_db] and clears it in finally — standard FastAPI pattern",
+        "from src.main import app + from src.infrastructure.db.session import get_db are LAZY (inside client fixture body) — pytest --collect-only succeeds today even though main.py won't exist until T-023"
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_artifacts": [
+        "backend/tests/conftest.py with pg_container, db_session, client",
+        "backend/requirements-dev.txt with testcontainers[postgres]==4.9.0 appended"
+      ],
+      "actual_artifacts_match": true,
+      "downstream_callers_satisfied": [
+        "TC-001..TC-032 (service unit tests T-010..T-015): use db_session for in-memory ORM operations + rollback isolation",
+        "TC-018 + TC-026 (DB-level UNIQUE constraint tests): use db_session to attempt INSERT and assert IntegrityError",
+        "TC-033..TC-038 (FastAPI integration tests T-017..T-022): use client to call HTTP endpoints with TestClient",
+        "Future S2/S3 tests inherit the same fixtures without modification"
+      ],
+      "imports_check": [
+        "typing.Iterator — used as fixture return-type hint",
+        "pytest — used by @pytest.fixture decorators",
+        "fastapi.testclient.TestClient — used by client fixture",
+        "sqlalchemy.create_engine — used by pg_container",
+        "sqlalchemy.orm.{Session, sessionmaker} — used by db_session",
+        "testcontainers.postgres.PostgresContainer — used by pg_container",
+        "src.infrastructure.db.base.Base — used by create_all (T-002 dep ✓)",
+        "src.infrastructure.db.models.master — imported for Base.metadata side effect (T-004 — already complete and tables register on import)",
+        "src.main.app + src.infrastructure.db.session.get_db — LAZY inside client fixture (T-023 + T-002)"
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs_in_tasks_json": [],
+      "checks": [
+        "pytest --collect-only ran clean during /ases-dev: 'no tests collected in 0.10s' with zero ImportError",
+        "pytest --fixtures discovered all 3 fixtures at correct line numbers (pg_container@38 session-scoped, db_session@55, client@75)",
+        "Manifest install succeeded: testcontainers 4.9.0 + docker 7.1.0 + supporting deps (pywin32, requests, charset_normalizer, urllib3, wrapt) added to backend/.venv"
+      ],
+      "edge_cases_handled": [
+        "Lazy import of src.main lets the conftest load before T-023 lands without ImportError",
+        "psycopg2 → psycopg URL rewrite avoids 'driver not installed' errors against the installed psycopg v3",
+        "app.dependency_overrides.clear() in finally prevents test cross-pollination of fixture state",
+        "trans.rollback() in finally guarantees per-test isolation even if a test raises mid-execution"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "Test-only file — no production code path",
+        "testcontainers spawns ephemeral container with random credentials; no hardcoded passwords in conftest",
+        "Docker socket access is local-only (requires PO action DB-001 + Docker daemon running) — not exposed to network",
+        "trans.rollback() in finally ensures no test leakage of data into shared schema",
+        "No raw SQL strings; all schema management via Base.metadata.create_all"
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "PASS",
+      "checks": [
+        "Single conftest file with 3 fixtures and 2 helper attribute stashes on PostgresContainer (pg._engine, pg._url) — pragmatic pattern, contained scope",
+        "Inbound deps satisfied: T-002 (Base + DB infra), T-004 (model registrations via side-effect import)",
+        "Outbound: every future test file consumes these fixtures by name"
+      ]
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "soft_notes": [
+    {
+      "id": "N-001",
+      "topic": "'SAVEPOINT pattern' label vs actual implementation",
+      "where": "conftest.py db_session fixture",
+      "observation": "Plan.md calls this 'SAVEPOINT-rolled-back' but the implementation uses `conn.begin()` (a top-level connection-scoped transaction), NOT `conn.begin_nested()` (the true SAVEPOINT API). Functionally equivalent for test isolation: the outer transaction wraps everything the service does and `trans.rollback()` reverts it all, including any Session.commit() calls (which only end the session-level subtransaction). This is the canonical pattern from the SQLAlchemy docs ('join a Session into an external transaction'). Worth flagging only so future contributors don't 'fix' this by adding begin_nested() — the current code is correct.",
+      "actionable_for": "Optional documentation update or rename of the comment from 'SAVEPOINT' to 'rollback-only outer transaction'."
+    },
+    {
+      "id": "N-002",
+      "topic": "Protected attribute writes on PostgresContainer instance",
+      "where": "pg._engine = engine; pg._url = url in pg_container fixture",
+      "observation": "testcontainers PostgresContainer does not expose a public attribute for stashing the engine. The plan-prescribed approach writes private attributes (`_engine`, `_url`) to pass them to db_session. Python permits this; risk is low because the testcontainers API is unlikely to evolve to use the same attribute names. Alternative would be returning a (container, engine, url) tuple from the fixture, but that breaks the existing plan contract. Acceptable as-is.",
+      "actionable_for": "None — defer to a sprint-close revisit if testcontainers releases a breaking change."
+    },
+    {
+      "id": "N-003",
+      "topic": "Docker daemon dependency at runtime",
+      "where": "PostgresContainer requires Docker",
+      "observation": "conftest write + pip install + pytest --collect-only do NOT require Docker. Running any test that actually USES pg_container does. Tracked as PO action DB-001 (Docker install on host). Echoed here so /ases-test-run for S1 doesn't surprise the PO with a Docker-not-found error.",
+      "actionable_for": "PO to confirm Docker is up before /ases-test-run S1 is invoked."
+    }
+  ],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "All 3 fixtures present with the exact names downstream tests will import (pg_container, db_session, client). testcontainers 4.9.0 installed cleanly. pytest --collect-only runs without ImportError; --fixtures discovers all 3 at the expected line numbers. Lazy main.py import preserved so the conftest is usable before T-023 lands. SAVEPOINT pattern is implemented via the canonical conn.begin()+trans.rollback() approach (label slightly misleading in plan.md; behaviour correct). INFRA-001 analysis gap fully resolved.",
+    "iteration_cap_state": "1/3 — well clear of escalation."
+  },
+  "next": "Mark T-009 status=complete. Update context.json to flip INFRA-001 from non_blocking_gap to RESOLVED. Proceed to /ases-validate T-010 S1 (SupplierService — depends on T-003 + T-006 + T-007, all complete). The service layer execution batch begins."
+}

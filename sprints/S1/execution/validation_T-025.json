@@ -1,0 +1,27 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "task_id": "T-025",
+  "checks": [
+    {
+      "check": "input_files_exist",
+      "status": "pass",
+      "details": "Both reads_from inputs present: backend/src/infrastructure/db/session.py (T-002), backend/src/infrastructure/db/models/master.py (T-004). Output targets backend/scripts/seed_master_data.py absent (correct — this task creates it); backend/scripts/__init__.py exists as scaffold package marker and is in output_files[] for re-write."
+    },
+    {
+      "check": "interface_contract_intact",
+      "status": "pass",
+      "details": "session.py exports SessionLocal + get_db (T-002 CLEAN); master.py exports all 6 ORM models (T-004 CLEAN); both contracts are stable. No drift since T-024 (which only created the migration file)."
+    },
+    {
+      "check": "scope_boundary_clear",
+      "status": "pass",
+      "details": "output_files = ['backend/scripts/seed_master_data.py', 'backend/scripts/__init__.py']. Grep of tasks.json confirms no other task writes under backend/scripts/. No task currently in_progress."
+    },
+    {
+      "check": "no_circular_dependency",
+      "status": "pass",
+      "details": "depends_on = ['T-002', 'T-004', 'T-024']. All three status=complete in tasks.json. Note: T-024's migration is delivered but not yet applied to PG (carry-forward W5); this affects T-025's RUNTIME verification (`python -m scripts.seed_master_data` requires alembic upgrade head first) but NOT its dependency-graph status. Pre-flight gate is satisfied; runtime DoD will be PO-validated once W5 is closed."
+    }
+  ],
+  "verdict": "PROCEED"
+}

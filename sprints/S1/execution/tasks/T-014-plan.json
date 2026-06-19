@@ -1,0 +1,17 @@
+{
+  "task_id": "T-014",
+  "title": "DesignService (F-005)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/application/services/design_service.py"],
+  "scope": "Mirror of SupplierService for TradingDesign — list_designs / create_design / update_design / deactivate_design.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-006", "T-007", "T-003"],
+  "test_case_refs": ["TC-020", "TC-023"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-012"],
+  "success_criteria": {
+    "manual": "4 methods present.",
+    "automated": "TC-020 (create), TC-023 (deactivate).",
+    "definition_of_done": "4 methods; size+design_name required is enforced by T-007 schema."
+  },
+  "checkout_prompt": "'DesignService created. AC-013 + AC-015 covered.'"
+}

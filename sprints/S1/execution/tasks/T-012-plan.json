@@ -1,0 +1,17 @@
+{
+  "task_id": "T-012",
+  "title": "DealerService (F-003)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/application/services/dealer_service.py"],
+  "scope": "Mirror of SupplierService for Dealer — list_dealers / create_dealer / update_dealer / deactivate_dealer.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-006", "T-007", "T-003"],
+  "test_case_refs": ["TC-012", "TC-014"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-012"],
+  "success_criteria": {
+    "manual": "4 public methods present.",
+    "automated": "TC-012, TC-014 implemented in /ases-test-impl.",
+    "definition_of_done": "4 methods; name+place required is enforced by T-007 schema."
+  },
+  "checkout_prompt": "'DealerService created. AC-007 + AC-008 covered.'"
+}

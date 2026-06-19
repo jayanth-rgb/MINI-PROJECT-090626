@@ -1,0 +1,372 @@
+{
+  "$schema": "ases/v3.0/schema",
+  "document": "schema",
+  "produced_by": "/ases-schema",
+  "consumed_by": ["/ases-dev", "/ases-sprint-gate", "/ases-test-spec", "/ases-tasks", "/ases-validate"],
+  "sprint_id": "S1",
+  "scope_modules": ["M-001", "M-007"],
+  "scope_features": ["F-001", "F-002", "F-003", "F-004", "F-005", "F-006"],
+  "decisions_referenced": ["DS-001", "DS-007", "DS-008", "DS-009", "DS-012"],
+  "entities": [
+    {
+      "name": "tbl_supplier_master",
+      "hld_module": "M-001",
+      "type": "table",
+      "feature_ref": "F-001",
+      "fields": [
+        {
+          "name": "supplier_id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Surrogate primary key (auto-increment)."
+        },
+        {
+          "name": "supplier_name",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Supplier display name. Required per AC-001."
+        },
+        {
+          "name": "place",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Supplier location. Auto-populated into Inward form on supplier select (HLD AC-022). Required per AC-001."
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": true,
+          "description": "Soft-delete flag. AC-002 — false hides supplier from Inward form dropdown. Hard delete forbidden per DS-008."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()",
+          "description": "Server-default insert timestamp via TimestampMixin."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (supplier_id)",
+        "INDEX ix_supplier_master_is_active ON (is_active) — supports active-only list filter (DF active dropdowns)."
+      ],
+      "relationships": [],
+      "constraints": [
+        "CHECK supplier_name <> '' (enforced at Pydantic min_length=1 + DB default behavior).",
+        "CHECK place <> '' (enforced at Pydantic min_length=1)."
+      ],
+      "ac_refs": ["AC-001", "AC-002", "AC-003"]
+    },
+    {
+      "name": "tbl_staff_master",
+      "hld_module": "M-001",
+      "type": "table",
+      "feature_ref": "F-002",
+      "fields": [
+        {
+          "name": "staff_id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Surrogate primary key."
+        },
+        {
+          "name": "staff_name",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Staff member name. Required per AC-004."
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": true,
+          "description": "Soft-delete flag. AC-005 — false hides staff from Inward/Sales/Adjustment dropdowns. Hard delete forbidden per DS-008."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()",
+          "description": "Server-default insert timestamp."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (staff_id)",
+        "INDEX ix_staff_master_is_active ON (is_active) — supports active-only staff dropdown queries (used in S2 by loading_staff, verified_by, entered_by)."
+      ],
+      "relationships": [],
+      "constraints": [
+        "CHECK staff_name <> '' (enforced via Pydantic min_length=1)."
+      ],
+      "ac_refs": ["AC-004", "AC-005", "AC-006"]
+    },
+    {
+      "name": "tbl_dealer_master",
+      "hld_module": "M-001",
+      "type": "table",
+      "feature_ref": "F-003",
+      "fields": [
+        {
+          "name": "dealer_id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Surrogate primary key."
+        },
+        {
+          "name": "dealer_name",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Dealer display name. Required per AC-007."
+        },
+        {
+          "name": "place",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Dealer location. Auto-populated into Sales form on dealer select (AC-029). Required per AC-007."
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": true,
+          "description": "Soft-delete flag. AC-008 — false hides dealer from Sales form dropdown and report filter."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()",
+          "description": "Server-default insert timestamp."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (dealer_id)",
+        "INDEX ix_dealer_master_is_active ON (is_active) — supports active-only Sales form + report filter feeds."
+      ],
+      "relationships": [],
+      "constraints": [
+        "CHECK dealer_name <> '' (enforced via Pydantic min_length=1).",
+        "CHECK place <> '' (enforced via Pydantic min_length=1)."
+      ],
+      "ac_refs": ["AC-007", "AC-008", "AC-009"]
+    },
+    {
+      "name": "tbl_grade_master",
+      "hld_module": "M-001",
+      "type": "table",
+      "feature_ref": "F-004",
+      "fields": [
+        {
+          "name": "grade_id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Surrogate primary key."
+        },
+        {
+          "name": "grade_code",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Canonical grade code (e.g. '1', '2', '2A', '4', '5', '6', '1OB', 'OB', 'DIM'). UNIQUE per AC-011."
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": true,
+          "description": "Soft-delete flag. AC-012 — deactivated grades disappear from Design-Grade combinations via JOIN filter."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (grade_id)",
+        "UNIQUE INDEX uq_grade_master_grade_code ON (grade_code) — enforces AC-011; also serves repo.get_by_code(code) lookup for pre-insert uniqueness check.",
+        "INDEX ix_grade_master_is_active ON (is_active) — supports active-only grade lookups for design-grade JOINs."
+      ],
+      "relationships": [
+        {
+          "type": "one_to_many",
+          "target": "tbl_design_grade_map",
+          "foreign_key": "tbl_design_grade_map.grade_id"
+        }
+      ],
+      "constraints": [
+        "UNIQUE (grade_code) — AC-011. Maps to HTTP 409 via IntegrityError handler.",
+        "CHECK grade_code <> '' (enforced via Pydantic constr min_length=1, strip_whitespace)."
+      ],
+      "ac_refs": ["AC-010", "AC-011", "AC-012"],
+      "notes": "No created_at column — read-mostly canonical reference data per F-004; created_at intentionally omitted (LLD frontend type Grade also omits it)."
+    },
+    {
+      "name": "tbl_trading_design_master",
+      "hld_module": "M-001",
+      "type": "table",
+      "feature_ref": "F-005",
+      "fields": [
+        {
+          "name": "design_id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Surrogate primary key."
+        },
+        {
+          "name": "size",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Tile size descriptor (e.g. '16X10'). Required per AC-013."
+        },
+        {
+          "name": "design_name",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Trading-design display name (e.g. '16X10 Ridges'). Required per AC-013. Distinct from any manufactured-tile design list (PRD constraint)."
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": true,
+          "description": "Soft-delete flag. AC-015 — false hides design from Inward/Sales/Adjustment design dropdowns."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()",
+          "description": "Server-default insert timestamp."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (design_id)",
+        "INDEX ix_trading_design_master_is_active ON (is_active) — supports active-only design dropdown for transaction forms."
+      ],
+      "relationships": [
+        {
+          "type": "one_to_many",
+          "target": "tbl_design_grade_map",
+          "foreign_key": "tbl_design_grade_map.design_id"
+        }
+      ],
+      "constraints": [
+        "CHECK size <> '' (enforced via Pydantic min_length=1).",
+        "CHECK design_name <> '' (enforced via Pydantic min_length=1)."
+      ],
+      "ac_refs": ["AC-013", "AC-014", "AC-015"]
+    },
+    {
+      "name": "tbl_design_grade_map",
+      "hld_module": "M-001",
+      "type": "table",
+      "feature_ref": "F-006",
+      "fields": [
+        {
+          "name": "map_id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Surrogate primary key (avoids needing a composite PK for the FK references from future ledger writes)."
+        },
+        {
+          "name": "design_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK → tbl_trading_design_master.design_id. Required."
+        },
+        {
+          "name": "grade_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK → tbl_grade_master.grade_id. Required."
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": true,
+          "description": "Soft-delete flag. AC-017 — false hides combination from future form grade rows; historical transactions unaffected (HLD R-005 mitigation)."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (map_id)",
+        "UNIQUE INDEX uq_design_grade_map_design_grade ON (design_id, grade_id) — enforces AC-016 + serves repo.get_by_pair lookup.",
+        "INDEX ix_design_grade_map_design_id ON (design_id) — supports list_active_by_design (HLD DF-006 contract / GET /designs/{id}/grades). Without this, the unique index works but pushes the engine to scan more rows for the WHERE design_id=? AND is_active=true predicate.",
+        "INDEX ix_design_grade_map_is_active ON (is_active) — supports admin list_mappings active-only filter."
+      ],
+      "relationships": [
+        {
+          "type": "one_to_many",
+          "target": "tbl_trading_design_master",
+          "foreign_key": "design_id"
+        },
+        {
+          "type": "one_to_many",
+          "target": "tbl_grade_master",
+          "foreign_key": "grade_id"
+        }
+      ],
+      "constraints": [
+        "FOREIGN KEY (design_id) REFERENCES tbl_trading_design_master(design_id) ON DELETE RESTRICT — V1 has no hard delete (DS-008); RESTRICT is belt-and-braces against future regressions.",
+        "FOREIGN KEY (grade_id) REFERENCES tbl_grade_master(grade_id) ON DELETE RESTRICT.",
+        "UNIQUE (design_id, grade_id) — AC-016. Maps to HTTP 409 via IntegrityError handler."
+      ],
+      "ac_refs": ["AC-016", "AC-017", "AC-018", "AC-019"],
+      "notes": "No created_at column — junction table; LLD frontend type DesignGradeMap also omits it."
+    }
+  ],
+  "migrations": [
+    {
+      "revision": "0002_master_tables",
+      "path": "backend/db/migrations/versions/0002_master_tables.py",
+      "upgrade_summary": "create_table for all 6 master tables in dependency order (supplier, staff, dealer, grade, trading_design, design_grade_map). Adds UNIQUE(grade_code), UNIQUE(design_id, grade_id), FK(design_grade_map.design_id, design_grade_map.grade_id) with ON DELETE RESTRICT, INDEX(is_active) per table, INDEX(design_id) on design_grade_map.",
+      "downgrade_summary": "drop_table in reverse dependency order — tbl_design_grade_map first (to drop FK constraints), then tbl_trading_design_master, tbl_grade_master, tbl_dealer_master, tbl_staff_master, tbl_supplier_master.",
+      "generator": "alembic revision --autogenerate (DS-009). Reviewer verifies generated DDL matches this schema before commit. Hand-add op.create_index lines for the is_active + design_id indices if autogenerate misses them.",
+      "baseline_predecessor": "0001_baseline (placeholder from /ases-scaffold; no schema)."
+    }
+  ],
+  "query_patterns_supported": [
+    {
+      "id": "QP-001",
+      "description": "List active masters for dropdown feeds (per entity).",
+      "query": "SELECT * FROM tbl_<entity>_master WHERE is_active = TRUE ORDER BY <name_col> ASC",
+      "uses_index": "ix_<entity>_master_is_active",
+      "feature_refs": ["F-001", "F-002", "F-003", "F-004", "F-005"]
+    },
+    {
+      "id": "QP-002",
+      "description": "Pre-insert grade uniqueness check.",
+      "query": "SELECT * FROM tbl_grade_master WHERE grade_code = :code",
+      "uses_index": "uq_grade_master_grade_code",
+      "feature_refs": ["F-004"]
+    },
+    {
+      "id": "QP-003",
+      "description": "List active grades for a design (HLD DF-006, AC-019, GET /designs/{id}/grades).",
+      "query": "SELECT m.grade_id, g.grade_code FROM tbl_design_grade_map m JOIN tbl_grade_master g ON g.grade_id = m.grade_id WHERE m.design_id = :did AND m.is_active = TRUE AND g.is_active = TRUE",
+      "uses_index": "ix_design_grade_map_design_id + uq_design_grade_map_design_grade",
+      "feature_refs": ["F-006"]
+    },
+    {
+      "id": "QP-004",
+      "description": "Pre-insert design-grade pair uniqueness check.",
+      "query": "SELECT * FROM tbl_design_grade_map WHERE design_id = :did AND grade_id = :gid",
+      "uses_index": "uq_design_grade_map_design_grade",
+      "feature_refs": ["F-006"]
+    }
+  ],
+  "completeness_check": {
+    "all_lld_persistence_models_covered": true,
+    "lld_persistence_models": [
+      "SupplierModel",
+      "StaffModel",
+      "DealerModel",
+      "GradeModel",
+      "TradingDesignModel",
+      "DesignGradeMapModel"
+    ],
+    "every_entity_has_hld_module": true,
+    "every_entity_has_feature_ref": true,
+    "every_relationship_explicit": true,
+    "soft_delete_invariant_uniform": true,
+    "no_orphan_entities": true,
+    "no_implied_foreign_keys": true
+  },
+  "next": "/ases-test-spec S1"
+}

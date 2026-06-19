@@ -1,0 +1,428 @@
+{
+  "document": "scaffold_spec",
+  "produced_by": "/ases-scaffold Step A (Opus)",
+  "consumed_by": "/ases-scaffold Step B (Sonnet)",
+  "created_at": "2026-06-09",
+  "topology": "monorepo",
+  "deployment_mode": "docker-compose",
+  "tech_stack": {
+    "backend": "fastapi",
+    "frontend": "nextjs",
+    "database": "postgresql",
+    "test_framework": "pytest",
+    "python_version": "3.12",
+    "node_version": ">=20"
+  },
+  "db": {
+    "name": "jayanth_trading",
+    "app_role": "trading_app",
+    "host": "db",
+    "port": 5432,
+    "extensions": [
+      "pgcrypto"
+    ],
+    "bootstrap_sql_path": "backend/db/bootstrap.sql",
+    "bootstrap_mode": "docker-init.d",
+    "notes": "Docker mode: POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD env vars in docker-compose.yml create the database and role on first container start. bootstrap.sql (mounted to /docker-entrypoint-initdb.d/) only enables extensions and grants schema permissions. SKIP Step B.1's manual psql instruction — Docker handles bootstrap automatically. The PO still must (a) copy .env.example to .env and set DB_PASSWORD, (b) run docker-compose up -d db before Step B.3 verify."
+  },
+  "backend": {
+    "venv_path": "backend/.venv",
+    "dependencies": [
+      {
+        "name": "fastapi",
+        "version": "0.115.6"
+      },
+      {
+        "name": "uvicorn[standard]",
+        "version": "0.34.0"
+      },
+      {
+        "name": "sqlalchemy",
+        "version": "2.0.36"
+      },
+      {
+        "name": "psycopg[binary]",
+        "version": "3.2.3"
+      },
+      {
+        "name": "alembic",
+        "version": "1.14.0"
+      },
+      {
+        "name": "pydantic",
+        "version": "2.10.4"
+      },
+      {
+        "name": "pydantic-settings",
+        "version": "2.7.0"
+      },
+      {
+        "name": "python-dotenv",
+        "version": "1.0.1"
+      },
+      {
+        "name": "python-dateutil",
+        "version": "2.9.0.post0"
+      }
+    ],
+    "dev_dependencies": [
+      {
+        "name": "pytest",
+        "version": "8.3.4"
+      },
+      {
+        "name": "pytest-asyncio",
+        "version": "0.25.0"
+      },
+      {
+        "name": "pytest-cov",
+        "version": "6.0.0"
+      },
+      {
+        "name": "httpx",
+        "version": "0.28.1"
+      },
+      {
+        "name": "ruff",
+        "version": "0.8.4"
+      }
+    ],
+    "env_schema": [
+      {
+        "key": "DATABASE_URL",
+        "description": "postgresql+psycopg://trading_app:<pwd>@db:5432/jayanth_trading",
+        "required": true
+      },
+      {
+        "key": "DB_HOST",
+        "description": "Postgres host (db inside docker-compose; localhost outside)",
+        "required": true
+      },
+      {
+        "key": "DB_PORT",
+        "description": "Postgres port (5432 default)",
+        "required": true
+      },
+      {
+        "key": "DB_NAME",
+        "description": "Database name (jayanth_trading)",
+        "required": true
+      },
+      {
+        "key": "DB_USER",
+        "description": "App role (trading_app)",
+        "required": true
+      },
+      {
+        "key": "DB_PASSWORD",
+        "description": "Password for app role — also set as POSTGRES_PASSWORD for the postgres container",
+        "required": true
+      },
+      {
+        "key": "APP_ENV",
+        "description": "development | production",
+        "required": true
+      },
+      {
+        "key": "APP_HOST",
+        "description": "uvicorn bind host (0.0.0.0 default)",
+        "required": false
+      },
+      {
+        "key": "APP_PORT",
+        "description": "uvicorn bind port (8000 default)",
+        "required": false
+      },
+      {
+        "key": "APP_CORS_ORIGINS",
+        "description": "comma-separated origins (http://localhost:3000 for dev)",
+        "required": true
+      },
+      {
+        "key": "LOG_LEVEL",
+        "description": "INFO default",
+        "required": false
+      }
+    ],
+    "verify_cmd": "backend/.venv/Scripts/python.exe -c \"import fastapi, sqlalchemy, psycopg, alembic, pydantic; print('backend_deps_ok')\"",
+    "verify_cmd_unix": "backend/.venv/bin/python -c \"import fastapi, sqlalchemy, psycopg, alembic, pydantic; print('backend_deps_ok')\"",
+    "expected_verify_output": "backend_deps_ok"
+  },
+  "frontend": {
+    "package_manager": "npm",
+    "dependencies": [
+      {
+        "name": "next",
+        "version": "15.1.3"
+      },
+      {
+        "name": "react",
+        "version": "19.0.0"
+      },
+      {
+        "name": "react-dom",
+        "version": "19.0.0"
+      },
+      {
+        "name": "@tanstack/react-query",
+        "version": "5.62.7"
+      },
+      {
+        "name": "axios",
+        "version": "1.7.9"
+      },
+      {
+        "name": "react-hook-form",
+        "version": "7.54.2"
+      },
+      {
+        "name": "@hookform/resolvers",
+        "version": "3.9.1"
+      },
+      {
+        "name": "zod",
+        "version": "3.24.1"
+      },
+      {
+        "name": "date-fns",
+        "version": "4.1.0"
+      },
+      {
+        "name": "lucide-react",
+        "version": "0.469.0"
+      },
+      {
+        "name": "class-variance-authority",
+        "version": "0.7.1"
+      },
+      {
+        "name": "clsx",
+        "version": "2.1.1"
+      },
+      {
+        "name": "tailwind-merge",
+        "version": "2.6.0"
+      },
+      {
+        "name": "tailwindcss-animate",
+        "version": "1.0.7"
+      }
+    ],
+    "dev_dependencies": [
+      {
+        "name": "typescript",
+        "version": "5.7.2"
+      },
+      {
+        "name": "@types/node",
+        "version": "22.10.2"
+      },
+      {
+        "name": "@types/react",
+        "version": "19.0.2"
+      },
+      {
+        "name": "@types/react-dom",
+        "version": "19.0.2"
+      },
+      {
+        "name": "tailwindcss",
+        "version": "3.4.17"
+      },
+      {
+        "name": "postcss",
+        "version": "8.4.49"
+      },
+      {
+        "name": "autoprefixer",
+        "version": "10.4.20"
+      },
+      {
+        "name": "eslint",
+        "version": "9.17.0"
+      },
+      {
+        "name": "eslint-config-next",
+        "version": "15.1.3"
+      }
+    ],
+    "shadcn_components": [
+      "button",
+      "card",
+      "dialog",
+      "input",
+      "label",
+      "select",
+      "table",
+      "popover",
+      "calendar",
+      "form",
+      "checkbox",
+      "badge",
+      "separator",
+      "skeleton",
+      "sonner"
+    ],
+    "verify_cmd": "cd frontend && npx tsc --noEmit",
+    "expected_verify_output": ""
+  },
+  "opus_pre_created_files": [
+    {
+      "path": "backend/Dockerfile",
+      "reason": "Outside Sonnet whitelist; required for Docker deployment mode"
+    },
+    {
+      "path": "backend/.dockerignore",
+      "reason": "Outside Sonnet whitelist; image hygiene"
+    },
+    {
+      "path": "frontend/Dockerfile",
+      "reason": "Outside Sonnet whitelist; required for Docker deployment mode"
+    },
+    {
+      "path": "frontend/.dockerignore",
+      "reason": "Outside Sonnet whitelist; image hygiene"
+    }
+  ],
+  "files_to_create": [
+    {
+      "path": "docker-compose.yml",
+      "type": "config",
+      "content": "# Generated by /ases-scaffold Step B (Sonnet) — Docker Compose for full local stack.\nservices:\n  db:\n    image: postgres:16-alpine\n    container_name: jayanth_db\n    environment:\n      POSTGRES_DB: ${DB_NAME}\n      POSTGRES_USER: ${DB_USER}\n      POSTGRES_PASSWORD: ${DB_PASSWORD}\n    volumes:\n      - pgdata:/var/lib/postgresql/data\n      - ./backend/db/bootstrap.sql:/docker-entrypoint-initdb.d/01_bootstrap.sql:ro\n    ports:\n      - \"5432:5432\"\n    healthcheck:\n      test: [\"CMD-SHELL\", \"pg_isready -U ${DB_USER} -d ${DB_NAME}\"]\n      interval: 5s\n      timeout: 5s\n      retries: 10\n\n  backend:\n    build: ./backend\n    container_name: jayanth_backend\n    depends_on:\n      db:\n        condition: service_healthy\n    environment:\n      DATABASE_URL: postgresql+psycopg://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}\n      APP_ENV: ${APP_ENV:-development}\n      APP_HOST: 0.0.0.0\n      APP_PORT: 8000\n      APP_CORS_ORIGINS: http://localhost:3000\n      LOG_LEVEL: ${LOG_LEVEL:-INFO}\n    ports:\n      - \"8000:8000\"\n    volumes:\n      - ./backend:/app\n      - backend_venv:/app/.venv\n\n  frontend:\n    build: ./frontend\n    container_name: jayanth_frontend\n    depends_on:\n      - backend\n    environment:\n      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000\n    ports:\n      - \"3000:3000\"\n    volumes:\n      - ./frontend:/app\n      - frontend_node_modules:/app/node_modules\n\nvolumes:\n  pgdata:\n  backend_venv:\n  frontend_node_modules:\n"
+    },
+    {
+      "path": ".env.example",
+      "type": "env",
+      "content": "# Root .env.example — copy to .env and fill in real values. docker-compose reads this automatically.\n# IMPORTANT: .env is gitignored; never commit real secrets.\n\n# Database (used by postgres container AND backend)\nDB_NAME=jayanth_trading\nDB_USER=trading_app\nDB_PASSWORD=CHANGEME_strong_password\n\n# Backend\nAPP_ENV=development\nLOG_LEVEL=INFO\n"
+    },
+    {
+      "path": "backend/.env.example",
+      "type": "env",
+      "content": "# Backend-local .env.example — copy to backend/.env for venv/IDE usage outside Docker.\n# When running via docker-compose, env comes from the root .env (NOT this file).\n\nDATABASE_URL=postgresql+psycopg://trading_app:CHANGEME@localhost:5432/jayanth_trading\nDB_HOST=localhost\nDB_PORT=5432\nDB_NAME=jayanth_trading\nDB_USER=trading_app\nDB_PASSWORD=CHANGEME\n\nAPP_ENV=development\nAPP_HOST=0.0.0.0\nAPP_PORT=8000\nAPP_CORS_ORIGINS=http://localhost:3000\nLOG_LEVEL=INFO\n"
+    },
+    {
+      "path": "backend/requirements.txt",
+      "type": "config",
+      "content": "# Backend runtime dependencies — exact pins per DS-001 / scaffold_spec\nfastapi==0.115.6\nuvicorn[standard]==0.34.0\nsqlalchemy==2.0.36\npsycopg[binary]==3.2.3\nalembic==1.14.0\npydantic==2.10.4\npydantic-settings==2.7.0\npython-dotenv==1.0.1\npython-dateutil==2.9.0.post0\n"
+    },
+    {
+      "path": "backend/requirements-dev.txt",
+      "type": "config",
+      "content": "# Backend dev dependencies — pytest + tooling\n-r requirements.txt\npytest==8.3.4\npytest-asyncio==0.25.0\npytest-cov==6.0.0\nhttpx==0.28.1\nruff==0.8.4\n"
+    },
+    {
+      "path": "backend/pyproject.toml",
+      "type": "config",
+      "content": "[project]\nname = \"jayanth-trading-backend\"\nversion = \"0.1.0\"\ndescription = \"Jayanth Trading Tiles System — FastAPI backend\"\nrequires-python = \">=3.12\"\nreadme = \"README.md\"\n\n[tool.pytest.ini_options]\ntestpaths = [\"tests\"]\npythonpath = [\".\"]\nasyncio_mode = \"auto\"\naddopts = \"-ra -q --strict-markers\"\nmarkers = [\n  \"unit: unit tests (no DB)\",\n  \"integration: integration tests (real DB)\",\n  \"system: end-to-end system tests\",\n]\n\n[tool.ruff]\nline-length = 100\ntarget-version = \"py312\"\n\n[tool.ruff.lint]\nselect = [\"E\", \"F\", \"W\", \"I\", \"B\", \"UP\"]\nignore = [\"E501\"]\n"
+    },
+    {
+      "path": "backend/alembic.ini",
+      "type": "config",
+      "content": "# Alembic configuration — Jayanth Trading Tiles\n[alembic]\nscript_location = db/migrations\nprepend_sys_path = .\nversion_path_separator = os\nsqlalchemy.url = postgresql+psycopg://trading_app:CHANGEME@localhost:5432/jayanth_trading\n# Note: at runtime env.py overrides sqlalchemy.url with the DATABASE_URL env var.\n\n[post_write_hooks]\n\n[loggers]\nkeys = root,sqlalchemy,alembic\n\n[handlers]\nkeys = console\n\n[formatters]\nkeys = generic\n\n[logger_root]\nlevel = WARN\nhandlers = console\nqualname =\n\n[logger_sqlalchemy]\nlevel = WARN\nhandlers =\nqualname = sqlalchemy.engine\n\n[logger_alembic]\nlevel = INFO\nhandlers =\nqualname = alembic\n\n[handler_console]\nclass = StreamHandler\nargs = (sys.stderr,)\nlevel = NOTSET\nformatter = generic\n\n[formatter_generic]\nformat = %(levelname)-5.5s [%(name)s] %(message)s\ndatefmt = %H:%M:%S\n"
+    },
+    {
+      "path": "backend/db/bootstrap.sql",
+      "type": "config",
+      "content": "-- Generated by /ases-scaffold Step B (Sonnet).\n-- DOCKER MODE: this script is mounted into postgres container at\n-- /docker-entrypoint-initdb.d/01_bootstrap.sql and runs automatically as the\n-- POSTGRES_USER superuser on FIRST container start.\n--\n-- The database and app role are already created by POSTGRES_DB / POSTGRES_USER /\n-- POSTGRES_PASSWORD env vars in docker-compose.yml. This script only enables\n-- extensions and grants schema permissions.\n--\n-- If you are running PostgreSQL OUTSIDE Docker (local install), then BEFORE\n-- running this script you must first execute:\n--   CREATE DATABASE jayanth_trading;\n--   CREATE ROLE trading_app WITH LOGIN PASSWORD '<set_real_password>';\n--   GRANT ALL PRIVILEGES ON DATABASE jayanth_trading TO trading_app;\n-- Then connect to jayanth_trading and run this script:\n--   psql -U postgres -d jayanth_trading -f backend/db/bootstrap.sql\n\nCREATE EXTENSION IF NOT EXISTS pgcrypto;\n\nGRANT ALL ON SCHEMA public TO trading_app;\nALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO trading_app;\nALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO trading_app;\n"
+    },
+    {
+      "path": "backend/db/migrations/versions/0001_baseline.sql",
+      "type": "config",
+      "content": "-- Generated by /ases-scaffold Step B (Sonnet).\n-- BASELINE PLACEHOLDER ONLY. The real schema (all 13 tables for the Jayanth\n-- Trading Tiles System) is created in Sprint 1 via Alembic migrations produced\n-- by the /ases-tasks plan for the persistence task. Do NOT add tables here.\n--\n-- Sprint 1 will:\n--   1. Run `alembic init db/migrations` to write env.py + script.py.mako\n--   2. Create the 13 tables (6 masters + 6 transaction + 1 stock_ledger)\n--   3. Write the seed data script\n"
+    },
+    {
+      "path": "backend/README.md",
+      "type": "readme",
+      "content": "# Backend — Jayanth Trading Tiles System\n\nFastAPI 0.115 + SQLAlchemy 2.0 + PostgreSQL 16.\n\n## Layout\n- `src/` — application package (created per task in S1)\n- `db/bootstrap.sql` — Postgres init (extensions + grants)\n- `db/migrations/` — Alembic migrations (initialized in S1)\n- `tests/{unit,integration,system}/` — pytest suites\n\n## Run via Docker (recommended)\nFrom project root:\n\n    cp .env.example .env       # fill DB_PASSWORD\n    docker-compose up -d db\n    docker-compose up backend\n\n## Run via venv (local IDE workflow)\n\n    python -m venv .venv\n    .venv\\Scripts\\activate     # Windows\n    pip install -r requirements-dev.txt\n    cp .env.example .env\n    uvicorn src.main:app --reload\n\nThe actual `src/main.py` is created in S1; until then `import src.main` will fail.\n"
+    },
+    {
+      "path": "backend/src/__init__.py",
+      "type": "init",
+      "content": "# module init\n"
+    },
+    {
+      "path": "backend/tests/__init__.py",
+      "type": "init",
+      "content": "# module init\n"
+    },
+    {
+      "path": "backend/tests/unit/__init__.py",
+      "type": "init",
+      "content": "# module init\n"
+    },
+    {
+      "path": "backend/tests/integration/__init__.py",
+      "type": "init",
+      "content": "# module init\n"
+    },
+    {
+      "path": "backend/tests/system/__init__.py",
+      "type": "init",
+      "content": "# module init\n"
+    },
+    {
+      "path": "frontend/package.json",
+      "type": "config",
+      "content": "{\n  \"name\": \"jayanth-trading-frontend\",\n  \"version\": \"0.1.0\",\n  \"private\": true,\n  \"engines\": { \"node\": \">=20.0.0\" },\n  \"scripts\": {\n    \"dev\": \"next dev\",\n    \"build\": \"next build\",\n    \"start\": \"next start\",\n    \"lint\": \"next lint\",\n    \"typecheck\": \"tsc --noEmit\"\n  },\n  \"dependencies\": {\n    \"next\": \"15.1.3\",\n    \"react\": \"19.0.0\",\n    \"react-dom\": \"19.0.0\",\n    \"@tanstack/react-query\": \"5.62.7\",\n    \"axios\": \"1.7.9\",\n    \"react-hook-form\": \"7.54.2\",\n    \"@hookform/resolvers\": \"3.9.1\",\n    \"zod\": \"3.24.1\",\n    \"date-fns\": \"4.1.0\",\n    \"lucide-react\": \"0.469.0\",\n    \"class-variance-authority\": \"0.7.1\",\n    \"clsx\": \"2.1.1\",\n    \"tailwind-merge\": \"2.6.0\",\n    \"tailwindcss-animate\": \"1.0.7\"\n  },\n  \"devDependencies\": {\n    \"typescript\": \"5.7.2\",\n    \"@types/node\": \"22.10.2\",\n    \"@types/react\": \"19.0.2\",\n    \"@types/react-dom\": \"19.0.2\",\n    \"tailwindcss\": \"3.4.17\",\n    \"postcss\": \"8.4.49\",\n    \"autoprefixer\": \"10.4.20\",\n    \"eslint\": \"9.17.0\",\n    \"eslint-config-next\": \"15.1.3\"\n  }\n}\n"
+    },
+    {
+      "path": "frontend/tsconfig.json",
+      "type": "config",
+      "content": "{\n  \"compilerOptions\": {\n    \"target\": \"ES2022\",\n    \"lib\": [\"dom\", \"dom.iterable\", \"esnext\"],\n    \"allowJs\": true,\n    \"skipLibCheck\": true,\n    \"strict\": true,\n    \"noEmit\": true,\n    \"esModuleInterop\": true,\n    \"module\": \"esnext\",\n    \"moduleResolution\": \"bundler\",\n    \"resolveJsonModule\": true,\n    \"isolatedModules\": true,\n    \"jsx\": \"preserve\",\n    \"incremental\": true,\n    \"plugins\": [{ \"name\": \"next\" }],\n    \"paths\": { \"@/*\": [\"./src/*\"] }\n  },\n  \"include\": [\"next-env.d.ts\", \"**/*.ts\", \"**/*.tsx\", \".next/types/**/*.ts\"],\n  \"exclude\": [\"node_modules\"]\n}\n"
+    },
+    {
+      "path": "frontend/.env.example",
+      "type": "env",
+      "content": "# Frontend env — copy to frontend/.env.local for IDE / non-Docker dev\nNEXT_PUBLIC_API_BASE_URL=http://localhost:8000\n"
+    },
+    {
+      "path": "frontend/README.md",
+      "type": "readme",
+      "content": "# Frontend — Jayanth Trading Tiles System\n\nNext.js 15 (App Router) + React 19 + TypeScript + Tailwind + shadcn/ui.\n\n## Run via Docker (recommended)\nFrom project root:\n\n    docker-compose up frontend\n\n## Run locally\n\n    npm install\n    npm run dev\n\nOpens on `http://localhost:3000`. Backend must be reachable at `NEXT_PUBLIC_API_BASE_URL` (default `http://localhost:8000`).\n\n## Locked after creation\nPer ASES rule 6, once /ases-ui-scaffold has run for a sprint, execution agents may only edit `src/lib/api.ts` and other integration_points. Component code is the UI agent's territory.\n"
+    },
+    {
+      "path": ".claudeignore",
+      "type": "ignore",
+      "content": "# Generated by /ases-scaffold — files Claude should not read by default.\n# Speeds up indexing and protects large directories.\nnode_modules/\n.next/\nout/\n__pycache__/\n.venv/\ndist/\n*.egg-info/\ngraphify-out/\nsprints/*/execution/snapshots/\n.ases/.audit.log\n.env\n.env.local\n.env.*.local\n"
+    }
+  ],
+  "scaffold_steps_to_execute": {
+    "B.1": {
+      "label": "Database Bootstrap (Docker mode)",
+      "instruction": "SKIP the standard B.1 manual psql flow. bootstrap.sql is mounted by docker-compose. PO must copy .env.example to .env and set DB_PASSWORD before continuing. To verify, the PO will later run `docker-compose up -d db` and confirm `docker logs jayanth_db` shows '01_bootstrap.sql' completed cleanly."
+    },
+    "B.2": {
+      "label": "Backend venv + pip install (Windows host)",
+      "commands": [
+        "python -m venv backend/.venv",
+        "backend/.venv/Scripts/python.exe -m pip install --upgrade pip",
+        "backend/.venv/Scripts/python.exe -m pip install -r backend/requirements-dev.txt"
+      ],
+      "notes": "Venv is for local IDE/IntelliSense. Production runtime uses the Docker image. Use Windows-style venv path (Scripts/python.exe) since the host is Windows 10."
+    },
+    "B.3": {
+      "label": "Database Connection Verify",
+      "instruction": "Only runnable AFTER PO has (1) created backend/.env from backend/.env.example with a real DB_PASSWORD, and (2) `docker-compose up -d db` is running (or local postgres is bootstrapped). If either pre-condition is missing, STOP and instruct PO. Otherwise:",
+      "commands": [
+        "backend/.venv/Scripts/python.exe -c \"import os; from dotenv import load_dotenv; load_dotenv('backend/.env'); import psycopg; psycopg.connect(os.environ['DATABASE_URL']).close(); print('db_ok')\""
+      ],
+      "expected_output": "db_ok"
+    },
+    "B.4": {
+      "label": "Frontend npm install + shadcn init",
+      "commands": [
+        "cd frontend && npm install",
+        "cd frontend && npx shadcn@latest init --yes --base-color slate --css-variables",
+        "cd frontend && npx shadcn@latest add button card dialog input label select table popover calendar form checkbox badge separator skeleton sonner --yes"
+      ]
+    }
+  },
+  "verify_cmd": "backend/.venv/Scripts/python.exe -c \"import fastapi, sqlalchemy, psycopg, alembic, pydantic; print('backend_deps_ok')\" && cd frontend && npx tsc --noEmit",
+  "expected_verify_output": "backend_deps_ok",
+  "packages_to_install": [],
+  "post_scaffold_notes": [
+    "Sprint 1's first task plan will (a) run `alembic init backend/db/migrations` to create env.py + script.py.mako, (b) write SQLAlchemy models for all 13 tables, (c) generate the baseline migration, (d) write the seed script.",
+    "Backend src/ stays mostly empty after scaffold — main.py, config.py, db.py all land in S1 per-task plans.",
+    "Frontend src/ will be populated by /ases-ui-scaffold in S1 after /ases-ui-design + /ases-ui-review."
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-008",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-17",
+  "reviewed_files": ["backend/src/presentation/api/errors.py"],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-008-plan.json",
+    "sprints/S1/execution/tasks/T-008-plan.md",
+    "sprints/S1/design/lld.json (files[15])",
+    "sprints/S1/design/test_cases.json (TC-034, TC-035, TC-038)",
+    ".ases/decisions.json (M-007 entries)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-007", "applicability": "presentation layer; imports fastapi + sqlalchemy.exc (vendor exception type) + domain exceptions — no application/infrastructure crossover ✓" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "register_error_handlers(app: FastAPI) -> None defined and exported — matches LLD files[15].functions[0]",
+        "4 @app.exception_handler decorators registered: NotFoundError, ConflictError, ValidationError (domain) + IntegrityError (sqlalchemy.exc)",
+        "Status code mapping exact: NotFoundError->404, ConflictError->409, ValidationError->422, IntegrityError->409",
+        "Response body shape uniformly {'detail': str}",
+        "NotFoundError/ConflictError/ValidationError handlers propagate exc.message (the constructed-by-domain string)",
+        "IntegrityError handler returns a fixed string 'unique constraint violation' — does NOT propagate the raw DB error (which would leak schema names + constraint internals)"
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_exports": ["register_error_handlers"],
+      "actual_exports_match": true,
+      "downstream_callers_satisfied": [
+        "T-023 main.py calls register_error_handlers(app) inside create_app() — function signature matches",
+        "T-009 conftest TestClient(app) inherits these handlers automatically once T-023 mounts them"
+      ],
+      "imports_check": [
+        "fastapi.FastAPI — used as parameter type annotation",
+        "fastapi.Request — used as handler parameter type annotation",
+        "fastapi.responses.JSONResponse — used as handler return value",
+        "sqlalchemy.exc.IntegrityError — registered as handler key",
+        "src.domain.exceptions.{NotFoundError, ConflictError, ValidationError} — all registered (T-003 dep)"
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs_in_tasks_json": [],
+      "indirect_test_refs": ["TC-034", "TC-035", "TC-038"],
+      "checks": [
+        "TC-034 (DELETE /suppliers/{id} on missing supplier → 200 in happy path; this critique focuses on the 404 path that would result from a non-seeded id): NotFoundError handler returns 404 + {'detail': 'Supplier with id ... not found'} — VERIFIED inline during /ases-dev",
+        "TC-035 (POST /grades duplicate grade_code → 409, body.detail contains 'grade_code'): both ConflictError (from service pre-check via GradeService) and IntegrityError (race safety net) handlers return 409. Detail propagates 'grade_code' from service message — VERIFIED inline ('grade_code 1 already exists')",
+        "TC-038 (POST /design-grade-map duplicate pair → 409, detail contains 'design_id, grade_id'): same dual-path; ConflictError detail will include 'design_id, grade_id' from DesignGradeMapService.create_mapping — handler propagates verbatim",
+        "Manual TestClient verification during /ases-dev: all 4 handlers produced exact expected (status, body) pairs"
+      ],
+      "edge_cases_handled": [
+        "IntegrityError safety net: if service pre-check races with concurrent INSERT, DB UNIQUE constraint catches duplicate and the handler returns generic 409 — avoids 500",
+        "Async handlers (async def _not_found, etc.) match FastAPI's preference for async exception handlers — synchronous handlers also work but async is the modern idiom",
+        "ValidationError handler is for DOMAIN ValidationError (from src.domain.exceptions), NOT pydantic.ValidationError — Pydantic has its own built-in 422 handler in FastAPI; both coexist without conflict because they're different classes"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "IntegrityError detail is a FIXED string ('unique constraint violation') — does NOT leak SQL statement, constraint name, or table internals to the client. This is the right tradeoff: TC-035/038 specs assert that the 409 body 'contains grade_code' / 'contains design_id, grade_id' — but those substrings come from the ConflictError path (service pre-check), not from IntegrityError. IntegrityError is the rare-race safety net; clients get a generic 409 in that path.",
+        "NotFoundError detail format 'Entity with id N not found' — entity is a service-controlled string ('Supplier'/'Grade'/'TradingDesign'); id_ is Python int. No injection or XSS.",
+        "ConflictError detail constructed by services from user-validated Pydantic Create payloads — values were already type-checked + min_length-checked at Pydantic. Echoing them in the error message is intentional UX.",
+        "ValidationError detail same as ConflictError — domain-constructed strings, no raw user input.",
+        "JSONResponse serialises via FastAPI's default JSON encoder — strings are JSON-escaped; HTML special chars in detail are safe in the JSON wire shape (frontend toast handler displays as text, not HTML).",
+        "No stack traces or exception types exposed to client."
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "PASS",
+      "checks": [
+        "Single file, single public function (register_error_handlers) with 4 nested closures (the handlers).",
+        "All imports used; no dead code.",
+        "Inbound: src.domain.exceptions (T-003 ✓).",
+        "Outbound: T-023 main.py will import register_error_handlers and call it during app factory."
+      ]
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "soft_notes": [
+    {
+      "id": "N-001",
+      "topic": "Pydantic ValidationError vs domain ValidationError naming overlap",
+      "where": "src.domain.exceptions.ValidationError (T-003) shares the class NAME 'ValidationError' with pydantic.ValidationError",
+      "observation": "FastAPI registers its own handler for pydantic.ValidationError that returns 422 with the standard {detail: [...]} list-of-errors body. Our handler is on the DOMAIN ValidationError class, a different Python type. They coexist correctly because @app.exception_handler dispatches on exact class identity. Logged here so future contributors don't 'fix' by renaming or merging — both paths are intentional.",
+      "actionable_for": "Document in T-013 GradeService when domain ValidationError is raised (it's currently used for service-level validation that Pydantic missed)."
+    },
+    {
+      "id": "N-002",
+      "topic": "IntegrityError generic message can swallow useful 409 context",
+      "where": "_integrity handler returns hardcoded 'unique constraint violation'",
+      "observation": "Plan-prescribed behaviour for security (avoid leaking constraint names + SQL). Practical consequence: TC-035 and TC-038 assert that the 409 body DETAIL contains 'grade_code' / 'design_id, grade_id'. These assertions pass only when the ConflictError path runs (service pre-check), NOT when IntegrityError fires as the rare-race fallback. This is acceptable because: (a) tests run in serial, so service pre-check always wins; (b) the IntegrityError path is a production safety net only.",
+      "actionable_for": "Sprint-close: if production observes IntegrityError-path 409s, consider parsing exc.orig.constraint_name and emitting a less leaky but more informative detail (e.g. 'duplicate grade_code'). Out of scope for S1."
+    }
+  ],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "register_error_handlers function matches plan + LLD verbatim. 4 handlers mapped to correct status codes with correct response body shape {'detail': str}. TestClient verification during /ases-dev confirmed all 4 paths produce exact expected output for TC-034/035/038. Security stance is correct (IntegrityError detail not leaked). Domain ValidationError vs pydantic ValidationError coexist correctly via class-identity dispatch.",
+    "iteration_cap_state": "1/3 — well clear of escalation."
+  },
+  "next": "Mark T-008 status=complete. Proceed to /ases-validate T-009 S1 (testcontainers conftest; depends on T-002 only — complete). T-009 resolves the INFRA-001 analysis gap."
+}

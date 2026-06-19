@@ -1,0 +1,17 @@
+{
+  "task_id": "T-027",
+  "title": "Axios client + error interceptor",
+  "module_ref": "M-006",
+  "output_files": ["frontend/src/lib/api/client.ts"],
+  "scope": "axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL, headers: {'Content-Type':'application/json'} }) with a response interceptor that normalises errors into { status, message } and rethrows.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-006", "DS-010"],
+  "success_criteria": {
+    "manual": "Import apiClient; calls hit NEXT_PUBLIC_API_URL.",
+    "automated": "Indirectly verified through page-level fetch mocks (TC-040, TC-043, TC-045).",
+    "definition_of_done": "apiClient exported as default + named; error interceptor returns Promise.reject({status, message})."
+  },
+  "checkout_prompt": "'Axios client — baseURL from NEXT_PUBLIC_API_URL + normalised error interceptor.'"
+}

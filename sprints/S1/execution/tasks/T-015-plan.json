@@ -1,0 +1,17 @@
+{
+  "task_id": "T-015",
+  "title": "DesignGradeMapService (F-006)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/application/services/design_grade_map_service.py"],
+  "scope": "DesignGradeMapService — list_mappings, list_active_grades_for_design (AC-019 / DF-006), create_mapping (FK exist check + UNIQUE pre-check), update_mapping, deactivate_mapping. Most complex S1 service.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-006", "T-007", "T-003"],
+  "test_case_refs": ["TC-024", "TC-025", "TC-027", "TC-028", "TC-029", "TC-031", "TC-032"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-012"],
+  "success_criteria": {
+    "manual": "5 methods present; create_mapping raises NotFoundError on missing FK and ConflictError on duplicate pair.",
+    "automated": "TC-024 (happy), TC-025 (Conflict), TC-027 (NotFound design), TC-028 (NotFound grade), TC-029 (soft delete preserves row), TC-031 (active projection), TC-032 (empty list).",
+    "definition_of_done": "list_active_grades_for_design returns list[DesignGradeReadMin] via repo.list_active_by_design + projection."
+  },
+  "checkout_prompt": "'DesignGradeMapService — 5 methods including AC-019 contract. F-006 covered.'"
+}

@@ -1,0 +1,118 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-013",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-18",
+  "reviewed_files": ["backend/src/application/services/grade_service.py"],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-013-plan.json",
+    "sprints/S1/execution/tasks/T-013-plan.md",
+    "sprints/S1/design/lld.json (files[10])",
+    "sprints/S1/design/schema.json (tbl_grade_master)",
+    "sprints/S1/design/test_cases.json (TC-017, TC-019, TC-035)",
+    ".ases/decisions.json (M-001 entries)",
+    ".ases/context.json open_issues (N-001 carry-over from T-007 critique)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-007", "applicability": "application layer; service calls repo ✓" },
+    { "id": "DS-008", "applicability": "deactivate_grade via repo.soft_delete; no delete_* method ✓" },
+    { "id": "DS-012", "applicability": "BaseRepository[GradeModel] + GradeRepository.get_by_code for AC-011 pre-check ✓" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "4 public methods: list_grades, create_grade, update_grade, deactivate_grade — match LLD files[10].functions[]",
+        "create_grade pre-checks uniqueness via repo.get_by_code; raises ConflictError on duplicate — implements AC-011 service-level guard",
+        "update_grade re-checks uniqueness ONLY when grade_code is in patch; correctly handles the rename-to-same case via `existing.grade_id != grade_id` guard",
+        "deactivate_grade delegates to repo.soft_delete + commits — matches canonical pattern",
+        "ConflictError detail message contains 'grade_code' substring — TC-035 substring assertion will pass through T-008 ConflictError handler",
+        "ADDED beyond plan.md text: payload.grade_code.strip() before pre-check AND before repo.create. Addressed N-001 from T-007 critique (whitespace bypass). LLD files[13] and schema.json both specify strip_whitespace; plan.md deferred this to the service ('# strip in service if needed') — this implementation closes the loop within T-013's output_files[] scope."
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_exports": ["GradeService"],
+      "actual_exports_match": true,
+      "downstream_callers_satisfied": [
+        "T-016 dependencies.get_grade_service: returns GradeService(db) — ctor matches",
+        "T-020 grades router: list_grades / create_grade / update_grade / delete_grade (soft) — all 4 service methods match"
+      ],
+      "imports_check": [
+        "sqlalchemy.orm.Session — ctor annotation",
+        "GradeRepository (T-006) — instantiated; .get_by_code, .create, .update, .soft_delete, .list all called",
+        "GradeCreate / GradeUpdate / GradeRead (T-007) — used",
+        "ConflictError (T-003) — raised on duplicate"
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs_in_tasks_json": ["TC-017", "TC-019"],
+      "indirect_test_refs": ["TC-035"],
+      "checks": [
+        "TC-017 (GradeService.create_grade with duplicate grade_code raises ConflictError): VERIFIED inline via MagicMock — `repo.get_by_code('1') -> existing row` → ConflictError raised with message 'grade_code \\'1\\' already exists'",
+        "TC-035 (POST /grades duplicate -> 409 body detail contains 'grade_code'): ConflictError detail propagates through T-008 mapper to {'detail': \"grade_code '1' already exists\"} - substring 'grade_code' present",
+        "TC-019 (AC-012 deactivate effect on design-grade list): deactivate_grade soft-sets is_active=False; the JOIN filter that hides it from active mappings lives in T-015 list_active_grades_for_design (DesignGradeMapRepository.list_active_by_design verified at T-006 critique)",
+        "Rename-to-same edge case: update_grade with same code on same row VERIFIED — no spurious ConflictError",
+        "N-001 whitespace strip: create_grade('  DIM  ') VERIFIED — get_by_code called with 'DIM' and repo.create called with {'grade_code': 'DIM'}"
+      ],
+      "edge_cases_handled": [
+        "Rename-to-same: existing.grade_id != grade_id guard prevents false ConflictError when patch re-asserts the row's current grade_code",
+        "Whitespace bypass: strip() applied in BOTH paths (create_grade + update_grade patch). LLD-compliant.",
+        "ConflictError vs IntegrityError safety net: service pre-check fires first in serial tests; if concurrent INSERT race occurs, DB UNIQUE catches it and T-008 IntegrityError handler returns generic 409 — pre-check is the primary AC-011 path, IntegrityError is the racing safety net",
+        "exclude_none=True on update — partial PATCH semantics preserved"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "Pydantic enforces min_length=1 upstream on grade_code (T-007 verified)",
+        "All DB access parameterised via SQLAlchemy expressions in BaseRepository + GradeRepository.get_by_code",
+        ".strip() is a safe deterministic transformation — no regex, no eval",
+        "ConflictError detail format `grade_code '{code}' already exists` — code is user-supplied but Pydantic-validated (min_length=1) and stripped; quotes around it would be safe even with quote chars (FastAPI JSON-escapes the response body)",
+        "No raw SQL, no shell, no FS, no credentials"
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "PASS",
+      "checks": [
+        "Single class, 1 ctor + 4 methods; no helpers, no orphan functions",
+        "Inbound deps satisfied: T-006 (GradeRepository ✓), T-007 (Grade schemas ✓), T-003 (ConflictError ✓)",
+        "Outbound: T-016 + T-020 will form inbound edges as routers land"
+      ]
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "resolved_warnings": [
+    {
+      "id": "N-001",
+      "from": "T-007 critique soft note (context.json open_issues)",
+      "resolution": "RESOLVED in T-013 dev — grade_code stripped via .strip() before BOTH the get_by_code pre-check AND the repo.create dict. Same for update_grade when grade_code is in patch. LLD files[13] strip_whitespace intent now honoured at the service layer."
+    }
+  ],
+  "soft_notes": [
+    {
+      "id": "N-001-disposition",
+      "topic": "Service-level whitespace strip vs LLD's Pydantic-level strip",
+      "where": "create_grade + update_grade in grade_service.py",
+      "observation": "LLD files[13] originally specified strip_whitespace at the Pydantic constr() level (the v1 syntax) — this would have applied stripping at the request boundary, before the service even sees the value. The chosen implementation strips at the SERVICE boundary instead. Functionally equivalent for AC-011 protection because: (a) service is the only consumer of GradeCreate inside the FastAPI request flow; (b) any direct construction of GradeCreate in tests goes through model_validate which doesn't trigger the strip transform. If a future caller bypasses the service and goes directly to repo.create, the strip is skipped — but DS-012 forbids this. Recommendation: at sprint-close, optionally migrate to pydantic.StringConstraints(strip_whitespace=True, min_length=1) via Annotated[str, ...] for defence-in-depth. Out of scope for S1."
+    }
+  ],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "Implementation matches plan + LLD files[10] verbatim, plus the in-scope addition of grade_code.strip() that resolves N-001. 4 methods, ConflictError pre-check with 'grade_code' substring (TC-017 + TC-035 supported), correct rename-to-same handling, canonical commit pattern. All inline smoke tests passed during /ases-dev. AC-011 + AC-012 fully covered (AC-012's downstream effect is in T-015 territory and already verified at T-006).",
+    "iteration_cap_state": "1/3 — well clear of escalation."
+  },
+  "next": "Mark T-013 status=complete and N-001 RESOLVED in context.json. Proceed to /ases-validate T-014 S1 (DesignService — same canonical pattern as T-010)."
+}

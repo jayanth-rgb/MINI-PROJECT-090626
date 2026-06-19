@@ -1,0 +1,146 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(~/.claude/**)",
+      "Read(~/.claude/skills/**)",
+      "Skill(ases-dev)",
+      "Skill(ases-dev:*)",
+      "Skill(ases-critique)",
+      "Skill(ases-critique:*)",
+      "Skill(ases-validate)",
+      "Skill(ases-validate:*)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(git add:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(git commit:*)",
+      "Bash(python3:*)",
+      "Bash(python3 -c ':*)",
+      "Bash(python3 .claude/hooks/ases-hook.py:*)",
+      "Bash(python3 .claude/hooks/validate_schema.py:*)",
+      "Bash(pytest:*)",
+      "Bash(python3 -m pytest:*)",
+      "Bash(pip install:*)",
+      "Bash(pip show:*)",
+      "Bash(npm:*)",
+      "Bash(node:*)",
+      "Bash(npx:*)",
+      "Bash(graphify:*)",
+      "Bash(psql:*)",
+      "Bash(pg_isready:*)",
+      "Skill(ases-sprint-scaffold)",
+      "Skill(ases-sprint-scaffold:*)",
+      "Bash(python .claude/hooks/validate_schema.py sprints/S1/design/scaffold_spec.json scaffold_spec)",
+      "Bash(backend/.venv/Scripts/python.exe -c \"import pathlib; req = ['backend/src/domain/__init__.py','backend/src/infrastructure/__init__.py','backend/src/infrastructure/db/__init__.py','backend/src/infrastructure/db/models/__init__.py','backend/src/infrastructure/db/repositories/__init__.py','backend/src/application/__init__.py','backend/src/application/services/__init__.py','backend/src/presentation/__init__.py','backend/src/presentation/schemas/__init__.py','backend/src/presentation/api/__init__.py','backend/src/presentation/api/routers/__init__.py','backend/scripts/__init__.py']; missing = [p for p in req if not pathlib.Path\\(p\\).exists\\(\\)]; print\\('backend_skeleton_ok' if not missing else 'MISSING:' + ','.join\\(missing\\)\\)\")",
+      "Skill(ases-tasks)",
+      "Skill(ases-tasks:*)",
+      "Bash(python .claude/hooks/validate_schema.py sprints/S1/execution/tasks.json tasks)",
+      "Skill(ases-ui-review)",
+      "Skill(ases-ui-review:*)",
+      "Skill(ases-ui-scaffold)",
+      "Skill(ases-ui-scaffold:*)",
+      "Bash(DATABASE_URL='postgresql+psycopg://x:y@localhost:5432/test' .venv/Scripts/python.exe -c \"from src.infrastructure.db.base import Base; from src.infrastructure.db.session import engine, SessionLocal, get_db; print\\('ok'\\)\")",
+      "Bash(DATABASE_URL=postgresql+psycopg://x:y@localhost:5432/test .venv/Scripts/python.exe -c ' *)",
+      "Bash(where graphify *)",
+      "Skill(ases-test-impl)",
+      "Skill(ases-test-impl:*)",
+      "Skill(ases-test-run)",
+      "Skill(ases-test-run:*)",
+      "Bash(.venv/Scripts/python.exe -m pytest --version)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/ -v --tb=short)"
+    ],
+    "deny": [
+      "Write(./.env)",
+      "Write(./.env.*)",
+      "Write(./production.config.*)",
+      "Write(./.ases/decisions.json)",
+      "Write(./.ases/global_context.json)",
+      "Bash(rm -rf:*)",
+      "Bash(curl:*)",
+      "Bash(wget:*)"
+    ],
+    "allowedTools": [
+      "Read",
+      "Write",
+      "View",
+      "Bash(git add:*)",
+      "Bash(git status:*)",
+      "Bash(git commit:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git branch:*)",
+      "Bash(mkdir:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "Bash(cp:*)",
+      "Bash(mv:*)",
+      "Bash(python3:*)",
+      "Bash(pytest:*)",
+      "Bash(npm:*)",
+      "Bash(node:*)"
+    ]
+  },
+  "model": "claude-opus-4-7",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/ases-hook.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/ases-hook.py"
+          }
+        ]
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/ases-hook.py"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write(.ases/context.json)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[ASES] Context updated: $(date)\" >> .ases/.audit.log"
+          }
+        ]
+      },
+      {
+        "matcher": "Write(sprints/*/execution/snapshots/*.json)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \"[ASES] Snapshot saved: $CLAUDE_TOOL_FILE $(date)\" >> .ases/.audit.log"
+          }
+        ]
+      }
+    ]
+  },
+  "maxTokens": 8096
+}

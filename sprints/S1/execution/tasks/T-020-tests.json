@@ -1,0 +1,7 @@
+{
+  "task_id": "T-020",
+  "test_case_refs": ["TC-035"],
+  "test_files_to_create": ["backend/tests/integration/api/test_grades_api.py"],
+  "framework": "pytest",
+  "covers_acs": ["AC-011"]
+}

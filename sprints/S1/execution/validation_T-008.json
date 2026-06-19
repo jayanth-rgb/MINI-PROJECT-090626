@@ -1,0 +1,81 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate",
+  "consumed_by": ["/ases-dev"],
+  "task_id": "T-008",
+  "sprint_id": "S1",
+  "verdict": "PROCEED",
+  "performed_at": "2026-06-17",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "reads_from_declared": ["backend/src/domain/exceptions.py"],
+      "evidence": {
+        "backend/src/domain/exceptions.py": "PRESENT — exports DomainError, NotFoundError, ConflictError, ValidationError (T-003 complete)",
+        "backend/src/presentation/api/__init__.py": "PRESENT (sprint-scaffold) — target directory ready"
+      },
+      "env_vars_declared": []
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[15] — backend/src/presentation/api/errors.py",
+      "expected_exports": ["register_error_handlers"],
+      "expected_handler_mappings": [
+        { "exception": "NotFoundError", "status_code": 404 },
+        { "exception": "ConflictError", "status_code": 409 },
+        { "exception": "ValidationError", "status_code": 422 },
+        { "exception": "sqlalchemy.exc.IntegrityError", "status_code": 409, "detail": "unique constraint violation" }
+      ],
+      "drift_detected": false,
+      "notes": [
+        "Create task — no existing implementation to drift from.",
+        "Plan matches LLD files[15].functions[0] (register_error_handlers).",
+        "Response shape {'detail': str} aligns with FastAPI convention AND with frontend apiClient interceptor that reads response.data.detail (UR-W001 already resolved in /ases-ui-scaffold).",
+        "IntegrityError handler is the safety-net for race conditions where service-layer get_by_code / get_by_pair pre-check passes but a concurrent INSERT slips in."
+      ]
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_files": ["backend/src/presentation/api/errors.py"],
+      "do_not_touch_declared": ["any other file"],
+      "in_progress_task_overlap": [],
+      "evidence": "No other task writes to errors.py. T-023 main.py reads register_error_handlers but writes to main.py only."
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on_declared": ["T-003"],
+      "depends_on_status": [
+        { "task_id": "T-003", "status": "complete" }
+      ],
+      "evidence": "T-003 (domain exceptions) marked complete with iteration_count=1 after CLEAN critique. 4 exception classes available for import."
+    }
+  },
+  "environment_check": {
+    "python_venv": "backend/.venv/Scripts/python.exe — PRESENT",
+    "fastapi": "fastapi 0.115.6 — supports @app.exception_handler decorator",
+    "sqlalchemy_exc": "SQLAlchemy 2.0.36 — sqlalchemy.exc.IntegrityError available"
+  },
+  "test_case_alignment": {
+    "TC-034": "DELETE /api/v1/suppliers/{id} on missing supplier → 404 via NotFoundError handler",
+    "TC-035": "POST /api/v1/grades duplicate grade_code → 409 via ConflictError handler (service-layer pre-check) OR IntegrityError handler (race safety net)",
+    "TC-038": "POST /api/v1/design-grade-map duplicate (design_id, grade_id) → 409 via ConflictError (pre-check) OR IntegrityError safety net"
+  },
+  "instruction_packet_for_dev": {
+    "task_plan": "sprints/S1/execution/tasks/T-008-plan.md",
+    "task_plan_json": "sprints/S1/execution/tasks/T-008-plan.json",
+    "tests_spec": "sprints/S1/execution/tasks/T-008-tests.md (indirect via TC-034, TC-035, TC-038)",
+    "lld_slice": "lld.json files[15] (backend/src/presentation/api/errors.py)",
+    "decisions": ["DS-007 (presentation layer — no infrastructure imports beyond sqlalchemy.exc which is permitted as a vendor exception type)"],
+    "schema_slice": "n/a — no DB tables touched",
+    "write_scope": ["backend/src/presentation/api/errors.py"],
+    "success_check_command": "backend/.venv/Scripts/python.exe -c \"from fastapi import FastAPI; from src.presentation.api.errors import register_error_handlers; app = FastAPI(); register_error_handlers(app); print(len(app.exception_handlers))\""
+  },
+  "summary": {
+    "verdict": "PROCEED",
+    "blocking_holds": 0,
+    "soft_notes": 0,
+    "rationale": "All four pre-flight checks pass. T-003 dependency complete with domain exceptions available. FastAPI + SQLAlchemy already installed. Plan delivers all 4 handlers with the {'detail': str} response shape used by both the live backend and the frontend apiClient interceptor. Ready for /ases-dev."
+  },
+  "next": "/ases-dev T-008 S1"
+}

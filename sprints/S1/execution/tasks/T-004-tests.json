@@ -1,0 +1,11 @@
+{
+  "task_id": "T-004",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "manual_verification": [
+    { "step": "Import + column count", "command": "backend/.venv/Scripts/python.exe -c \"from src.infrastructure.db.models.master import SupplierModel; print(len(SupplierModel.__table__.columns))\"", "expected": "5" },
+    { "step": "All 6 models importable", "command": "backend/.venv/Scripts/python.exe -c \"from src.infrastructure.db.models.master import SupplierModel, StaffModel, DealerModel, GradeModel, TradingDesignModel, DesignGradeMapModel; print('ok')\"", "expected": "ok" }
+  ],
+  "framework": "pytest",
+  "covered_indirectly_by": "T-024 alembic autogenerate (DDL matches schema.json), TC-018 + TC-026 (UNIQUE enforcement at DB)."
+}

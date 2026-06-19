@@ -1,0 +1,16 @@
+{
+  "task_id": "T-001",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "test_files_to_modify": [],
+  "manual_verification": [
+    {
+      "step": "Import + instantiate",
+      "command": "backend/.venv/Scripts/python.exe -c \"from src.config import get_settings; s = get_settings(); print(type(s).__name__, s.api_env)\"",
+      "expected": "Settings development"
+    }
+  ],
+  "framework": "pytest",
+  "covered_indirectly_by": "TC-033..038 (all integration tests boot the FastAPI app which calls get_settings transitively).",
+  "skip_reason": "Settings is a stable pattern with no business logic; explicit unit tests would test pydantic itself."
+}

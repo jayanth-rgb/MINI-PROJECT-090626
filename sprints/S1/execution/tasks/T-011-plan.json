@@ -1,0 +1,17 @@
+{
+  "task_id": "T-011",
+  "title": "StaffService (F-002)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/application/services/staff_service.py"],
+  "scope": "Mirror of SupplierService for Staff — list_staff / create_staff / update_staff / deactivate_staff.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-006", "T-007", "T-003"],
+  "test_case_refs": ["TC-008", "TC-010"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-012"],
+  "success_criteria": {
+    "manual": "4 public methods present.",
+    "automated": "TC-008, TC-010 implemented in /ases-test-impl.",
+    "definition_of_done": "4 methods; mirrors T-010 shape; staff_name required is enforced by T-007 schema."
+  },
+  "checkout_prompt": "'StaffService created. AC-004 + AC-005 covered.'"
+}

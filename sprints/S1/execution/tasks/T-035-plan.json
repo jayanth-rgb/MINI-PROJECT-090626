@@ -1,0 +1,20 @@
+{
+  "task_id": "T-035",
+  "title": "Suppliers admin page + SupplierForm (F-001)",
+  "module_ref": "M-006",
+  "output_files": [
+    "frontend/src/app/admin/suppliers/page.tsx",
+    "frontend/src/components/admin/suppliers/SupplierForm.tsx"
+  ],
+  "scope": "SuppliersPage 'use client': useQuery(['suppliers'], suppliersApi.list); useMutation hooks for create/update/remove with invalidateQueries on success; opens MasterFormDialog with SupplierForm; renders MasterDataTable. SupplierForm: react-hook-form + zodResolver(supplierSchema), Label+Input pairs for supplier_name + place with inline error <p>. AC-001, AC-002.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-028", "T-030", "T-033", "T-034"],
+  "test_case_refs": ["TC-039", "TC-040"],
+  "decisions_referenced": ["DS-011"],
+  "success_criteria": {
+    "manual": "Visit /admin/suppliers -> seed rows render; New Supplier -> create; Edit -> patch; Deactivate -> row goes muted.",
+    "automated": "TC-039 (form blocks empty submit), TC-040 (deactivate calls remove).",
+    "definition_of_done": "Page reads/writes via TanStack Query + suppliersApi; form uses zodResolver; deactivate triggers refetch."
+  },
+  "checkout_prompt": "'Suppliers admin — page + form. AC-001 + AC-002 covered.'"
+}

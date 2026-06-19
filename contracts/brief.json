@@ -1,0 +1,71 @@
+{
+  "$schema": "ases/v3.0/brief",
+  "document": "brief",
+  "produced_by": "/ases-interview",
+  "consumed_by": ["/ases-prd", "/ases-hld", "/ases-init"],
+  "version": 1,
+  "product": {
+    "name": "Jayanth Trading Tiles System",
+    "objective": "A dedicated trading-tiles module that lets a single tile trading business record inward purchases from suppliers, outward sales to dealers, physical stock adjustments, and view current stock position and sales reports — all organised by tile design and grade.",
+    "users": [
+      "Data Entry Staff — records daily inward, sales, and adjustment entries",
+      "Stock Verifier — physically counts tiles at the warehouse and provides the count for adjustments",
+      "Management / Supervisor — views the stock dashboard and runs sales reports"
+    ],
+    "core_features": [
+      "Master data: Supplier, Staff, Dealer, Grade (9 grades), Trading Size-Design, Tile Design-Grade combination table",
+      "Trading Tiles Inward Form — grade rows auto-populated per selected design",
+      "Trading Tiles Sales Form — grade rows auto-populated per selected design",
+      "Trading Tiles Adjustment Form — physical vs software CB difference per grade",
+      "Stock Dashboard — Opening / Inward / Outward / Adjust / Closing per design-grade, filtered by date",
+      "Sales Report — Consolidation + Transaction views shown together with multi-select filters",
+      "Monthly stock carry-forward (closing balance of Month N → opening of Month N+1)"
+    ],
+    "non_goals": [
+      "User login and access control (Version 1 — all users share full access)",
+      "Pricing, invoicing, or payment tracking",
+      "Manufacturing tiles module",
+      "Inward Report (only Sales Report in this version)",
+      "Report export to PDF or Excel"
+    ],
+    "success_criteria": [
+      "Closing balance matches physical count after every adjustment entry",
+      "Only valid design-grade combinations appear on forms (RULE-005 / RULE-006)",
+      "Sales Report Consolidation totals always equal SUM of Transaction Report lines for the same filters",
+      "Each data entry completes within 2-3 minutes",
+      "Dashboard reflects all transactions up to any selected date",
+      "Opening balance auto-populates at month start with no manual intervention"
+    ]
+  },
+  "engineering": {
+    "tech_stack": {
+      "backend": "FastAPI (Python 3.11) + SQLAlchemy 2.x + Alembic migrations",
+      "frontend": "Next.js 15 (React 19 + TypeScript, App Router)",
+      "database": "PostgreSQL 16",
+      "infra": "Docker + docker-compose (local), portable to any cloud (AWS/GCP/Azure)"
+    },
+    "known_integrations": [
+      "None — fully self-contained single-tenant system in V1"
+    ],
+    "performance_constraints": [
+      "Single-factory workload — single-digit concurrent users",
+      "Sales Report Transaction view may need pagination beyond ~1000 rows (LLD open item #7)",
+      "Stock ledger reads back the materialised running balance — dashboard should be sub-second for any single date"
+    ],
+    "deployment_context": "Docker images for backend and frontend, PostgreSQL via docker-compose for local dev, portable to any cloud container runtime",
+    "data_shape": "Relational. 6 master tables, 6 transaction tables (3 header + 3 line), 1 stock ledger materialised table. Most operations are header + line-items in a single transaction."
+  },
+  "constraints": [
+    "Transaction dates restricted to today and up to 7 days prior — no future dates",
+    "Adjustment Form: only one tile design per entry",
+    "Trading Size-Design Master is separate from any manufactured-tile design list",
+    "No user authentication in V1 — all users share full access",
+    "Grade rows on Inward / Sales forms must derive from Tile Design-Grade Table, not hardcoded"
+  ],
+  "risks": [
+    "Stock ledger concurrency: simultaneous saves on the same Design+Grade need row-level locking (LLD open item #5)",
+    "Dashboard performance: live SUM over inward / sales / adjust per design-grade may need a materialised running-balance table",
+    "Month-end carry-forward correctness depends on a deterministic 'last day of previous month' calculation across timezones — DB stored in UTC, dates handled as plain DATE"
+  ],
+  "sprint_1_hypothesis": "Sprint 1 delivers the data foundation: all 6 master tables (Supplier, Staff, Dealer, Grade, Trading Size-Design, Design-Grade map) with CRUD admin screens, soft-delete (is_active), seed data per the sample PRD, and PostgreSQL schema + Alembic baseline migration. No transaction forms or stock ledger yet — those land in S2 and S3."
+}

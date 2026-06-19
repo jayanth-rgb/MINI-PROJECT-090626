@@ -1,0 +1,17 @@
+{
+  "task_id": "T-010",
+  "title": "SupplierService (F-001)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/application/services/supplier_service.py"],
+  "scope": "SupplierService class — list_suppliers(include_inactive=False), create_supplier(payload), update_supplier(supplier_id, patch), deactivate_supplier(supplier_id). Owns transactional boundary (commits). Maps ORM rows → SupplierRead.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-006", "T-007", "T-003"],
+  "test_case_refs": ["TC-001", "TC-004", "TC-005", "TC-006"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-012"],
+  "success_criteria": {
+    "manual": "Import; instantiate with mock session; assert 4 public methods present.",
+    "automated": "TC-001 (create), TC-004 (deactivate), TC-005/006 (list filter) — implemented in /ases-test-impl.",
+    "definition_of_done": "4 methods; session.commit() after each write; deactivate calls repo.soft_delete; list defaults to active-only."
+  },
+  "checkout_prompt": "'SupplierService — list/create/update/deactivate. AC-001 + AC-002 covered.'"
+}

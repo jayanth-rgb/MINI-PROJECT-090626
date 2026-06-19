@@ -1,0 +1,133 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-007",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-16",
+  "reviewed_files": ["backend/src/presentation/schemas/master.py"],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-007-plan.json",
+    "sprints/S1/execution/tasks/T-007-plan.md",
+    "sprints/S1/design/lld.json (files[13])",
+    "sprints/S1/design/schema.json (constraints sections)",
+    "sprints/S1/design/test_cases.json (TC-002, TC-003, TC-009, TC-013, TC-021)",
+    ".ases/decisions.json (M-001 entries)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-007", "applicability": "presentation layer — file imports only pydantic + stdlib; no domain or infrastructure references ✓" },
+    { "id": "DS-011", "applicability": "react-hook-form + zod on the UI mirrors these constraints — backend schemas are the source of truth" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "19 schemas declared in exact LLD order: 6 entities × (Create / Update / Read) + DesignGradeReadMin",
+        "_OrmModel base with model_config = ConfigDict(from_attributes=True) — Read schemas inherit this, enabling SupplierRead.model_validate(orm_instance) pattern used by services (T-010..T-015)",
+        "Required string fields use Field(min_length=1) — supplier_name, place, staff_name, dealer_name, grade_code, size, design_name",
+        "*Update schemas declare all fields Optional with default=None + min_length=1 on string fields (so a non-empty PATCH is still rejected if it has '') — supports partial update semantics described in LLD files[7..12] services",
+        "is_active: bool | None = None present on ALL 6 Update schemas — resolves UR-W002 (Reactivate flow)",
+        "Grade + DesignGradeMap Read schemas have NO created_at — matches T-004 ORM and schema.json notes",
+        "DesignGradeMapCreate uses Field(gt=0) on design_id + grade_id — positive int constraint matching frontend Zod schema",
+        "DesignGradeMapRead.design_name + grade_code declared Optional — populated by service layer from joined ORM relationships",
+        "DesignGradeReadMin: exactly {grade_id, grade_code} — minimal projection for AC-019 / DF-006 contract",
+        "Pydantic v2 idioms throughout: model_config = ConfigDict(...), `str | None` union, Field(min_length=...) — no v1 syntax"
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_exports": [
+        "SupplierCreate", "SupplierUpdate", "SupplierRead",
+        "StaffCreate", "StaffUpdate", "StaffRead",
+        "DealerCreate", "DealerUpdate", "DealerRead",
+        "GradeCreate", "GradeUpdate", "GradeRead",
+        "DesignCreate", "DesignUpdate", "DesignRead",
+        "DesignGradeMapCreate", "DesignGradeMapUpdate", "DesignGradeMapRead",
+        "DesignGradeReadMin"
+      ],
+      "actual_exports_match": true,
+      "downstream_callers_satisfied": [
+        "T-010 SupplierService: SupplierCreate.model_dump(), SupplierUpdate.model_dump(exclude_none=True), SupplierRead.model_validate(obj) — all supported by impl",
+        "T-011..T-014 services: same patterns with their respective schemas",
+        "T-015 DesignGradeMapService: uses DesignGradeMapCreate (.design_id/.grade_id access), DesignGradeMapUpdate, DesignGradeMapRead (hydrates design_name/grade_code from joined ORM), DesignGradeReadMin for AC-019",
+        "T-017..T-022 routers: response_model=...Read, request body=...Create | ...Update — all 18 types exported",
+        "T-008 errors handler: pydantic.ValidationError propagation works without special handling (FastAPI built-in)"
+      ],
+      "imports_check": [
+        "datetime.datetime — used by Read schemas with created_at field",
+        "pydantic.BaseModel — used as base for all schemas",
+        "pydantic.ConfigDict — used by _OrmModel.model_config",
+        "pydantic.Field — used by Field(min_length=1) and Field(gt=0)"
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs_in_tasks_json": ["TC-002", "TC-003", "TC-009", "TC-013", "TC-021"],
+      "checks": [
+        "TC-002 (SupplierCreate empty supplier_name): Field(min_length=1) raises pydantic.ValidationError with error_field='supplier_name', error_type='string_too_short' — verified during /ases-dev",
+        "TC-003 (SupplierCreate empty place): same constraint pattern — verified",
+        "TC-009 (StaffCreate empty staff_name): same — verified",
+        "TC-013 (DealerCreate parameterised: empty dealer_name OR empty place): both variants reject — verified for both",
+        "TC-021 (DesignCreate parameterised: empty size OR empty design_name): both variants reject — verified for both"
+      ],
+      "edge_cases_handled": [
+        "*Update fields use Field(default=None, min_length=1) — clients can omit fields entirely OR submit non-empty strings; empty strings are rejected (cannot set field to '')",
+        "DesignGradeMapCreate field constraint Field(gt=0) — rejects 0 and negatives (verified)",
+        "Read schemas use from_attributes=True — model_validate(orm) extracts attributes (verified with FakeORMSupplier inline)",
+        "DesignGradeMapRead.design_name / grade_code declared Optional — populated by service after joined query (lazy='joined' in T-004 ORM)"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "All input validation happens at Pydantic — no manual string parsing or eval/exec",
+        "Field(min_length=1) prevents whitespace-only/empty inputs from reaching the service layer (most attacks)",
+        "Field(gt=0) on FK ints prevents negative/zero IDs (no row 0 in the DB; negatives would error at DB level too)",
+        "ConfigDict(from_attributes=True) is only on Read schemas (response shape) — not on Create/Update where it could allow unintended ORM attribute leakage",
+        "No exposed secrets — these are pure validation classes"
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "PASS",
+      "checks": [
+        "Single file, 1 base + 18 concrete schemas + 1 minimal projection = 20 classes",
+        "No imports from project modules — DS-007 layering invariant preserved",
+        "Inbound edges form as T-010..T-015 services + T-017..T-022 routers + T-026 frontend types (already mirrored) consume these"
+      ]
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "soft_notes": [
+    {
+      "id": "N-001",
+      "topic": "grade_code whitespace stripping deferred to service layer",
+      "where": "GradeCreate.grade_code = Field(min_length=1) — no strip_whitespace",
+      "observation": "LLD files[13] and schema.json constraints both say `grade_code constr min_length=1, strip_whitespace`. Plan.md (T-007) explicitly deferred this with the inline comment `# strip in service if needed`. Plan.json definition_of_done line says `GradeCreate uses strip_whitespace=True per LLD` — that DoD line contradicts plan.md and is NOT what the implementation does.",
+      "risk": "Without stripping, a user could submit '  DIM  ' as grade_code; the UNIQUE(grade_code) DB constraint would not collide with seeded 'DIM'. Two grades with effectively the same code would be created — AC-011 bypass.",
+      "mitigation": "Handle in T-013 GradeService.create_grade: strip before calling get_by_code() and before passing to repo.create(). Service-layer strip is a valid placement per the layered architecture; just needs explicit implementation. If T-013 plan.md does not already strip, the critic on T-013 should flag.",
+      "actionable_for": "T-013 dev pass (or follow-up plan revision to align T-007 with LLD directly)"
+    },
+    {
+      "id": "N-002",
+      "topic": "DealerUpdate.is_active assertion not in original LLD enumeration",
+      "where": "LLD files[13] descriptions for DealerUpdate use generic 'All fields Optional; partial update' without explicitly listing is_active",
+      "observation": "The LLD descriptive text is informal; the explicit is_active on all Update schemas is required by UR-W002 (ui_review warning) and is correct. Logging only so future critique passes recognise the divergence from the brief LLD prose is intentional, not drift.",
+      "actionable_for": "No action — UR-W002 resolution documented in context.json"
+    }
+  ],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "All 19 schemas implemented matching plan.md verbatim. 5 declared test cases (TC-002/003/009/013/021) verified inline during /ases-dev — all reject empty strings with pydantic.ValidationError. UR-W002 explicitly resolved: all 6 *Update schemas declare is_active: bool | None = None. Read schemas use from_attributes=True. Pydantic v2 idioms throughout. One soft note logged for T-013 (whitespace strip on grade_code) — a known plan-level decision, not implementation drift.",
+    "iteration_cap_state": "1/3 — well clear of escalation."
+  },
+  "next": "Mark T-007 status=complete. Resolve UR-W002 in context.json open_issues. Proceed to /ases-validate T-008 S1 (FastAPI error handlers; depends on T-003 only — complete)."
+}

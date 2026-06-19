@@ -1,0 +1,8 @@
+{
+  "task_id": "T-018",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "pytest",
+  "covers_acs": ["AC-004", "AC-005"],
+  "note": "No dedicated router-level tests in test_cases.json; service-layer coverage via TC-008/TC-010 is considered sufficient."
+}

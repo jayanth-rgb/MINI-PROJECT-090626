@@ -1,0 +1,1523 @@
+{
+  "document": "test_cases",
+  "produced_by": "/ases-test-spec",
+  "consumed_by": [
+    "/ases-tasks",
+    "/ases-test-impl",
+    "/ases-critique",
+    "/ases-final-audit"
+  ],
+  "sprint_id": "S1",
+  "scope_features": [
+    "F-001",
+    "F-002",
+    "F-003",
+    "F-004",
+    "F-005",
+    "F-006"
+  ],
+  "ac_coverage_total": 19,
+  "test_cases": [
+    {
+      "id": "TC-001",
+      "feature_id": "F-001",
+      "ac_ref": "AC-001",
+      "description": "SupplierService.create_supplier persists a row with given supplier_name and place, returns SupplierRead with surrogate id and is_active=true.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_supplier_service.py",
+      "function_ref": "SupplierService.create_supplier",
+      "inputs": {
+        "payload": {
+          "supplier_name": "Manjunatha",
+          "place": "Mallur"
+        }
+      },
+      "expected_output": {
+        "supplier_id": 1,
+        "supplier_name": "Manjunatha",
+        "place": "Mallur",
+        "is_active": true
+      },
+      "expected_side_effects": [
+        "INSERT INTO tbl_supplier_master (1 row)",
+        "session committed"
+      ],
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-002",
+      "feature_id": "F-001",
+      "ac_ref": "AC-001",
+      "description": "SupplierCreate Pydantic schema rejects empty supplier_name with ValidationError (min_length=1 enforces AC-001 'name required').",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/presentation/schemas/test_master_schemas.py",
+      "function_ref": "SupplierCreate",
+      "inputs": {
+        "payload": {
+          "supplier_name": "",
+          "place": "Mallur"
+        }
+      },
+      "expected_output": {
+        "error_field": "supplier_name",
+        "error_type": "string_too_short"
+      },
+      "should_raise": "pydantic.ValidationError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-003",
+      "feature_id": "F-001",
+      "ac_ref": "AC-001",
+      "description": "SupplierCreate Pydantic schema rejects empty place with ValidationError.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/presentation/schemas/test_master_schemas.py",
+      "function_ref": "SupplierCreate",
+      "inputs": {
+        "payload": {
+          "supplier_name": "Manjunatha",
+          "place": ""
+        }
+      },
+      "expected_output": {
+        "error_field": "place",
+        "error_type": "string_too_short"
+      },
+      "should_raise": "pydantic.ValidationError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-004",
+      "feature_id": "F-001",
+      "ac_ref": "AC-002",
+      "description": "SupplierService.deactivate_supplier sets is_active=false and returns the row (soft delete, DS-008).",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_supplier_service.py",
+      "function_ref": "SupplierService.deactivate_supplier",
+      "inputs": {
+        "seed": {
+          "supplier_id": 7,
+          "supplier_name": "Antony Tiles",
+          "place": "Kerala",
+          "is_active": true
+        },
+        "supplier_id": 7
+      },
+      "expected_output": {
+        "supplier_id": 7,
+        "is_active": false
+      },
+      "expected_side_effects": [
+        "UPDATE tbl_supplier_master SET is_active=false WHERE supplier_id=7",
+        "row physically present in table (not deleted)"
+      ],
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-005",
+      "feature_id": "F-001",
+      "ac_ref": "AC-002",
+      "description": "SupplierService.list_suppliers with default include_inactive=False excludes is_active=false rows. Drives 'soft-deleted suppliers do not appear in the Inward Form dropdown'.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_supplier_service.py",
+      "function_ref": "SupplierService.list_suppliers",
+      "inputs": {
+        "seed_rows": [
+          {
+            "supplier_id": 1,
+            "supplier_name": "A",
+            "place": "X",
+            "is_active": true
+          },
+          {
+            "supplier_id": 2,
+            "supplier_name": "B",
+            "place": "Y",
+            "is_active": false
+          }
+        ],
+        "include_inactive": false
+      },
+      "expected_output": {
+        "returned_supplier_ids": [
+          1
+        ],
+        "count": 1
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-006",
+      "feature_id": "F-001",
+      "ac_ref": "AC-002",
+      "description": "SupplierService.list_suppliers with include_inactive=True returns both active and inactive rows (admin view).",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "backend/tests/unit/application/services/test_supplier_service.py",
+      "function_ref": "SupplierService.list_suppliers",
+      "inputs": {
+        "seed_rows": [
+          {
+            "supplier_id": 1,
+            "is_active": true
+          },
+          {
+            "supplier_id": 2,
+            "is_active": false
+          }
+        ],
+        "include_inactive": true
+      },
+      "expected_output": {
+        "returned_supplier_ids": [
+          1,
+          2
+        ],
+        "count": 2
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-007",
+      "feature_id": "F-001",
+      "ac_ref": "AC-003",
+      "description": "seed_master_data.seed_suppliers inserts exactly the 3 sample suppliers; idempotent on re-run (no duplicates).",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/scripts/test_seed_master_data.py",
+      "function_ref": "seed_suppliers",
+      "inputs": {
+        "run_count": 2
+      },
+      "expected_output": {
+        "row_count": 3,
+        "rows": [
+          {
+            "supplier_name": "Manjunatha",
+            "place": "Mallur"
+          },
+          {
+            "supplier_name": "Dinnesh Reddy",
+            "place": "Mallur"
+          },
+          {
+            "supplier_name": "Antony Tiles",
+            "place": "Kerala"
+          }
+        ]
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-008",
+      "feature_id": "F-002",
+      "ac_ref": "AC-004",
+      "description": "StaffService.create_staff persists a row with staff_name; returns StaffRead with is_active=true.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_staff_service.py",
+      "function_ref": "StaffService.create_staff",
+      "inputs": {
+        "payload": {
+          "staff_name": "Chandran"
+        }
+      },
+      "expected_output": {
+        "staff_id": 1,
+        "staff_name": "Chandran",
+        "is_active": true
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-009",
+      "feature_id": "F-002",
+      "ac_ref": "AC-004",
+      "description": "StaffCreate Pydantic schema rejects empty staff_name (min_length=1).",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/presentation/schemas/test_master_schemas.py",
+      "function_ref": "StaffCreate",
+      "inputs": {
+        "payload": {
+          "staff_name": ""
+        }
+      },
+      "expected_output": {
+        "error_field": "staff_name",
+        "error_type": "string_too_short"
+      },
+      "should_raise": "pydantic.ValidationError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-010",
+      "feature_id": "F-002",
+      "ac_ref": "AC-005",
+      "description": "StaffService.deactivate_staff soft-deletes; subsequent list_staff (default) excludes the row.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_staff_service.py",
+      "function_ref": "StaffService.deactivate_staff",
+      "inputs": {
+        "seed": {
+          "staff_id": 3,
+          "staff_name": "Sujatha",
+          "is_active": true
+        },
+        "staff_id": 3
+      },
+      "expected_output": {
+        "after_deactivate_list_includes_id_3": false,
+        "row_is_active": false
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-011",
+      "feature_id": "F-002",
+      "ac_ref": "AC-006",
+      "description": "seed_master_data.seed_staff inserts exactly 9 named staff per AC-006; idempotent on re-run.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/scripts/test_seed_master_data.py",
+      "function_ref": "seed_staff",
+      "inputs": {
+        "run_count": 2
+      },
+      "expected_output": {
+        "row_count": 9,
+        "names": [
+          "Chandran",
+          "Jayapal",
+          "Ramachandraiah",
+          "Sujatha",
+          "Ramya",
+          "Vijay",
+          "Sajil",
+          "Ashu",
+          "Amaresh"
+        ]
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-012",
+      "feature_id": "F-003",
+      "ac_ref": "AC-007",
+      "description": "DealerService.create_dealer persists a row with dealer_name + place; returns DealerRead.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_dealer_service.py",
+      "function_ref": "DealerService.create_dealer",
+      "inputs": {
+        "payload": {
+          "dealer_name": "Raj Hardwares",
+          "place": "Dindivanam"
+        }
+      },
+      "expected_output": {
+        "dealer_id": 1,
+        "dealer_name": "Raj Hardwares",
+        "place": "Dindivanam",
+        "is_active": true
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-013",
+      "feature_id": "F-003",
+      "ac_ref": "AC-007",
+      "description": "DealerCreate Pydantic schema rejects empty dealer_name and empty place independently (two parameterised variants).",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/presentation/schemas/test_master_schemas.py",
+      "function_ref": "DealerCreate",
+      "inputs": {
+        "variants": [
+          {
+            "dealer_name": "",
+            "place": "Dindivanam",
+            "expected_error_field": "dealer_name"
+          },
+          {
+            "dealer_name": "Raj",
+            "place": "",
+            "expected_error_field": "place"
+          }
+        ]
+      },
+      "expected_output": {
+        "both_variants_raise": true
+      },
+      "should_raise": "pydantic.ValidationError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-014",
+      "feature_id": "F-003",
+      "ac_ref": "AC-008",
+      "description": "DealerService.deactivate_dealer + list_dealers(default) verifies soft-deleted dealer is hidden from active feed (Sales form / report filter).",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_dealer_service.py",
+      "function_ref": "DealerService.deactivate_dealer",
+      "inputs": {
+        "seed": {
+          "dealer_id": 5,
+          "dealer_name": "Tiles Mart",
+          "place": "Attibelle",
+          "is_active": true
+        },
+        "dealer_id": 5
+      },
+      "expected_output": {
+        "after_deactivate_list_includes_id_5": false,
+        "row_is_active": false
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-015",
+      "feature_id": "F-003",
+      "ac_ref": "AC-009",
+      "description": "seed_master_data.seed_dealers inserts exactly the 3 sample dealers per AC-009; idempotent.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/scripts/test_seed_master_data.py",
+      "function_ref": "seed_dealers",
+      "inputs": {
+        "run_count": 2
+      },
+      "expected_output": {
+        "row_count": 3,
+        "rows": [
+          {
+            "dealer_name": "Raj Hardwares",
+            "place": "Dindivanam"
+          },
+          {
+            "dealer_name": "Tiles Mart",
+            "place": "Attibelle"
+          },
+          {
+            "dealer_name": "Shanmugam & Co",
+            "place": "Coimbatore"
+          }
+        ]
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-016",
+      "feature_id": "F-004",
+      "ac_ref": "AC-010",
+      "description": "seed_master_data.seed_grades inserts exactly 9 grade codes per AC-010; idempotent on re-run.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/scripts/test_seed_master_data.py",
+      "function_ref": "seed_grades",
+      "inputs": {
+        "run_count": 2
+      },
+      "expected_output": {
+        "row_count": 9,
+        "grade_codes": [
+          "1",
+          "2",
+          "2A",
+          "4",
+          "5",
+          "6",
+          "1OB",
+          "OB",
+          "DIM"
+        ]
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-017",
+      "feature_id": "F-004",
+      "ac_ref": "AC-011",
+      "description": "GradeService.create_grade with duplicate grade_code raises ConflictError (service-layer pre-check via repo.get_by_code).",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_grade_service.py",
+      "function_ref": "GradeService.create_grade",
+      "inputs": {
+        "seed": {
+          "grade_id": 1,
+          "grade_code": "1",
+          "is_active": true
+        },
+        "payload": {
+          "grade_code": "1"
+        }
+      },
+      "expected_output": {
+        "error_message_contains": "grade_code"
+      },
+      "should_raise": "domain.exceptions.ConflictError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-018",
+      "feature_id": "F-004",
+      "ac_ref": "AC-011",
+      "description": "Direct DB-level INSERT of duplicate grade_code raises IntegrityError (proves UNIQUE constraint exists at the schema level, not just at the service layer).",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/tests/integration/db/test_grade_master_unique.py",
+      "function_ref": "tbl_grade_master.UNIQUE(grade_code)",
+      "inputs": {
+        "first_insert": {
+          "grade_code": "DIM"
+        },
+        "second_insert": {
+          "grade_code": "DIM"
+        }
+      },
+      "expected_output": {
+        "second_insert_violates_constraint": "uq_grade_master_grade_code"
+      },
+      "should_raise": "sqlalchemy.exc.IntegrityError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-019",
+      "feature_id": "F-004",
+      "ac_ref": "AC-012",
+      "description": "After GradeService.deactivate_grade, DesignGradeMapService.list_active_grades_for_design excludes any mapping whose grade is now inactive (JOIN filter on g.is_active=true).",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_design_grade_map_service.py",
+      "function_ref": "DesignGradeMapService.list_active_grades_for_design",
+      "inputs": {
+        "seed_design": {
+          "design_id": 10
+        },
+        "seed_grades": [
+          {
+            "grade_id": 1,
+            "grade_code": "1",
+            "is_active": true
+          },
+          {
+            "grade_id": 2,
+            "grade_code": "2",
+            "is_active": false
+          }
+        ],
+        "seed_mappings": [
+          {
+            "design_id": 10,
+            "grade_id": 1,
+            "is_active": true
+          },
+          {
+            "design_id": 10,
+            "grade_id": 2,
+            "is_active": true
+          }
+        ],
+        "query_design_id": 10
+      },
+      "expected_output": {
+        "returned": [
+          {
+            "grade_id": 1,
+            "grade_code": "1"
+          }
+        ],
+        "count": 1
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-020",
+      "feature_id": "F-005",
+      "ac_ref": "AC-013",
+      "description": "DesignService.create_design persists a row with size + design_name; returns DesignRead.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_design_service.py",
+      "function_ref": "DesignService.create_design",
+      "inputs": {
+        "payload": {
+          "size": "16X10",
+          "design_name": "16X10 Ridges"
+        }
+      },
+      "expected_output": {
+        "design_id": 1,
+        "size": "16X10",
+        "design_name": "16X10 Ridges",
+        "is_active": true
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-021",
+      "feature_id": "F-005",
+      "ac_ref": "AC-013",
+      "description": "DesignCreate Pydantic schema rejects empty size OR empty design_name (two parameterised variants).",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/presentation/schemas/test_master_schemas.py",
+      "function_ref": "DesignCreate",
+      "inputs": {
+        "variants": [
+          {
+            "size": "",
+            "design_name": "16X10 Ridges",
+            "expected_error_field": "size"
+          },
+          {
+            "size": "16X10",
+            "design_name": "",
+            "expected_error_field": "design_name"
+          }
+        ]
+      },
+      "expected_output": {
+        "both_variants_raise": true
+      },
+      "should_raise": "pydantic.ValidationError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-022",
+      "feature_id": "F-005",
+      "ac_ref": "AC-014",
+      "description": "seed_master_data.seed_designs inserts the 3 sample design/size pairs per AC-014; idempotent.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/scripts/test_seed_master_data.py",
+      "function_ref": "seed_designs",
+      "inputs": {
+        "run_count": 2
+      },
+      "expected_output": {
+        "row_count": 3,
+        "rows": [
+          {
+            "size": "16X10",
+            "design_name": "16X10 Ridges"
+          },
+          {
+            "size": "12X8",
+            "design_name": "12X8 Ridges"
+          },
+          {
+            "size": "11X7",
+            "design_name": "11X7 Ridges"
+          }
+        ]
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-023",
+      "feature_id": "F-005",
+      "ac_ref": "AC-015",
+      "description": "DesignService.deactivate_design + list_designs(default) verifies soft-deleted design is hidden from active feed (transaction form dropdowns).",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_design_service.py",
+      "function_ref": "DesignService.deactivate_design",
+      "inputs": {
+        "seed": {
+          "design_id": 3,
+          "size": "11X7",
+          "design_name": "11X7 Ridges",
+          "is_active": true
+        },
+        "design_id": 3
+      },
+      "expected_output": {
+        "after_deactivate_list_includes_id_3": false,
+        "row_is_active": false
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-024",
+      "feature_id": "F-006",
+      "ac_ref": "AC-016",
+      "description": "DesignGradeMapService.create_mapping persists a (design_id, grade_id) row when both exist and no duplicate.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_design_grade_map_service.py",
+      "function_ref": "DesignGradeMapService.create_mapping",
+      "inputs": {
+        "seed_design": {
+          "design_id": 10
+        },
+        "seed_grade": {
+          "grade_id": 1,
+          "grade_code": "1"
+        },
+        "payload": {
+          "design_id": 10,
+          "grade_id": 1
+        }
+      },
+      "expected_output": {
+        "map_id": 1,
+        "design_id": 10,
+        "grade_id": 1,
+        "is_active": true
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-025",
+      "feature_id": "F-006",
+      "ac_ref": "AC-016",
+      "description": "DesignGradeMapService.create_mapping with an already-existing (design_id, grade_id) pair raises ConflictError (service-layer pre-check via repo.get_by_pair).",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_design_grade_map_service.py",
+      "function_ref": "DesignGradeMapService.create_mapping",
+      "inputs": {
+        "seed_mapping": {
+          "design_id": 10,
+          "grade_id": 1
+        },
+        "payload": {
+          "design_id": 10,
+          "grade_id": 1
+        }
+      },
+      "expected_output": {
+        "error_message_contains": "design_id, grade_id"
+      },
+      "should_raise": "domain.exceptions.ConflictError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-026",
+      "feature_id": "F-006",
+      "ac_ref": "AC-016",
+      "description": "Direct DB-level INSERT of duplicate (design_id, grade_id) raises IntegrityError (proves UNIQUE composite constraint at schema level).",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/tests/integration/db/test_design_grade_map_unique.py",
+      "function_ref": "tbl_design_grade_map.UNIQUE(design_id, grade_id)",
+      "inputs": {
+        "first_insert": {
+          "design_id": 1,
+          "grade_id": 1
+        },
+        "second_insert": {
+          "design_id": 1,
+          "grade_id": 1
+        }
+      },
+      "expected_output": {
+        "second_insert_violates_constraint": "uq_design_grade_map_design_grade"
+      },
+      "should_raise": "sqlalchemy.exc.IntegrityError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-027",
+      "feature_id": "F-006",
+      "ac_ref": "AC-016",
+      "description": "DesignGradeMapService.create_mapping with non-existent design_id raises NotFoundError before any INSERT.",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "backend/tests/unit/application/services/test_design_grade_map_service.py",
+      "function_ref": "DesignGradeMapService.create_mapping",
+      "inputs": {
+        "payload": {
+          "design_id": 99999,
+          "grade_id": 1
+        }
+      },
+      "expected_output": {
+        "error_entity": "TradingDesign"
+      },
+      "should_raise": "domain.exceptions.NotFoundError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-028",
+      "feature_id": "F-006",
+      "ac_ref": "AC-016",
+      "description": "DesignGradeMapService.create_mapping with non-existent grade_id raises NotFoundError.",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "backend/tests/unit/application/services/test_design_grade_map_service.py",
+      "function_ref": "DesignGradeMapService.create_mapping",
+      "inputs": {
+        "seed_design": {
+          "design_id": 10
+        },
+        "payload": {
+          "design_id": 10,
+          "grade_id": 99999
+        }
+      },
+      "expected_output": {
+        "error_entity": "Grade"
+      },
+      "should_raise": "domain.exceptions.NotFoundError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-029",
+      "feature_id": "F-006",
+      "ac_ref": "AC-017",
+      "description": "DesignGradeMapService.deactivate_mapping sets is_active=false without deleting the row. Verifies row physically present after soft delete (DS-008 / HLD R-005).",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_design_grade_map_service.py",
+      "function_ref": "DesignGradeMapService.deactivate_mapping",
+      "inputs": {
+        "seed_mapping": {
+          "map_id": 5,
+          "design_id": 10,
+          "grade_id": 1,
+          "is_active": true
+        },
+        "map_id": 5
+      },
+      "expected_output": {
+        "row_is_active": false,
+        "row_physically_present_in_table": true
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-030",
+      "feature_id": "F-006",
+      "ac_ref": "AC-018",
+      "description": "seed_master_data.seed_design_grade_map inserts the 6 sample (design, grades) combinations per AC-018; idempotent.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/scripts/test_seed_master_data.py",
+      "function_ref": "seed_design_grade_map",
+      "inputs": {
+        "run_count": 2
+      },
+      "expected_output": {
+        "row_count": 6,
+        "rows": [
+          {
+            "design_name": "16X10 Ridges",
+            "grade_code": "1"
+          },
+          {
+            "design_name": "16X10 Ridges",
+            "grade_code": "2"
+          },
+          {
+            "design_name": "12X8 Ridges",
+            "grade_code": "1"
+          },
+          {
+            "design_name": "12X8 Ridges",
+            "grade_code": "OB"
+          },
+          {
+            "design_name": "11X7 Ridges",
+            "grade_code": "1"
+          },
+          {
+            "design_name": "11X7 Ridges",
+            "grade_code": "2"
+          }
+        ]
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-031",
+      "feature_id": "F-006",
+      "ac_ref": "AC-019",
+      "description": "DesignGradeMapService.list_active_grades_for_design returns only is_active=true mappings, projected as [{grade_id, grade_code}]. Implements HLD DF-006 contract.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/tests/unit/application/services/test_design_grade_map_service.py",
+      "function_ref": "DesignGradeMapService.list_active_grades_for_design",
+      "inputs": {
+        "seed_design": {
+          "design_id": 10
+        },
+        "seed_grades": [
+          {
+            "grade_id": 1,
+            "grade_code": "1",
+            "is_active": true
+          },
+          {
+            "grade_id": 2,
+            "grade_code": "2",
+            "is_active": true
+          }
+        ],
+        "seed_mappings": [
+          {
+            "design_id": 10,
+            "grade_id": 1,
+            "is_active": true
+          },
+          {
+            "design_id": 10,
+            "grade_id": 2,
+            "is_active": false
+          }
+        ],
+        "query_design_id": 10
+      },
+      "expected_output": {
+        "returned": [
+          {
+            "grade_id": 1,
+            "grade_code": "1"
+          }
+        ],
+        "count": 1
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-032",
+      "feature_id": "F-006",
+      "ac_ref": "AC-019",
+      "description": "DesignGradeMapService.list_active_grades_for_design for a design with no active mappings returns empty list (not an error).",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "backend/tests/unit/application/services/test_design_grade_map_service.py",
+      "function_ref": "DesignGradeMapService.list_active_grades_for_design",
+      "inputs": {
+        "seed_design": {
+          "design_id": 20
+        },
+        "query_design_id": 20
+      },
+      "expected_output": {
+        "returned": [],
+        "count": 0
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-033",
+      "feature_id": "F-001",
+      "ac_ref": "AC-001",
+      "description": "API contract: POST /api/v1/suppliers with valid body returns 201 and a SupplierRead body; row persists. End-to-end HTTP shape check (FastAPI TestClient + real test DB).",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/tests/integration/api/test_suppliers_api.py",
+      "function_ref": "POST /api/v1/suppliers",
+      "inputs": {
+        "method": "POST",
+        "path": "/api/v1/suppliers",
+        "json": {
+          "supplier_name": "Antony Tiles",
+          "place": "Kerala"
+        }
+      },
+      "expected_output": {
+        "status_code": 201,
+        "body_keys": [
+          "supplier_id",
+          "supplier_name",
+          "place",
+          "is_active",
+          "created_at"
+        ],
+        "body_values": {
+          "supplier_name": "Antony Tiles",
+          "place": "Kerala",
+          "is_active": true
+        }
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-034",
+      "feature_id": "F-001",
+      "ac_ref": "AC-002",
+      "description": "API contract: DELETE /api/v1/suppliers/{id} returns 200 with the deactivated row; row remains in DB with is_active=false (soft delete via DS-008).",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/tests/integration/api/test_suppliers_api.py",
+      "function_ref": "DELETE /api/v1/suppliers/{supplier_id}",
+      "inputs": {
+        "method": "DELETE",
+        "path": "/api/v1/suppliers/{supplier_id}",
+        "seed_supplier_id": 1
+      },
+      "expected_output": {
+        "status_code": 200,
+        "body_values": {
+          "supplier_id": 1,
+          "is_active": false
+        }
+      },
+      "expected_side_effects": [
+        "row count of tbl_supplier_master unchanged",
+        "supplier_id=1 row exists with is_active=false"
+      ],
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-035",
+      "feature_id": "F-004",
+      "ac_ref": "AC-011",
+      "description": "API contract: POST /api/v1/grades twice with the same grade_code returns HTTP 409 on the second call (IntegrityError → 409 mapping in register_error_handlers).",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/tests/integration/api/test_grades_api.py",
+      "function_ref": "POST /api/v1/grades",
+      "inputs": {
+        "first": {
+          "method": "POST",
+          "path": "/api/v1/grades",
+          "json": {
+            "grade_code": "1"
+          }
+        },
+        "second": {
+          "method": "POST",
+          "path": "/api/v1/grades",
+          "json": {
+            "grade_code": "1"
+          }
+        }
+      },
+      "expected_output": {
+        "first_status": 201,
+        "second_status": 409,
+        "second_body_detail_contains": "grade_code"
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-036",
+      "feature_id": "F-006",
+      "ac_ref": "AC-019",
+      "description": "API contract: GET /api/v1/designs/{id}/grades returns 200 with body [{grade_id, grade_code}] for active mappings only — the DF-006 contract that S2 transaction forms depend on.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/tests/integration/api/test_designs_grades_api.py",
+      "function_ref": "GET /api/v1/designs/{design_id}/grades",
+      "inputs": {
+        "method": "GET",
+        "path": "/api/v1/designs/10/grades",
+        "seed_design_id": 10,
+        "seed_grades": [
+          {
+            "grade_id": 1,
+            "grade_code": "1",
+            "is_active": true
+          },
+          {
+            "grade_id": 2,
+            "grade_code": "2",
+            "is_active": true
+          }
+        ],
+        "seed_mappings": [
+          {
+            "design_id": 10,
+            "grade_id": 1,
+            "is_active": true
+          },
+          {
+            "design_id": 10,
+            "grade_id": 2,
+            "is_active": false
+          }
+        ]
+      },
+      "expected_output": {
+        "status_code": 200,
+        "body": [
+          {
+            "grade_id": 1,
+            "grade_code": "1"
+          }
+        ],
+        "body_length": 1,
+        "body_item_keys_exact": [
+          "grade_id",
+          "grade_code"
+        ]
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-037",
+      "feature_id": "F-006",
+      "ac_ref": "AC-019",
+      "description": "API contract: GET /api/v1/designs/{id}/grades for a design with no active mappings returns 200 and []. Critical for ERR-012 path in S2 Adjustment form (HLD AC-040).",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "backend/tests/integration/api/test_designs_grades_api.py",
+      "function_ref": "GET /api/v1/designs/{design_id}/grades",
+      "inputs": {
+        "method": "GET",
+        "path": "/api/v1/designs/20/grades",
+        "seed_design_id": 20
+      },
+      "expected_output": {
+        "status_code": 200,
+        "body": [],
+        "body_length": 0
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-038",
+      "feature_id": "F-006",
+      "ac_ref": "AC-016",
+      "description": "API contract: POST /api/v1/design-grade-map with duplicate (design_id, grade_id) returns HTTP 409 (UNIQUE composite enforcement at API layer).",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/tests/integration/api/test_design_grade_map_api.py",
+      "function_ref": "POST /api/v1/design-grade-map",
+      "inputs": {
+        "seed_mapping": {
+          "design_id": 10,
+          "grade_id": 1,
+          "is_active": true
+        },
+        "method": "POST",
+        "path": "/api/v1/design-grade-map",
+        "json": {
+          "design_id": 10,
+          "grade_id": 1
+        }
+      },
+      "expected_output": {
+        "status_code": 409,
+        "body_detail_contains": "design_id, grade_id"
+      },
+      "should_raise": null,
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-039",
+      "feature_id": "F-001",
+      "ac_ref": "AC-001",
+      "description": "SupplierForm (react-hook-form + zod) shows inline error 'required' when supplier_name is empty on submit. Implements client-side AC-001 enforcement before request reaches API.",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "frontend/src/components/admin/suppliers/__tests__/SupplierForm.test.tsx",
+      "function_ref": "SupplierForm",
+      "inputs": {
+        "user_action": "submit form with supplier_name='' and place='Mallur'"
+      },
+      "expected_output": {
+        "onSubmit_called": false,
+        "error_visible_for_field": "supplier_name",
+        "error_message_pattern": "required|min"
+      },
+      "should_raise": null,
+      "framework": "jest"
+    },
+    {
+      "id": "TC-040",
+      "feature_id": "F-001",
+      "ac_ref": "AC-002",
+      "description": "SuppliersPage Deactivate button on an active row calls suppliersApi.remove with the row's supplier_id; row visually updates to muted (is_active=false) after refetch.",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "frontend/src/app/admin/suppliers/__tests__/page.test.tsx",
+      "function_ref": "SuppliersPage",
+      "inputs": {
+        "seed_rows": [
+          {
+            "supplier_id": 7,
+            "supplier_name": "Antony Tiles",
+            "place": "Kerala",
+            "is_active": true
+          }
+        ],
+        "user_action": "click Deactivate on row 7"
+      },
+      "expected_output": {
+        "api_called": "DELETE /suppliers/7",
+        "table_renders_muted_row_for_id_7": true
+      },
+      "should_raise": null,
+      "framework": "jest"
+    },
+    {
+      "id": "TC-041",
+      "feature_id": "F-002",
+      "ac_ref": "AC-004",
+      "description": "StaffForm shows required-field error when staff_name is empty on submit (mirrors TC-039 for staff).",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "frontend/src/components/admin/staff/__tests__/StaffForm.test.tsx",
+      "function_ref": "StaffForm",
+      "inputs": {
+        "user_action": "submit form with staff_name=''"
+      },
+      "expected_output": {
+        "onSubmit_called": false,
+        "error_visible_for_field": "staff_name"
+      },
+      "should_raise": null,
+      "framework": "jest"
+    },
+    {
+      "id": "TC-042",
+      "feature_id": "F-003",
+      "ac_ref": "AC-007",
+      "description": "DealerForm shows required-field errors when either dealer_name or place is empty on submit.",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "frontend/src/components/admin/dealers/__tests__/DealerForm.test.tsx",
+      "function_ref": "DealerForm",
+      "inputs": {
+        "variants": [
+          {
+            "dealer_name": "",
+            "place": "Dindivanam",
+            "expected_error_field": "dealer_name"
+          },
+          {
+            "dealer_name": "Raj",
+            "place": "",
+            "expected_error_field": "place"
+          }
+        ]
+      },
+      "expected_output": {
+        "both_variants_block_onSubmit": true
+      },
+      "should_raise": null,
+      "framework": "jest"
+    },
+    {
+      "id": "TC-043",
+      "feature_id": "F-004",
+      "ac_ref": "AC-011",
+      "description": "GradesPage surfaces a toast notification on 409 response when creating a duplicate grade_code (UI side of AC-011).",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "frontend/src/app/admin/grades/__tests__/page.test.tsx",
+      "function_ref": "GradesPage",
+      "inputs": {
+        "mock_api_response": {
+          "status": 409,
+          "body": {
+            "detail": "grade_code already exists"
+          }
+        },
+        "user_action": "submit GradeForm with grade_code='1'"
+      },
+      "expected_output": {
+        "toast_visible": true,
+        "toast_variant": "destructive",
+        "toast_message_contains": "grade_code"
+      },
+      "should_raise": null,
+      "framework": "jest"
+    },
+    {
+      "id": "TC-044",
+      "feature_id": "F-005",
+      "ac_ref": "AC-013",
+      "description": "DesignForm shows required-field errors when either size or design_name is empty on submit.",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "frontend/src/components/admin/designs/__tests__/DesignForm.test.tsx",
+      "function_ref": "DesignForm",
+      "inputs": {
+        "variants": [
+          {
+            "size": "",
+            "design_name": "16X10 Ridges",
+            "expected_error_field": "size"
+          },
+          {
+            "size": "16X10",
+            "design_name": "",
+            "expected_error_field": "design_name"
+          }
+        ]
+      },
+      "expected_output": {
+        "both_variants_block_onSubmit": true
+      },
+      "should_raise": null,
+      "framework": "jest"
+    },
+    {
+      "id": "TC-045",
+      "feature_id": "F-006",
+      "ac_ref": "AC-016",
+      "description": "DesignGradeMapPage shows toast on 409 when submitting a duplicate (design_id, grade_id) pair (UI side of AC-016).",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "frontend/src/app/admin/design-grade-map/__tests__/page.test.tsx",
+      "function_ref": "DesignGradeMapPage",
+      "inputs": {
+        "mock_api_response": {
+          "status": 409,
+          "body": {
+            "detail": "(design_id, grade_id) already exists"
+          }
+        },
+        "user_action": "submit DesignGradeMapForm with design_id=10, grade_id=1"
+      },
+      "expected_output": {
+        "toast_visible": true,
+        "toast_variant": "destructive",
+        "toast_message_contains": "exists"
+      },
+      "should_raise": null,
+      "framework": "jest"
+    },
+    {
+      "id": "TC-046",
+      "feature_id": "F-006",
+      "ac_ref": "AC-016",
+      "description": "DesignGradeMapForm blocks submit when design_id or grade_id is not selected (zod schema requires positive int).",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "frontend/src/components/admin/design-grade-map/__tests__/DesignGradeMapForm.test.tsx",
+      "function_ref": "DesignGradeMapForm",
+      "inputs": {
+        "user_action": "submit form with neither dropdown selected (design_id=undefined, grade_id=undefined)"
+      },
+      "expected_output": {
+        "onSubmit_called": false,
+        "errors_visible_for_fields": [
+          "design_id",
+          "grade_id"
+        ]
+      },
+      "should_raise": null,
+      "framework": "jest"
+    }
+  ],
+  "coverage_matrix": [
+    {
+      "ac_ref": "AC-001",
+      "test_ids": [
+        "TC-001",
+        "TC-002",
+        "TC-003",
+        "TC-033",
+        "TC-039"
+      ]
+    },
+    {
+      "ac_ref": "AC-002",
+      "test_ids": [
+        "TC-004",
+        "TC-005",
+        "TC-006",
+        "TC-034",
+        "TC-040"
+      ]
+    },
+    {
+      "ac_ref": "AC-003",
+      "test_ids": [
+        "TC-007"
+      ]
+    },
+    {
+      "ac_ref": "AC-004",
+      "test_ids": [
+        "TC-008",
+        "TC-009",
+        "TC-041"
+      ]
+    },
+    {
+      "ac_ref": "AC-005",
+      "test_ids": [
+        "TC-010"
+      ]
+    },
+    {
+      "ac_ref": "AC-006",
+      "test_ids": [
+        "TC-011"
+      ]
+    },
+    {
+      "ac_ref": "AC-007",
+      "test_ids": [
+        "TC-012",
+        "TC-013",
+        "TC-042"
+      ]
+    },
+    {
+      "ac_ref": "AC-008",
+      "test_ids": [
+        "TC-014"
+      ]
+    },
+    {
+      "ac_ref": "AC-009",
+      "test_ids": [
+        "TC-015"
+      ]
+    },
+    {
+      "ac_ref": "AC-010",
+      "test_ids": [
+        "TC-016"
+      ]
+    },
+    {
+      "ac_ref": "AC-011",
+      "test_ids": [
+        "TC-017",
+        "TC-018",
+        "TC-035",
+        "TC-043"
+      ]
+    },
+    {
+      "ac_ref": "AC-012",
+      "test_ids": [
+        "TC-019"
+      ]
+    },
+    {
+      "ac_ref": "AC-013",
+      "test_ids": [
+        "TC-020",
+        "TC-021",
+        "TC-044"
+      ]
+    },
+    {
+      "ac_ref": "AC-014",
+      "test_ids": [
+        "TC-022"
+      ]
+    },
+    {
+      "ac_ref": "AC-015",
+      "test_ids": [
+        "TC-023"
+      ]
+    },
+    {
+      "ac_ref": "AC-016",
+      "test_ids": [
+        "TC-024",
+        "TC-025",
+        "TC-026",
+        "TC-027",
+        "TC-028",
+        "TC-038",
+        "TC-045",
+        "TC-046"
+      ]
+    },
+    {
+      "ac_ref": "AC-017",
+      "test_ids": [
+        "TC-029"
+      ]
+    },
+    {
+      "ac_ref": "AC-018",
+      "test_ids": [
+        "TC-030"
+      ]
+    },
+    {
+      "ac_ref": "AC-019",
+      "test_ids": [
+        "TC-031",
+        "TC-032",
+        "TC-036",
+        "TC-037"
+      ]
+    }
+  ],
+  "framework_summary": {
+    "pytest": {
+      "count": 38,
+      "covers": "backend unit (services, schemas, seed scripts) + integration (DB constraints, API contracts)"
+    },
+    "jest": {
+      "count": 8,
+      "covers": "frontend form validation + page-level error surfacing"
+    },
+    "playwright": {
+      "count": 0,
+      "covers": "Deferred — Phase 3 / Sprint Ship will introduce E2E flows; S1 master CRUD is fully covered by unit + integration."
+    }
+  },
+  "framework_per_type": {
+    "unit": [
+      "pytest",
+      "jest"
+    ],
+    "integration": [
+      "pytest"
+    ],
+    "edge": [
+      "pytest",
+      "jest"
+    ],
+    "performance": [],
+    "security": []
+  },
+  "completeness_check": {
+    "every_ac_has_at_least_one_test": true,
+    "every_test_has_ac_ref": true,
+    "every_test_has_concrete_inputs": true,
+    "every_test_has_concrete_expected_output": true,
+    "every_test_has_framework": true,
+    "edge_cases_explicit": true,
+    "no_invented_test_cases": true,
+    "ac_total": 19,
+    "test_total": 46
+  },
+  "open_items_for_sprint_gate": [
+    "Performance NFR PRD AC-045 (dashboard sub-second) is testable only after S3 — no S1 perf test required.",
+    "Security: V1 has no auth per DS-005; no security tests in S1.",
+    "Playwright E2E suite is deferred to Phase 3 (`/ases-integration-test` and `/ases-system-test`) — S1 keeps integration tests at the FastAPI TestClient layer."
+  ],
+  "next": "/ases-sprint-gate S1"
+}

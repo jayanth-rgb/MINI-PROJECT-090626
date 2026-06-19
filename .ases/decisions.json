@@ -1,0 +1,214 @@
+{
+  "$schema": "ases/v3.0/decisions",
+  "document": "decisions",
+  "produced_by": ["/ases-hld", "/ases-lld", "/ases-sprint-close"],
+  "consumed_by": ["/ases-critique", "/ases-final-audit", "/ases-validate"],
+  "decisions": [
+    {
+      "id": "DS-001",
+      "stage": "hld",
+      "sprint_id": "project",
+      "decision": "Tech stack: FastAPI (Python 3.11) backend + Next.js 14 (React + TypeScript, App Router) frontend + PostgreSQL 16 + Docker Compose (local) with portability to any cloud container runtime. SQLAlchemy 2.x ORM + Alembic for migrations.",
+      "rationale": "PO-confirmed selection. FastAPI fits well because: (a) the LLD's stock-ledger logic, monthly carry-forward, and SUM/GROUP BY reporting map cleanly to Python services + SQLAlchemy with row-level locking; (b) Pydantic models give us cheap input validation matching the PRD's strict server-side date and integer rules; (c) ASES default stack reduces ramp-up. PostgreSQL chosen over MySQL (LLD open item #1) for stronger transactional guarantees, native row-level locking, and richer date/time types needed for monthly carry-forward.",
+      "tradeoffs": "Two-runtime stack (Python + Node) means two Docker images and dependency sets. Acceptable for the scale; simplifies clean separation of concerns and keeps frontend developer experience first-class via Next.js.",
+      "alternatives_considered": [
+        "Next.js API routes only with Prisma: rejected — harder to enforce service-layer separation that the ASES critique lenses check for; mixing frontend and DB logic in one process makes domain testing harder.",
+        "Node.js + Express/Nest: rejected — same-language stack but no ASES skill template tuned for it; would also lose the strong Python testing ecosystem for the stock-math domain."
+      ],
+      "module_refs": ["M-001", "M-002", "M-003", "M-004", "M-005", "M-006", "M-007"],
+      "recall_keywords": ["stack", "framework", "fastapi", "nextjs", "postgresql", "docker"],
+      "made_by": "po",
+      "timestamp": "2026-06-09",
+      "status": "active"
+    },
+    {
+      "id": "DS-002",
+      "stage": "hld",
+      "sprint_id": "project",
+      "decision": "All writes to tbl_stock_ledger acquire SELECT FOR UPDATE on the latest ledger row for the affected (design_id, grade_id) before computing the new running_balance. The lock is held within the same SQLAlchemy DB transaction that persists the triggering Inward / Sales / Adjustment header + lines.",
+      "rationale": "LLD open item #5 explicitly flags concurrent-entry handling. Without serialization, two simultaneous form saves on the same (design, grade) can both read the same prior running balance and write conflicting new balances, corrupting the ledger. SELECT FOR UPDATE is the simplest correct primitive in PostgreSQL and runs entirely server-side without app-level coordination.",
+      "tradeoffs": "Transactions involving the same (design, grade) are serialized — at single-factory concurrency this is invisible. If contention ever becomes visible (e.g. dozens of concurrent users on a hot design), revisit with an INSERT-only ledger + on-the-fly running balance read pattern.",
+      "alternatives_considered": [
+        "Optimistic locking with a version column: rejected — requires client retry logic and complicates the form save UX.",
+        "Application-level mutex: rejected — does not survive multi-process deployment (multiple uvicorn workers).",
+        "Insert-only ledger with computed-on-read running balance: rejected for V1 — pushes computation to the dashboard path where it directly affects user-perceived latency."
+      ],
+      "module_refs": ["M-003"],
+      "recall_keywords": ["concurrency", "locking", "race condition", "stock ledger"],
+      "made_by": "architect",
+      "timestamp": "2026-06-09",
+      "status": "active"
+    },
+    {
+      "id": "DS-003",
+      "stage": "hld",
+      "sprint_id": "project",
+      "decision": "Stock balances are stored materially in tbl_stock_ledger as a running_balance column per write, not computed live via SUM(inward) - SUM(sales) +/- SUM(adjust) on every dashboard read.",
+      "rationale": "LLD open item #3 recommends a materialised table over a real-time computed view. Dashboard performance must be sub-second (PRD AC-045). A live SUM grows linearly with transaction count and becomes slow within months. Storing the running balance per write makes every dashboard query an O(1) lookup of the latest row <= as_of_date per (design, grade), at the cost of writing one extra row per form save — a clearly favourable tradeoff at this scale.",
+      "tradeoffs": "Back-dated transactions in the 7-day window require recomputing running_balance for all later rows in the same (design, grade). This recomputation runs inside the same DB transaction and is bounded (≤ ~30 rows for a 7-day backdate at realistic throughput).",
+      "alternatives_considered": [
+        "Live SUM in a SQL view: rejected — fails AC-045 at scale.",
+        "PostgreSQL MATERIALIZED VIEW with periodic refresh: rejected — stale data between refresh cycles violates dashboard correctness expectations."
+      ],
+      "module_refs": ["M-003", "M-004"],
+      "recall_keywords": ["dashboard", "performance", "stock ledger", "materialised", "running balance"],
+      "made_by": "architect",
+      "timestamp": "2026-06-09",
+      "status": "active"
+    },
+    {
+      "id": "DS-004",
+      "stage": "hld",
+      "sprint_id": "project",
+      "decision": "Monthly carry-forward (Opening Balance of Month N+1 = Closing Balance of Month N) is implemented as a deterministic on-read lookup of the previous month's last-day closing balance from tbl_stock_ledger — NOT as a scheduled job that materialises an explicit opening_balance row on the 1st of each month.",
+      "rationale": "The data needed for FORMULA-002 is already present in tbl_stock_ledger (every write stores running_balance with txn_date). A simple query 'SELECT running_balance FROM tbl_stock_ledger WHERE design_id=X AND grade_id=G AND txn_date <= LAST_DAY_PREV_MONTH ORDER BY txn_date DESC LIMIT 1' returns the opening balance for the new month with no scheduled job, no time-zone risks, and no failure modes around missed runs. Back-dated transactions are naturally handled because the lookup always reads the current state of the ledger.",
+      "tradeoffs": "Slightly more complex dashboard query than reading an explicit opening_balance column — but eliminates an entire class of scheduled-job failure modes (missed runs, partial completions, time-zone bugs).",
+      "alternatives_considered": [
+        "APScheduler job that writes an opening_balance row at 00:00:00 on the 1st of each month: rejected — adds a scheduler dependency, has misfire risk if the server is down at midnight, and creates a sync gap with back-dated transactions.",
+        "Storing the opening balance in tbl_stock_ledger as a synthetic 'opening' row on first write of a month: rejected — adds write-path complexity for marginal read-path benefit."
+      ],
+      "module_refs": ["M-003", "M-004"],
+      "recall_keywords": ["carry-forward", "opening balance", "month-end", "scheduler"],
+      "made_by": "architect",
+      "timestamp": "2026-06-09",
+      "status": "active"
+    },
+    {
+      "id": "DS-005",
+      "stage": "hld",
+      "sprint_id": "project",
+      "decision": "V1 ships with no authentication and no RBAC. All API endpoints are open and all UI pages are reachable without login. Deployment is restricted to a trusted internal network.",
+      "rationale": "Explicit V1 non-goal per HLD §2.2 of the uploaded requirements doc. Adding auth would add ~30% to V1 scope and is being intentionally deferred to V2. Documenting this loud-and-clear as an ADR prevents downstream agents (critic, final-audit) from flagging missing auth as a defect.",
+      "tradeoffs": "Anyone with network access can submit transactions. Mitigation: README explicitly calls out V1 limitation; deployment guidance requires trusted internal network; V2 plan reserves an Auth module slot that will wrap existing endpoints with FastAPI dependency-injection auth.",
+      "alternatives_considered": [
+        "Ship V1 with basic HTTP auth: rejected — half-measure that creates a false sense of security and still requires reworking when V2 RBAC arrives.",
+        "Delay V1 launch until auth is in: rejected by PO — the business needs the trading-tiles flow operational on the internal network now."
+      ],
+      "module_refs": ["M-006"],
+      "recall_keywords": ["auth", "security", "rbac", "v1 limitation"],
+      "made_by": "po",
+      "timestamp": "2026-06-09",
+      "status": "active"
+    },
+    {
+      "id": "DS-006",
+      "stage": "hld",
+      "sprint_id": "project",
+      "decision": "Frontend (Next.js) and backend (FastAPI) ship as two separate Docker images orchestrated via docker-compose for local development. The frontend image runs in standalone Next.js mode and calls the backend via a public HTTP API; backend never serves the frontend.",
+      "rationale": "Clean separation keeps the deployment portable to any cloud (Kubernetes, ECS, Cloud Run, App Service) where the two tiers may scale independently. Matches the ASES execution-vs-UI agent separation (rule 6 — execution agent never touches UI scaffold; UI agent only touches integration_points).",
+      "tradeoffs": "Local dev requires two containers up; CORS must be configured. Both are negligible for the project's complexity.",
+      "alternatives_considered": [
+        "Bundled single image (uvicorn serving Next.js static export): rejected — couples the two tiers and complicates separate scaling and the ASES UI-vs-execution agent contract.",
+        "Vercel-hosted frontend + Render-hosted backend: rejected for V1 — adds two SaaS dependencies before the product has validated demand."
+      ],
+      "module_refs": ["M-006", "M-007"],
+      "recall_keywords": ["docker", "deployment", "separation", "containers"],
+      "made_by": "architect",
+      "timestamp": "2026-06-09",
+      "status": "active"
+    },
+    {
+      "id": "DS-007",
+      "stage": "lld",
+      "sprint_id": "S1",
+      "decision": "Backend uses a strict four-layer architecture — presentation (FastAPI routers + Pydantic schemas) / application (services) / domain (pure functions + exception types) / infrastructure (SQLAlchemy ORM, repositories, Alembic, config). Each layer may depend only on layers below it. Routers MUST go through services; services MUST go through repositories; no router-to-repository shortcuts.",
+      "rationale": "The HLD already prescribes a layered structure (M-003 is domain; M-001/M-004/M-005 are application; M-006 is presentation). Enforcing the boundary at the file-tree level keeps the stock-ledger domain math (S2/S3) testable in isolation and matches what the ASES critique lenses check for (lens 1: contract integrity, lens 4: layering). It also gives /ases-tasks an unambiguous file-owner per concern.",
+      "tradeoffs": "More files in S1 than a flat structure — each entity grows from one file to ~3 (model, repository, service, router, schema). Accepted because S1 sets the pattern that S2/S3 will follow; cost amortises.",
+      "alternatives_considered": [
+        "Flat structure (everything under src/): rejected — would force S2 to refactor when stock-ledger domain logic arrives.",
+        "Hexagonal/ports-and-adapters with explicit Protocol interfaces: rejected for V1 — adds ceremony without a concrete second adapter to justify it. Revisit if/when we add a second persistence backend."
+      ],
+      "module_refs": ["M-001", "M-002", "M-003", "M-004", "M-005", "M-007"],
+      "recall_keywords": ["architecture", "layering", "presentation", "application", "domain", "infrastructure"],
+      "made_by": "architect",
+      "timestamp": "2026-06-09",
+      "status": "active"
+    },
+    {
+      "id": "DS-008",
+      "stage": "lld",
+      "sprint_id": "S1",
+      "decision": "All 6 master entities in V1 are soft-delete only. HTTP DELETE /<entity>/{id} sets is_active=false and returns the deactivated row; there is no hard-delete endpoint. The repository BaseRepository exposes soft_delete() — there is no delete() method.",
+      "rationale": "Every master's acceptance criteria explicitly require soft delete (AC-002 supplier, AC-005 staff, AC-008 dealer, AC-012 grade, AC-015 design, AC-017 design-grade-map). Forbidding hard delete at the repository level prevents accidental data loss when transaction data exists for the deactivated master (HLD R-005). Mapping the standard DELETE verb to a soft delete keeps the REST surface conventional while encoding the V1 invariant.",
+      "tradeoffs": "Cannot delete genuinely erroneous rows. Mitigation: admin can rename them (PATCH) and deactivate. If true purge becomes necessary in V2, an explicit POST /<entity>/{id}/purge endpoint will be added with stronger guardrails.",
+      "alternatives_considered": [
+        "Separate DELETE (hard) + PATCH is_active (soft): rejected — gives admins a hard-delete footgun for V1.",
+        "Disable DELETE entirely and require explicit PATCH is_active=false: rejected — less intuitive than the conventional verb mapping; admin UI would need a custom action."
+      ],
+      "module_refs": ["M-001", "M-007"],
+      "recall_keywords": ["soft delete", "is_active", "rest", "delete verb", "data retention"],
+      "made_by": "architect",
+      "timestamp": "2026-06-09",
+      "status": "active"
+    },
+    {
+      "id": "DS-009",
+      "stage": "lld",
+      "sprint_id": "S1",
+      "decision": "Alembic migrations are generated via `alembic revision --autogenerate` with the SQLAlchemy ORM models as the single source of truth (target_metadata = Base.metadata). Hand-written SQL migrations are forbidden for schema DDL in V1; only data-only operations (back-fills) may be hand-written.",
+      "rationale": "ORM-first keeps the model and migration in lock-step automatically. The baseline placeholder 0001_baseline.sql will be replaced by 0002_master_tables.py generated from the ORM. Reviewer verifies the generated DDL against the LLD column spec before commit.",
+      "tradeoffs": "Autogenerate has known blind spots (CHECK constraints, partial indexes). Mitigated by reviewing every generated migration against the LLD and adding op.create_check_constraint / op.create_index lines by hand where autogenerate misses them.",
+      "alternatives_considered": [
+        "Hand-written SQL migrations: rejected — duplicates the schema in two places, drifts inevitably.",
+        "ORM-only, no Alembic, use SQLAlchemy create_all on startup: rejected — fine for dev, breaks any disciplined production deploy."
+      ],
+      "module_refs": ["M-007"],
+      "recall_keywords": ["alembic", "migration", "autogenerate", "orm", "schema"],
+      "made_by": "architect",
+      "timestamp": "2026-06-09",
+      "status": "active"
+    },
+    {
+      "id": "DS-010",
+      "stage": "lld",
+      "sprint_id": "S1",
+      "decision": "All backend HTTP endpoints are versioned under the path prefix /api/v1. The frontend NEXT_PUBLIC_API_URL points at http://<host>:8000/api/v1. Breaking schema changes will introduce /api/v2 in parallel with a deprecation window on /api/v1.",
+      "rationale": "Establishes the versioning convention before any consumer exists. Cheap to do now; expensive to retrofit when a third-party integration shows up in V2.",
+      "tradeoffs": "Every router mount adds a trivial prefix; no real downside.",
+      "alternatives_considered": [
+        "Unversioned (/suppliers, /grades…): rejected — locks the project into single-version mode and forces a forklift when versioning becomes necessary.",
+        "Header-based versioning (Accept: application/vnd.jayanth.v1+json): rejected — over-engineered for an internal V1 with a single frontend."
+      ],
+      "module_refs": ["M-001", "M-002", "M-003", "M-004", "M-005", "M-006"],
+      "recall_keywords": ["api versioning", "v1", "path prefix"],
+      "made_by": "architect",
+      "timestamp": "2026-06-09",
+      "status": "active"
+    },
+    {
+      "id": "DS-011",
+      "stage": "lld",
+      "sprint_id": "S1",
+      "decision": "Admin forms are composed from react-hook-form + Zod resolver + shadcn primitives (Label, Input, Select). The shadcn `form.tsx` shim is NOT introduced. Per-entity form components live under frontend/src/components/admin/<entity>/<Entity>Form.tsx.",
+      "rationale": "Closes TD-002 from /ases-scaffold. The shadcn radix-nova preset has no `form.tsx` registry entry, and adding a hand-rolled shim now would create maintenance debt the moment shadcn 5.x ships its own. react-hook-form + Zod already covers field-level errors, submit state, and resolver validation — there is no functional gap.",
+      "tradeoffs": "Slightly more boilerplate per form (manual Label+Input pairs and error <p> tags) than shadcn's Form composer would give. Acceptable for 6 simple forms; revisit if Sprint 2/3 forms balloon.",
+      "alternatives_considered": [
+        "Hand-roll a local form.tsx shim mirroring shadcn 3.x: rejected — duplicates an upstream component that will reappear in a future shadcn release.",
+        "Adopt Conform / Formik: rejected — different mental model from react-hook-form, no team familiarity."
+      ],
+      "module_refs": ["M-006"],
+      "recall_keywords": ["forms", "react-hook-form", "zod", "shadcn", "td-002"],
+      "made_by": "architect",
+      "timestamp": "2026-06-09",
+      "status": "active",
+      "closes_tech_debt": ["TD-002"]
+    },
+    {
+      "id": "DS-012",
+      "stage": "lld",
+      "sprint_id": "S1",
+      "decision": "Database access uses a generic BaseRepository[TModel] with list / get / create / update / soft_delete plus per-entity subclasses that add entity-specific finders. Services depend on repositories — they never construct queries directly.",
+      "rationale": "Six master entities share identical CRUD shapes. A generic base eliminates ~150 lines of duplication and gives the test suite a single seam to mock for unit tests of services. Per-entity finders (e.g. GradeRepository.get_by_code, DesignGradeMapRepository.list_active_by_design) extend the base without breaking the contract.",
+      "tradeoffs": "Generic typing in Python (TypeVar + __class_getitem__) is slightly less ergonomic than per-entity hand-written CRUD. Accepted because the per-entity boilerplate cost across 6 entities far exceeds the one-time generic-setup cost.",
+      "alternatives_considered": [
+        "Per-entity hand-written CRUD: rejected — 6x duplication, harder to enforce DS-008 soft-delete invariant.",
+        "Raw SQLAlchemy in services (no repository layer): rejected — couples services to ORM concerns and breaks DS-007 layering."
+      ],
+      "module_refs": ["M-001", "M-007"],
+      "recall_keywords": ["repository", "generic", "crud", "baserepository"],
+      "made_by": "architect",
+      "timestamp": "2026-06-09",
+      "status": "active"
+    }
+  ]
+}

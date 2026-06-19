@@ -1,0 +1,54 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate",
+  "consumed_by": ["/ases-dev"],
+  "task_id": "T-014",
+  "sprint_id": "S1",
+  "verdict": "PROCEED",
+  "performed_at": "2026-06-18",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "reads_from_declared": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/presentation/schemas/master.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "evidence": {
+        "TradingDesignRepository (T-006)": "PRESENT",
+        "DesignCreate / DesignUpdate / DesignRead (T-007)": "PRESENT",
+        "NotFoundError (T-003)": "PRESENT"
+      }
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[11]",
+      "expected_methods": ["__init__", "list_designs", "create_design", "update_design", "deactivate_design"],
+      "drift_detected": false,
+      "notes": ["Mirror of T-010 canonical pattern with TradingDesign types."]
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_files": ["backend/src/application/services/design_service.py"],
+      "in_progress_task_overlap": []
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on_status": [
+        { "task_id": "T-006", "status": "complete" },
+        { "task_id": "T-007", "status": "complete" },
+        { "task_id": "T-003", "status": "complete" }
+      ]
+    }
+  },
+  "ac_alignment": {
+    "AC-013": "DesignCreate.size + design_name both Field(min_length=1) — T-007 TC-021 verified",
+    "AC-015": "deactivate_design via repo.soft_delete; soft-deleted designs hidden from default list (downstream Inward/Sales/Adjustment dropdowns get active-only by default)"
+  },
+  "summary": {
+    "verdict": "PROCEED",
+    "rationale": "Canonical pattern from T-010 (CLEAN). Deps complete."
+  },
+  "next": "/ases-dev T-014 S1"
+}

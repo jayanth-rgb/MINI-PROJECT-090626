@@ -1,0 +1,17 @@
+{
+  "task_id": "T-031",
+  "title": "Root layout + home page",
+  "module_ref": "M-006",
+  "output_files": ["frontend/src/app/layout.tsx", "frontend/src/app/page.tsx"],
+  "scope": "RootLayout wraps {children} with QueryProvider and shadcn Sonner Toaster; exports metadata. HomePage is a server component calling redirect('/admin/suppliers').",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-029"],
+  "test_case_refs": [],
+  "decisions_referenced": [],
+  "success_criteria": {
+    "manual": "`/` redirects to `/admin/suppliers`; tab title = 'Jayanth Trading Tiles'.",
+    "automated": "Manual smoke only.",
+    "definition_of_done": "layout exports default RootLayout + metadata; page exports default HomePage."
+  },
+  "checkout_prompt": "'Root layout (QueryProvider + Toaster) + home redirect.'"
+}

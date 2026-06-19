@@ -1,0 +1,120 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-005",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-16",
+  "reviewed_files": ["backend/src/infrastructure/db/repositories/base.py"],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-005-plan.json",
+    "sprints/S1/execution/tasks/T-005-plan.md",
+    "sprints/S1/design/lld.json (files[4])",
+    "sprints/S1/design/test_cases.json (TC-001/004-006/008/010/012/014/017/019/020/023-025/029/031/032)",
+    ".ases/decisions.json (DS-007, DS-008, DS-012)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-007", "applicability": "infrastructure layer — file lives in src/infrastructure/db/repositories/ ✓" },
+    { "id": "DS-008", "applicability": "soft delete invariant — NO delete() method exists, verified hasattr(BaseRepository, 'delete') == False ✓" },
+    { "id": "DS-012", "applicability": "generic repository pattern — TypeVar + Generic + __class_getitem__ binds self.model for entity-specific subclasses; services depend on repo, not raw SQL ✓" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "Generic[TModel] with TypeVar('TModel', bound=Base) — type system correctly constrained to ORM models",
+        "model: Type[TModel] class attribute placeholder; __class_getitem__ rewrites it on subclass — verified BaseRepository[SupplierModel].model is SupplierModel during /ases-dev",
+        "__init__(self, session: Session) — matches LLD files[4].functions[0]",
+        "list(include_inactive: bool = False) -> list[TModel]: stmt = select(self.model); filter is_active.is_(True) when default — matches LLD files[4].functions[1]",
+        "get(id_: int) -> TModel: session.get + raise NotFoundError(entity, id_) on miss; entity derived from self.model.__name__.removesuffix('Model') — matches LLD files[4].functions[2]",
+        "create(data: dict[str, Any]) -> TModel: instantiates self.model(**data), session.add + flush — matches LLD files[4].functions[3]; caller commits",
+        "update(id_, patch): loads via get, iterates patch.items(), skips None values (partial update), flushes — matches LLD files[4].functions[4]",
+        "soft_delete(id_): loads via get, sets is_active=False, flushes — matches LLD files[4].functions[5]",
+        "NO delete() method — DS-008 invariant enforced at class structure level"
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_exports": ["BaseRepository"],
+      "actual_exports_match": true,
+      "downstream_callers_satisfied": [
+        "T-006 SupplierRepository(BaseRepository[SupplierModel]) — __class_getitem__ produces a subclass with model bound; further subclassing works (verified during /ases-dev with SupplierModel)",
+        "T-006 GradeRepository adds get_by_code() — extends inherited base methods cleanly",
+        "T-006 DesignGradeMapRepository adds list_active_by_design + get_by_pair — extends base without modifying it",
+        "T-010 SupplierService calls repo.list(include_inactive=...), repo.create(payload.model_dump()), repo.update(id, patch.model_dump(exclude_none=True)), repo.soft_delete(id) — every signature matched",
+        "T-011..T-015 (other services) follow same pattern — all signatures matched",
+        "T-009 conftest builds Session via testcontainers; passes it to repository constructor — supported"
+      ],
+      "imports_check": [
+        "typing: Any, Generic, Type, TypeVar — all used",
+        "sqlalchemy: select — used by list()",
+        "sqlalchemy.orm: Session — used in __init__ signature",
+        "src.domain.exceptions: NotFoundError — used by get() (T-003 dep)",
+        "src.infrastructure.db.base: Base — used as TypeVar bound (T-002 dep)"
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs_in_tasks_json": [],
+      "indirect_test_refs": [
+        "TC-001 (create happy path)", "TC-004 (deactivate)", "TC-005 (list active-only filter)",
+        "TC-006 (list include_inactive)", "TC-008 (staff create)", "TC-010 (staff deactivate)",
+        "TC-012 (dealer create)", "TC-014 (dealer deactivate)", "TC-017 (grade unique)",
+        "TC-019 (active-grades JOIN)", "TC-020 (design create)", "TC-023 (design deactivate)",
+        "TC-024 (map create)", "TC-025 (duplicate pair)", "TC-029 (map soft-delete preserves row)",
+        "TC-031 (active projection)", "TC-032 (empty list)"
+      ],
+      "checks": [
+        "TC-005: list(include_inactive=False) excludes is_active=false rows — implementation applies .where(self.model.is_active.is_(True)) when not include_inactive ✓",
+        "TC-006: list(include_inactive=True) returns both — no filter applied ✓",
+        "TC-004 / TC-010 / TC-014 / TC-023 / TC-029: soft_delete returns row with is_active=false; row physically present — implementation sets attr then flushes, never deletes ✓",
+        "TC-027 / TC-028 (NotFoundError on missing FK in T-015): service catches our repo's NotFoundError and re-raises with explicit entity string ('TradingDesign', 'Grade'). Our auto-derived entity (from __name__.removesuffix('Model')) is a fallback; service overrides for explicit cases. Both patterns supported.",
+        "Manual /ases-dev verification: BaseRepository[SupplierModel] subclassing works; soft_delete present; delete absent; public methods exactly [create, get, list, soft_delete, update]"
+      ],
+      "edge_cases_handled": [
+        "update() skips None values — required for partial update semantics tested via service.update which does patch.model_dump(exclude_none=True). Even if a None slips through, repo ignores it.",
+        "get() returns object or raises — services rely on this to map to HTTP 404 via NotFoundError → register_error_handlers (T-008)",
+        "Repository only flushes; service commits — matches DS-007 transactional-boundary placement (services own transactions)"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "select() uses parameterised SQL — no injection surface",
+        "session.get() takes the model class + PK; PK type-enforced by Python int hints",
+        "model(**data) constructor: data flows from service which has already validated via Pydantic Create schema — unknown keys would be silently ignored by SQLAlchemy mapper (no DB column written)",
+        "setattr(obj, k, v) in update: k flows from Pydantic Update schema (extra='ignore' by default in our schemas — see T-007 plan); unknown attrs would set an instance attribute that does NOT persist to DB. No real injection risk.",
+        "No raw SQL strings anywhere; no shell or filesystem; no exposed credentials"
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "PASS",
+      "checks": [
+        "Single class, 5 public methods + ctor + __class_getitem__; no orphan helper functions",
+        "Inbound edges: src.domain.exceptions (T-003 ✓), src.infrastructure.db.base (T-002 ✓) — both dependencies are complete",
+        "Outbound edges form when T-006 subclasses arrive; graphify will surface 6 SupplierRepo/StaffRepo/etc. nodes pointing at this base",
+        "__class_getitem__ creates an intermediate class; T-006's pattern `class SupplierRepository(BaseRepository[SupplierModel])` creates SupplierRepository as a sub-of-sub — fine for Python's MRO"
+      ],
+      "notes": [
+        "graphify rebuild after T-006 will expose 6 incoming edges + the entity-specific finder methods (get_by_code, get_by_pair, list_active_by_design)."
+      ]
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "soft_notes": [],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "Verbatim translation of plan pseudo-code; LLD files[4] interfaces match exactly. DS-008 invariant (no delete method) verified at /ases-dev. DS-012 generic pattern correctly implemented via Generic[TModel] + __class_getitem__. 17 downstream test cases supported via include_inactive filter, NotFoundError raises, partial update None-skip, and is_active=False soft-delete semantics. Security surface minimal (parameterised SQL, validated input flow from Pydantic). No issues.",
+    "iteration_cap_state": "1/3 — well clear of escalation."
+  },
+  "next": "Mark T-005 status=complete and proceed to /ases-validate T-006 S1 (6 entity-specific repos; depends on T-004 + T-005, both now complete)."
+}

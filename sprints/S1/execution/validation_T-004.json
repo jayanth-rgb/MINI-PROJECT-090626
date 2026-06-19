@@ -1,0 +1,82 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate",
+  "consumed_by": ["/ases-dev"],
+  "task_id": "T-004",
+  "sprint_id": "S1",
+  "verdict": "PROCEED",
+  "performed_at": "2026-06-16",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "reads_from_declared": [
+        "backend/src/infrastructure/db/base.py",
+        "sprints/S1/design/schema.json"
+      ],
+      "evidence": {
+        "backend/src/infrastructure/db/base.py": "PRESENT — exports Base + TimestampMixin (T-002 complete)",
+        "sprints/S1/design/schema.json": "PRESENT — declares 6 entities (tbl_supplier_master, tbl_staff_master, tbl_dealer_master, tbl_grade_master, tbl_trading_design_master, tbl_design_grade_map) matching plan.models[]"
+      }
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[3] — backend/src/infrastructure/db/models/master.py",
+      "schema_ref": "sprints/S1/design/schema.json (6 entities)",
+      "expected_exports": [
+        "SupplierModel", "StaffModel", "DealerModel",
+        "GradeModel", "TradingDesignModel", "DesignGradeMapModel"
+      ],
+      "drift_detected": false,
+      "notes": [
+        "Create task — no existing implementation to drift from.",
+        "Plan.models[] matches schema.json entities[] 1:1 by table name.",
+        "Plan correctly inherits (Base, TimestampMixin) for Supplier/Staff/Dealer/TradingDesign and (Base,) only for Grade/DesignGradeMap — per schema.json (no created_at field on those two entities).",
+        "Plan declares UNIQUE(grade_code) and UNIQUE(design_id, grade_id) with the EXACT names referenced by tests TC-018 (uq_grade_master_grade_code) and TC-026 (uq_design_grade_map_design_grade).",
+        "Plan declares FK ondelete='RESTRICT' on the design_grade_map FKs — defensive choice consistent with DS-008 (V1 has no hard delete).",
+        "Plan declares relationship('design', lazy='joined') + relationship('grade', lazy='joined') — required by T-006 DesignGradeMapRepository.list_active_by_design and T-015 service.list_mappings."
+      ]
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_files": ["backend/src/infrastructure/db/models/master.py"],
+      "do_not_touch_declared": ["any other file"],
+      "in_progress_task_overlap": [],
+      "evidence": "No other task lists models/master.py in its output_files[]. Downstream readers: T-006 (master.py repositories), T-009 (conftest fixtures), T-024 (autogenerate input), T-025 (seed script). None of these write to this file."
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on_declared": ["T-002"],
+      "depends_on_status": [
+        { "task_id": "T-002", "status": "complete" }
+      ],
+      "evidence": "T-002 (DB infrastructure trio) marked complete with iteration_count=1 after /ases-critique CLEAN verdict. Base + TimestampMixin available for import by master.py."
+    }
+  },
+  "environment_check": {
+    "python_venv": "backend/.venv/Scripts/python.exe — PRESENT",
+    "sqlalchemy": "SQLAlchemy 2.0.36 in requirements.txt — supports Mapped, mapped_column, relationship",
+    "base_module": "src.infrastructure.db.base.Base + TimestampMixin — verified importable in T-002 critique"
+  },
+  "instruction_packet_for_dev": {
+    "task_plan": "sprints/S1/execution/tasks/T-004-plan.md",
+    "task_plan_json": "sprints/S1/execution/tasks/T-004-plan.json",
+    "tests_spec": "sprints/S1/execution/tasks/T-004-tests.md (no direct test cases; indirect via TC-018/TC-026 at the DB constraint level)",
+    "lld_slice": "lld.json files[3] (backend/src/infrastructure/db/models/master.py)",
+    "decisions": [
+      "DS-007 (layering — infrastructure layer)",
+      "DS-008 (soft delete — is_active boolean on every model)",
+      "DS-009 (alembic autogenerate — models.master.py is the SINGLE source of truth for DDL)"
+    ],
+    "schema_slice": "sprints/S1/design/schema.json (all 6 entities — supplier/staff/dealer/grade/trading_design/design_grade_map)",
+    "write_scope": ["backend/src/infrastructure/db/models/master.py"],
+    "success_check_command": "backend/.venv/Scripts/python.exe -c \"from src.infrastructure.db.models.master import SupplierModel, StaffModel, DealerModel, GradeModel, TradingDesignModel, DesignGradeMapModel; print(len(SupplierModel.__table__.columns))\""
+  },
+  "summary": {
+    "verdict": "PROCEED",
+    "blocking_holds": 0,
+    "soft_notes": 0,
+    "rationale": "All four pre-flight checks pass. T-002 (the only dependency) is complete with Base + TimestampMixin available. schema.json carries the exact 6 entities the plan expects. The plan correctly distinguishes the 4 entities with TimestampMixin from the 2 without (Grade, DesignGradeMap). UNIQUE constraint names match the test assertions in TC-018 and TC-026. Ready for /ases-dev."
+  },
+  "next": "/ases-dev T-004 S1"
+}

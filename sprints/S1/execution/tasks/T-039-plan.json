@@ -1,0 +1,20 @@
+{
+  "task_id": "T-039",
+  "title": "Designs admin page + DesignForm (F-005)",
+  "module_ref": "M-006",
+  "output_files": [
+    "frontend/src/app/admin/designs/page.tsx",
+    "frontend/src/components/admin/designs/DesignForm.tsx"
+  ],
+  "scope": "Mirror of SuppliersPage using designsApi + DesignForm. DesignForm has size + design_name fields. AC-013, AC-015.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-028", "T-030", "T-033", "T-034"],
+  "test_case_refs": ["TC-044"],
+  "decisions_referenced": ["DS-011"],
+  "success_criteria": {
+    "manual": "CRUD designs.",
+    "automated": "TC-044 (parameterised: empty size OR empty design_name blocks).",
+    "definition_of_done": "Same shape as T-035 using Design types."
+  },
+  "checkout_prompt": "'Designs admin — page + form. AC-013 + AC-015.'"
+}

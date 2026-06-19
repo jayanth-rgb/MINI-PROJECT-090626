@@ -1,0 +1,8 @@
+{
+  "task_id": "T-030",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "jest",
+  "covers_acs": [],
+  "note": "Schemas validated by form-level tests TC-039/041/042/044/046; no schema-only test file."
+}

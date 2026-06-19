@@ -1,0 +1,17 @@
+{
+  "task_id": "T-022",
+  "title": "Design-Grade Map router (F-006 admin CRUD)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/presentation/api/routers/design_grade_map.py"],
+  "scope": "APIRouter(prefix='/design-grade-map', tags=['design-grade-map']) with GET / POST / PATCH /{map_id} / DELETE /{map_id}. POST surfaces 409 on duplicate (design_id, grade_id) pair. Note: GET /designs/{id}/grades lives in designs router (T-021), NOT here.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-016"],
+  "test_case_refs": ["TC-038"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-010"],
+  "success_criteria": {
+    "manual": "POST with duplicate pair returns 409.",
+    "automated": "TC-038 (409 on duplicate pair).",
+    "definition_of_done": "Router delegates to DesignGradeMapService; ConflictError -> 409 via global handler."
+  },
+  "checkout_prompt": "'Design-Grade Map router — 4 admin CRUD endpoints; 409 on duplicate pair.'"
+}

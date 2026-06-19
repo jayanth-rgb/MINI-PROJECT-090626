@@ -1,0 +1,87 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate",
+  "consumed_by": ["/ases-dev"],
+  "task_id": "T-005",
+  "sprint_id": "S1",
+  "verdict": "PROCEED",
+  "performed_at": "2026-06-16",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "reads_from_declared": [
+        "backend/src/infrastructure/db/base.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "evidence": {
+        "backend/src/infrastructure/db/base.py": "PRESENT — exports Base (T-002 complete)",
+        "backend/src/domain/exceptions.py": "PRESENT — exports NotFoundError (T-003 complete)"
+      },
+      "env_vars_declared": []
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[4] — backend/src/infrastructure/db/repositories/base.py",
+      "expected_exports": ["BaseRepository"],
+      "expected_methods": [
+        { "name": "__init__", "signature": "(session: Session)" },
+        { "name": "list", "signature": "(include_inactive: bool = False) -> list[TModel]" },
+        { "name": "get", "signature": "(id_: int) -> TModel; raises NotFoundError" },
+        { "name": "create", "signature": "(data: dict[str, Any]) -> TModel" },
+        { "name": "update", "signature": "(id_: int, patch: dict[str, Any]) -> TModel; raises NotFoundError" },
+        { "name": "soft_delete", "signature": "(id_: int) -> TModel; raises NotFoundError" }
+      ],
+      "forbidden_methods": ["delete (per DS-008)"],
+      "drift_detected": false,
+      "notes": [
+        "Create task — no existing implementation to drift from.",
+        "plan.implementation matches LLD files[4].functions[] verbatim — same 6 methods, same signatures, same exceptions, same default behavior (include_inactive=False applies is_active filter).",
+        "Generic[TModel] + __class_getitem__ pattern enables the subclass syntax `class FooRepository(BaseRepository[FooModel])` that T-006 uses for all 6 entity-specific repositories.",
+        "DS-008 invariant explicitly enforced: NO delete() method declared."
+      ]
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_files": ["backend/src/infrastructure/db/repositories/base.py"],
+      "do_not_touch_declared": ["any other file"],
+      "in_progress_task_overlap": [],
+      "evidence": "No other task lists repositories/base.py in its output_files[]. T-006 (master.py repositories) reads_from base.py to subclass it but does not write to it."
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on_declared": ["T-002", "T-003"],
+      "depends_on_status": [
+        { "task_id": "T-002", "status": "complete" },
+        { "task_id": "T-003", "status": "complete" }
+      ],
+      "evidence": "Both dependencies complete with CLEAN critique verdicts (T-002 iteration 1, T-003 iteration 1). Acyclic-DAG invariant preserved."
+    }
+  },
+  "environment_check": {
+    "python_venv": "backend/.venv/Scripts/python.exe — PRESENT",
+    "sqlalchemy": "SQLAlchemy 2.0.36 in requirements.txt — supports Generic[T] + select() + Session.get + scalars()",
+    "typing": "stdlib — Generic, TypeVar, Type all from typing module"
+  },
+  "instruction_packet_for_dev": {
+    "task_plan": "sprints/S1/execution/tasks/T-005-plan.md",
+    "task_plan_json": "sprints/S1/execution/tasks/T-005-plan.json",
+    "tests_spec": "sprints/S1/execution/tasks/T-005-tests.md (no direct TC refs; transitive via TC-001, TC-004, TC-005, TC-006, TC-008, TC-010, TC-012, TC-014, TC-017, TC-019, TC-020, TC-023, TC-024, TC-025, TC-029, TC-031, TC-032)",
+    "lld_slice": "lld.json files[4] (backend/src/infrastructure/db/repositories/base.py)",
+    "decisions": [
+      "DS-007 (layering — infrastructure)",
+      "DS-008 (soft delete — NO delete() method)",
+      "DS-012 (generic repository pattern — services depend on repositories, not raw SQL)"
+    ],
+    "schema_slice": "n/a — generic over Mapped models",
+    "write_scope": ["backend/src/infrastructure/db/repositories/base.py"],
+    "success_check_command": "backend/.venv/Scripts/python.exe -c \"from src.infrastructure.db.repositories.base import BaseRepository; print(hasattr(BaseRepository, 'soft_delete'), hasattr(BaseRepository, 'delete'))\""
+  },
+  "summary": {
+    "verdict": "PROCEED",
+    "blocking_holds": 0,
+    "soft_notes": 0,
+    "rationale": "All four pre-flight checks pass. T-002 + T-003 both complete with CLEAN verdicts. Generic[TModel] + __class_getitem__ pattern correctly designed for the T-006 subclass syntax. DS-008 invariant (no delete method) explicitly enforced by plan structure."
+  },
+  "next": "/ases-dev T-005 S1"
+}

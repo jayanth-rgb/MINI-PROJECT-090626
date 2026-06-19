@@ -1,0 +1,79 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate",
+  "consumed_by": ["/ases-dev"],
+  "task_id": "T-013",
+  "sprint_id": "S1",
+  "verdict": "PROCEED",
+  "performed_at": "2026-06-18",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "reads_from_declared": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/presentation/schemas/master.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "evidence": {
+        "GradeRepository + get_by_code (T-006)": "PRESENT",
+        "GradeCreate / GradeUpdate / GradeRead (T-007)": "PRESENT",
+        "ConflictError (T-003)": "PRESENT"
+      }
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[10]",
+      "expected_methods": ["__init__", "list_grades", "create_grade (raises ConflictError)", "update_grade (raises ConflictError + NotFoundError)", "deactivate_grade"],
+      "drift_detected": false,
+      "notes": [
+        "Plan extends the canonical pattern with uniqueness pre-check via repo.get_by_code (T-006 verified).",
+        "create_grade ConflictError message MUST include 'grade_code' for TC-035 substring assertion to pass.",
+        "update_grade handles the rename-to-same case (existing.grade_id != grade_id guard)."
+      ]
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_files": ["backend/src/application/services/grade_service.py"],
+      "in_progress_task_overlap": []
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on_declared": ["T-006", "T-007", "T-003"],
+      "depends_on_status": [
+        { "task_id": "T-006", "status": "complete" },
+        { "task_id": "T-007", "status": "complete" },
+        { "task_id": "T-003", "status": "complete" }
+      ]
+    }
+  },
+  "ac_alignment": {
+    "AC-010": "Grade seed data (T-025 scope, not this service)",
+    "AC-011": "UNIQUE(grade_code) — pre-check via get_by_code raises ConflictError; DB safety net at T-004 UNIQUE constraint (TC-018) + IntegrityError handler (T-008) catches races. ConflictError detail message includes 'grade_code' for TC-035.",
+    "AC-012": "deactivate_grade via repo.soft_delete; downstream JOIN filter in T-015 list_active_grades_for_design (TC-019) hides inactive grades from design-grade lists."
+  },
+  "open_issue_to_address": {
+    "id": "N-001",
+    "source": "T-007 critique soft note (context.json open_issues)",
+    "concern": "T-007 (GradeCreate Pydantic schema) does NOT strip whitespace from grade_code. Without service-level stripping, user-submitted '  DIM  ' bypasses the get_by_code uniqueness check (string mismatch with seeded 'DIM') and creates a duplicate-by-meaning row.",
+    "suggested_resolution_in_dev": "In /ases-dev T-013, normalise the grade_code via `.strip()` before BOTH the pre-check lookup AND the repo.create dict. This stays inside output_files[] scope and resolves N-001 without touching T-007. Same pattern applies in update_grade for the patched grade_code value.",
+    "blocking": false
+  },
+  "instruction_packet_for_dev": {
+    "task_plan": "sprints/S1/execution/tasks/T-013-plan.md",
+    "task_plan_json": "sprints/S1/execution/tasks/T-013-plan.json",
+    "tests_spec": "sprints/S1/execution/tasks/T-013-tests.md (TC-017, TC-019)",
+    "lld_slice": "lld.json files[10]",
+    "decisions": ["DS-007", "DS-008", "DS-012"],
+    "write_scope": ["backend/src/application/services/grade_service.py"],
+    "success_check_command": "backend/.venv/Scripts/python.exe -c \"from src.application.services.grade_service import GradeService; print(sorted(m for m in dir(GradeService) if not m.startswith('_')))\"",
+    "extra_note": "Consider adding payload.grade_code.strip() before the pre-check + before repo.create — addresses N-001 carried from T-007 critique."
+  },
+  "summary": {
+    "verdict": "PROCEED",
+    "blocking_holds": 0,
+    "soft_notes": 1,
+    "rationale": "All 4 checks pass. Deps complete with CLEAN verdicts. The only soft consideration is N-001 (whitespace strip) — non-blocking but the dev pass should add a single .strip() call to resolve it within scope."
+  },
+  "next": "/ases-dev T-013 S1"
+}

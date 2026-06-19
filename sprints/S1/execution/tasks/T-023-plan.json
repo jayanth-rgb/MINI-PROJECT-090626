@@ -1,0 +1,17 @@
+{
+  "task_id": "T-023",
+  "title": "FastAPI app factory (main.py)",
+  "module_ref": "M-007",
+  "output_files": ["backend/src/main.py"],
+  "scope": "create_app() factory: instantiate FastAPI(title='Jayanth Trading Tiles API', version='1.0.0'), add CORS using settings.api_cors_origins, call register_error_handlers(app), include_router for all 6 master routers under prefix='/api/v1', register GET /health -> {'status':'ok'}. Module-level `app = create_app()` for uvicorn entry.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-001", "T-008", "T-017", "T-018", "T-019", "T-020", "T-021", "T-022"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-005", "DS-006", "DS-010"],
+  "success_criteria": {
+    "manual": "`uvicorn src.main:app` starts; GET /health returns {'status':'ok'}; OpenAPI lists all router paths under /api/v1.",
+    "automated": "Indirectly exercised by every integration TC (TC-033..TC-038).",
+    "definition_of_done": "create_app + module-level app; 6 routers mounted under /api/v1; CORS reads settings.api_cors_origins; /health works."
+  },
+  "checkout_prompt": "'FastAPI main.py — app factory, CORS, 6 routers under /api/v1, /health.'"
+}

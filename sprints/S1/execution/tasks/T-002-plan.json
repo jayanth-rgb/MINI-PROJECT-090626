@@ -1,0 +1,26 @@
+{
+  "task_id": "T-002",
+  "title": "DB Infrastructure (base.py + session.py + alembic env.py)",
+  "module_ref": "M-007",
+  "output_files": [
+    "backend/src/infrastructure/db/base.py",
+    "backend/src/infrastructure/db/session.py",
+    "backend/db/migrations/env.py"
+  ],
+  "scope": "Three tightly-coupled files: (a) DeclarativeBase + TimestampMixin; (b) engine + SessionLocal + get_db dependency; (c) alembic env that wires sqlalchemy.url=settings.database_url and target_metadata=Base.metadata. env.py MUST import all ORM model modules so Base.metadata sees them — even though T-004 hasn't run yet, env.py uses a try/except guard so the file is importable before models exist.",
+  "do_not_touch": [
+    "backend/alembic.ini (already correct from /ases-scaffold)",
+    "backend/db/migrations/versions/0001_baseline.sql (placeholder; T-024 writes 0002)",
+    "any other file"
+  ],
+  "depends_on": ["T-001"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-001", "DS-007", "DS-009"],
+  "resolves_gaps": ["MIGRATION-001"],
+  "success_criteria": {
+    "manual": "(a) `python -c 'from src.infrastructure.db.base import Base; from src.infrastructure.db.session import engine, SessionLocal, get_db; print(\"ok\")'` → 'ok'. (b) `cd backend && alembic check` → exits 0.",
+    "automated": "No dedicated unit test; T-005 BaseRepository tests use SessionLocal via T-009 conftest.",
+    "definition_of_done": "Three files import cleanly; alembic CLI recognises env.py."
+  },
+  "checkout_prompt": "On completion, return: 'DB infrastructure trio created — Base + TimestampMixin, engine + SessionLocal + get_db, alembic env.py wired to Base.metadata. MIGRATION-001 resolved.'"
+}

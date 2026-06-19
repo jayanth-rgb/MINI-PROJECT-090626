@@ -1,0 +1,116 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-002",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-16",
+  "reviewed_files": [
+    "backend/src/infrastructure/db/base.py",
+    "backend/src/infrastructure/db/session.py",
+    "backend/db/migrations/env.py"
+  ],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-002-plan.json",
+    "sprints/S1/execution/tasks/T-002-plan.md",
+    "sprints/S1/design/lld.json (files[1,2,29])",
+    ".ases/decisions.json (M-007 entries)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-001", "applicability": "SQLAlchemy 2.x stack — code uses DeclarativeBase + Mapped/mapped_column, not deprecated declarative_base()" },
+    { "id": "DS-007", "applicability": "infrastructure layer — files live under src/infrastructure/db/; no presentation/application code mixed in" },
+    { "id": "DS-009", "applicability": "alembic autogenerate — env.py wires target_metadata=Base.metadata and url=settings.database_url, ready for `alembic revision --autogenerate` in T-024" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "base.py: class Base(DeclarativeBase) ✓ + TimestampMixin with created_at: Mapped[datetime] = mapped_column(server_default=func.now(), nullable=False) ✓ — matches LLD files[1].functions[0,1]",
+        "session.py: engine = create_engine(settings.database_url, pool_pre_ping=True, future=True) ✓ — verbatim from plan + LLD files[2].functions[0]",
+        "session.py: SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False) ✓ — matches LLD files[2].functions[1]",
+        "session.py: get_db generator with try/yield+commit/except+rollback/finally+close ✓ — matches LLD files[2].functions[2] description and the canonical FastAPI dep pattern",
+        "env.py: imports get_settings + Base ✓; try/except import of models.master with noqa: F401 ✓; config.set_main_option('sqlalchemy.url', get_settings().database_url) ✓; target_metadata = Base.metadata ✓",
+        "env.py: run_migrations_offline + run_migrations_online both present, with NullPool and engine_from_config in online mode ✓ — matches LLD files[29].functions[0,1]",
+        "env.py: bottom dispatcher `if context.is_offline_mode(): run_migrations_offline() else: run_migrations_online()` ✓ — standard alembic env layout"
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_exports": {
+        "base.py": ["Base", "TimestampMixin"],
+        "session.py": ["engine", "SessionLocal", "get_db"],
+        "env.py": ["run_migrations_offline", "run_migrations_online"]
+      },
+      "actual_exports_match": true,
+      "downstream_callers_satisfied": [
+        "T-004 backend/src/infrastructure/db/models/master.py imports Base + TimestampMixin — present",
+        "T-005 backend/src/infrastructure/db/repositories/base.py uses sqlalchemy.orm.Session (typed); SessionLocal not directly imported there — satisfied via Session type",
+        "T-016 backend/src/presentation/api/dependencies.py imports get_db — present",
+        "T-024 backend/db/migrations/versions/0002_master_tables.py reads env.py to register target_metadata before autogenerate — env.py correctly wired",
+        "T-009 backend/tests/conftest.py uses SessionLocal indirectly via testcontainers — get_db pattern OK",
+        "T-025 backend/scripts/seed_master_data.py imports SessionLocal — present"
+      ],
+      "imports_check": [
+        "base.py: datetime, sqlalchemy.func, sqlalchemy.orm.{DeclarativeBase, Mapped, mapped_column} — all used",
+        "session.py: typing.Generator, sqlalchemy.create_engine, sqlalchemy.orm.{Session, sessionmaker}, src.config.get_settings — all used",
+        "env.py: logging.config.fileConfig, sqlalchemy.engine_from_config + pool, alembic.context, src.config.get_settings, src.infrastructure.db.base.Base — all used. The try/except guard on src.infrastructure.db.models.master is appropriate before T-004 lands."
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs": [],
+      "checks": [
+        "T-002 has no direct test_case_refs (covered transitively).",
+        "Manual smoke (a) confirmed during /ases-dev: `from src.infrastructure.db.base import Base; from src.infrastructure.db.session import engine, SessionLocal, get_db; print('ok')` → `ok`.",
+        "Manual smoke (b) `alembic check` deferred — requires live PG (PO has not yet provisioned Docker; tracked as DB-001 carry-forward).",
+        "Downstream: T-005 will exercise BaseRepository via T-009 conftest which builds testcontainers PG + applies env.py through alembic.upgrade()."
+      ],
+      "edge_cases_handled": [
+        "get_db rollback path — explicit `except Exception: db.rollback(); raise` ensures the exception propagates after rollback (required by FastAPI exception handlers to surface 4xx/5xx)",
+        "pool_pre_ping=True — handles stale connections to PG without crashing the request",
+        "expire_on_commit=False — committed ORM objects remain readable in route handlers (FastAPI returns SupplierRead.model_validate(model) after commit)",
+        "env.py models import guard — env.py remains importable BEFORE T-004 lands models/master.py"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "DATABASE_URL (containing DB password) sourced only from Settings via env / .env — no hardcoded credentials in either session.py or env.py",
+        "create_engine does not echo SQL or credentials (no `echo=True`); LOG_LEVEL controlled externally",
+        "get_db's rollback path prevents partial writes from being committed if an exception occurs mid-transaction",
+        "No SQL string construction in this task — no injection vector introduced",
+        "env.py target_metadata is a static reference to Base.metadata — no dynamic schema mutation",
+        "alembic engine uses NullPool in online mode — appropriate for short-lived migration runs"
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "DEFERRED",
+      "reason": "Call graph value is still low — T-002 introduces 3 new module nodes with only 1 incoming edge (config.get_settings) and outgoing edges that will materialise as T-004, T-005, T-016, T-024 land. Will be re-evaluated automatically by graphify rebuild after T-004."
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "soft_notes": [
+    {
+      "id": "N-001",
+      "topic": "Engine constructed at module import time",
+      "where": "backend/src/infrastructure/db/session.py — module level `settings = get_settings(); engine = create_engine(settings.database_url, ...)`",
+      "observation": "LLD line 73 explicitly prescribes this: 'Built once at import.' So this matches the design intent. Practical consequence: any module that imports `session.py` MUST have DATABASE_URL available in env (or .env) at import time. T-009 conftest must therefore export DATABASE_URL pointing at the testcontainers PG instance BEFORE importing src.infrastructure.db.session — standard pytest fixture order handles this, but worth pinning explicitly when T-009 is implemented.",
+      "actionable_for": "T-009 conftest.py author"
+    }
+  ],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "All three files are byte-equivalent to the plan pseudo-code. LLD interfaces (files[1,2,29]) match exactly. Downstream consumers (T-004, T-005, T-016, T-024, T-025) are satisfied. Security surface is minimal and handled correctly (no hardcoded creds, rollback path, NullPool migrations). The one soft note (engine-at-import) is LLD-prescribed behaviour, not a defect — it's logged for the T-009 conftest author to handle env ordering explicitly.",
+    "iteration_cap_state": "1/3 — well clear of escalation."
+  },
+  "next": "Mark T-002 status=complete and proceed to /ases-validate T-003 S1 (or any other ready task in execution_order group 2: T-003, T-007 also have zero deps)."
+}

@@ -1,0 +1,92 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-001",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-16",
+  "reviewed_files": ["backend/src/config.py"],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-001-plan.json",
+    "sprints/S1/execution/tasks/T-001-plan.md",
+    "sprints/S1/design/lld.json (files[0])",
+    ".ases/decisions.json (entries with module_refs ∋ M-007)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-001", "applicability": "stack (FastAPI + pydantic-settings); satisfied by import path" },
+    { "id": "DS-005", "applicability": "no auth in V1 — not exercised here" },
+    { "id": "DS-006", "applicability": "docker separation — not exercised here" },
+    { "id": "DS-010", "applicability": "API versioning — informs api_env semantic only" },
+    { "id": "DS-009", "applicability": "alembic ORM-first — not exercised by this file" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "Settings BaseSettings subclass present — matches plan.implementation + LLD files[0].functions[0]",
+        "model_config = SettingsConfigDict(env_file='.env', extra='ignore') — verbatim from plan",
+        "Three fields with correct types + defaults: database_url: str | api_cors_origins: list[str] = [] | api_env: str = 'development'",
+        "get_settings() decorated with @lru_cache — singleton per LLD files[0].functions[1]",
+        "No extra functions, no helper file — strict scope adherence"
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_exports": ["Settings", "get_settings"],
+      "actual_exports": ["Settings", "get_settings"],
+      "downstream_callers_satisfied": [
+        "T-002 backend/src/infrastructure/db/session.py expects Settings.database_url — present (str)",
+        "T-002 backend/db/migrations/env.py imports get_settings + settings.database_url — present",
+        "T-023 backend/src/main.py expects Settings.api_cors_origins (list[str]) — present",
+        "Pydantic-settings reads env case-insensitively: DATABASE_URL → database_url, API_CORS_ORIGINS → api_cors_origins, API_ENV → api_env — matches LLD interfaces.expects"
+      ],
+      "imports_check": [
+        "from functools import lru_cache — used by get_settings decorator",
+        "from pydantic_settings import BaseSettings, SettingsConfigDict — both used"
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs": [],
+      "checks": [
+        "T-001 has no direct test_case_refs (covered transitively by T-009 conftest)",
+        "Manual success command from plan.md verified during /ases-dev: 'Settings development' output observed",
+        "get_settings() returns Settings instance — required by all downstream tasks"
+      ],
+      "edge_cases_handled": [
+        "Absent backend/.env tolerated via extra='ignore' + env_file as relative path that may not exist",
+        "Empty api_cors_origins list default protects against open CORS by accident — safe fallback when env var unset"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "DATABASE_URL (which contains DB password) read from environment / .env, never hardcoded — .env is gitignored per scaffold",
+        "Settings instance is not logged or echoed",
+        "api_cors_origins defaults to [] (closed) — does not silently default to '*'",
+        "No SQL constructed in this file — no injection surface",
+        "Pydantic-settings parsing of list[str] from env is built-in (comma-separated by default) — no custom string parsing risk"
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "DEFERRED",
+      "reason": "graphify-out/graph.json exists but call-graph value is minimal for a single 14-line bootstrap module with zero internal callers yet. Will be re-evaluated when downstream tasks (T-002, T-023) import get_settings."
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "Implementation is a 1:1 translation of the plan pseudo-code into runnable code. All four primary lenses pass: spec match is exact (Settings + get_settings + the three declared fields with their LLD-prescribed defaults); contract is satisfied for all downstream callers (T-002 session, T-002 alembic env, T-023 main); no test_case_refs declared at this scope so the test lens is informational; security surface is minimal and correctly handled (no logged secrets, closed CORS default, env-only DB password). Manual smoke command from plan.md runs clean — 'Settings development' observed during /ases-dev. No fix needed.",
+    "iteration_cap_state": "1/3 (smart cap) — well clear of escalation."
+  },
+  "next": "Mark T-001 status=complete in tasks.json and proceed to /ases-validate T-002 S1 (next in execution_order)."
+}

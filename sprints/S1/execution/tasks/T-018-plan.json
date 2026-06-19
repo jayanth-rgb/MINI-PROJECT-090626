@@ -1,0 +1,17 @@
+{
+  "task_id": "T-018",
+  "title": "Staff router (F-002)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/presentation/api/routers/staff.py"],
+  "scope": "APIRouter(prefix='/staff', tags=['staff']) with GET / POST / PATCH /{staff_id} / DELETE /{staff_id}. Delegates to StaffService via get_staff_service Depends.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-016"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-010"],
+  "success_criteria": {
+    "manual": "Router exports 4 routes under /staff prefix.",
+    "automated": "Exercised at frontend layer by TC-041 contract; backend covered transitively through TC-008/TC-010 service tests.",
+    "definition_of_done": "Same shape as suppliers router using Staff schemas and StaffService."
+  },
+  "checkout_prompt": "'Staff router — mirror of suppliers, soft DELETE.'"
+}

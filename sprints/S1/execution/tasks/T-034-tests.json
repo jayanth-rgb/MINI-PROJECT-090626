@@ -1,0 +1,8 @@
+{
+  "task_id": "T-034",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "jest",
+  "covers_acs": [],
+  "note": "Covered by every page-level dialog test (TC-040/043/045)."
+}

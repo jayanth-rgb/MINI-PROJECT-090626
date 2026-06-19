@@ -1,0 +1,1787 @@
+{
+  "$schema": "ases/v3.0/lld",
+  "document": "lld",
+  "produced_by": "/ases-lld",
+  "consumed_by": ["/ases-schema", "/ases-test-spec", "/ases-tasks", "/ases-validate", "/ases-dev"],
+  "sprint_id": "S1",
+  "scope_modules": ["M-001", "M-007"],
+  "scope_features": ["F-001", "F-002", "F-003", "F-004", "F-005", "F-006"],
+  "api_base_path": "/api/v1",
+  "files": [
+    {
+      "path": "backend/src/config.py",
+      "purpose": "Pydantic Settings — loads DATABASE_URL, API_CORS_ORIGINS, API_ENV from environment / .env. Single source of truth for runtime config.",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "functions": [
+        {
+          "name": "Settings",
+          "inputs": [],
+          "outputs": [{ "name": "settings", "type": "Settings" }],
+          "description": "BaseSettings subclass with fields: database_url (str), api_cors_origins (list[str]), api_env (str = 'development'). Reads from .env via SettingsConfigDict(env_file='.env', extra='ignore')."
+        },
+        {
+          "name": "get_settings",
+          "inputs": [],
+          "outputs": [{ "name": "settings", "type": "Settings" }],
+          "description": "@lru_cache singleton accessor for Settings. Used by FastAPI Depends and by alembic env.py."
+        }
+      ],
+      "interfaces": {
+        "exports": ["Settings", "get_settings"],
+        "expects": ["env: DATABASE_URL", "env: API_CORS_ORIGINS", "env: API_ENV"]
+      },
+      "depends_on": [],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/infrastructure/db/base.py",
+      "purpose": "Declarative SQLAlchemy 2.x Base + shared column-mixin (TimestampMixin) used by all ORM models.",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "functions": [
+        {
+          "name": "Base",
+          "inputs": [],
+          "outputs": [{ "name": "Base", "type": "DeclarativeBase" }],
+          "description": "class Base(DeclarativeBase): pass — SQLAlchemy 2.x declarative root that all ORM models inherit from. metadata is the target for Alembic autogenerate."
+        },
+        {
+          "name": "TimestampMixin",
+          "inputs": [],
+          "outputs": [{ "name": "mixin", "type": "Mixin" }],
+          "description": "Adds created_at: Mapped[datetime] = mapped_column(server_default=func.now()). Mixed into all 6 master ORM models that the PRD requires created_at on."
+        }
+      ],
+      "interfaces": {
+        "exports": ["Base", "TimestampMixin"],
+        "expects": []
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+    {
+      "path": "backend/src/infrastructure/db/session.py",
+      "purpose": "SQLAlchemy engine + sessionmaker + FastAPI `get_db` dependency. Single point of DB session lifecycle for the entire backend.",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "functions": [
+        {
+          "name": "engine",
+          "inputs": [],
+          "outputs": [{ "name": "engine", "type": "Engine" }],
+          "description": "Module-level create_engine(settings.database_url, pool_pre_ping=True, future=True). Built once at import."
+        },
+        {
+          "name": "SessionLocal",
+          "inputs": [],
+          "outputs": [{ "name": "session_factory", "type": "sessionmaker[Session]" }],
+          "description": "sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)."
+        },
+        {
+          "name": "get_db",
+          "inputs": [],
+          "outputs": [{ "name": "session", "type": "Generator[Session, None, None]" }],
+          "description": "FastAPI dependency: yields a Session, commits on clean exit of the request, rolls back on exception, closes in finally.",
+          "raises": ["sqlalchemy.exc.SQLAlchemyError"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["engine", "SessionLocal", "get_db"],
+        "expects": ["Settings.database_url (from src.config)"]
+      },
+      "depends_on": ["backend/src/config.py", "backend/src/infrastructure/db/base.py"],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/infrastructure/db/models/master.py",
+      "purpose": "SQLAlchemy 2.x ORM models for the 6 master tables. All inherit (Base, TimestampMixin). Source of truth for Alembic autogenerate.",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "functions": [
+        {
+          "name": "SupplierModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_supplier_master'. Columns: supplier_id BIGSERIAL PK, supplier_name TEXT NOT NULL, place TEXT NOT NULL, is_active BOOL NOT NULL DEFAULT TRUE, created_at TIMESTAMPTZ DEFAULT NOW(). (F-001)"
+        },
+        {
+          "name": "StaffModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_staff_master'. Columns: staff_id PK, staff_name TEXT NOT NULL, is_active BOOL NOT NULL DEFAULT TRUE, created_at. (F-002)"
+        },
+        {
+          "name": "DealerModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_dealer_master'. Columns: dealer_id PK, dealer_name TEXT NOT NULL, place TEXT NOT NULL, is_active BOOL NOT NULL DEFAULT TRUE, created_at. (F-003)"
+        },
+        {
+          "name": "GradeModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_grade_master'. Columns: grade_id PK, grade_code TEXT NOT NULL UNIQUE, is_active BOOL NOT NULL DEFAULT TRUE. (F-004; UNIQUE per AC-011)"
+        },
+        {
+          "name": "TradingDesignModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_trading_design_master'. Columns: design_id PK, size TEXT NOT NULL, design_name TEXT NOT NULL, is_active BOOL NOT NULL DEFAULT TRUE, created_at. (F-005)"
+        },
+        {
+          "name": "DesignGradeMapModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_design_grade_map'. Columns: map_id PK, design_id FK→tbl_trading_design_master.design_id NOT NULL, grade_id FK→tbl_grade_master.grade_id NOT NULL, is_active BOOL NOT NULL DEFAULT TRUE. UniqueConstraint(design_id, grade_id) per AC-016. Relationships: design (lazy='joined'), grade (lazy='joined'). (F-006)"
+        }
+      ],
+      "interfaces": {
+        "exports": [
+          "SupplierModel",
+          "StaffModel",
+          "DealerModel",
+          "GradeModel",
+          "TradingDesignModel",
+          "DesignGradeMapModel"
+        ],
+        "expects": ["Base", "TimestampMixin"]
+      },
+      "depends_on": ["backend/src/infrastructure/db/base.py"],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/infrastructure/db/repositories/base.py",
+      "purpose": "Generic CRUD repository BaseRepository[TModel] with soft-delete-aware queries (DS-008). All 6 master repositories inherit this.",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "functions": [
+        {
+          "name": "BaseRepository.__init__",
+          "inputs": [
+            { "name": "session", "type": "Session" }
+          ],
+          "outputs": [{ "name": "self", "type": "BaseRepository[TModel]" }],
+          "description": "Stores session and resolves self.model from the generic TModel via __class_getitem__."
+        },
+        {
+          "name": "BaseRepository.list",
+          "inputs": [
+            { "name": "include_inactive", "type": "bool", "required": false }
+          ],
+          "outputs": [{ "name": "items", "type": "list[TModel]" }],
+          "description": "SELECT all. include_inactive=False (default) filters is_active=True; True returns every row."
+        },
+        {
+          "name": "BaseRepository.get",
+          "inputs": [
+            { "name": "id_", "type": "int" }
+          ],
+          "outputs": [{ "name": "model", "type": "TModel" }],
+          "description": "SELECT by PK. Raises NotFoundError if missing.",
+          "raises": ["domain.exceptions.NotFoundError"]
+        },
+        {
+          "name": "BaseRepository.create",
+          "inputs": [
+            { "name": "data", "type": "dict[str, Any]" }
+          ],
+          "outputs": [{ "name": "model", "type": "TModel" }],
+          "description": "Instantiates self.model(**data), session.add, session.flush. Caller commits."
+        },
+        {
+          "name": "BaseRepository.update",
+          "inputs": [
+            { "name": "id_", "type": "int" },
+            { "name": "patch", "type": "dict[str, Any]" }
+          ],
+          "outputs": [{ "name": "model", "type": "TModel" }],
+          "description": "Loads, applies setattr per key in patch, flushes. NotFoundError if missing.",
+          "raises": ["domain.exceptions.NotFoundError"]
+        },
+        {
+          "name": "BaseRepository.soft_delete",
+          "inputs": [
+            { "name": "id_", "type": "int" }
+          ],
+          "outputs": [{ "name": "model", "type": "TModel" }],
+          "description": "Sets model.is_active = False, flushes. NotFoundError if missing. No row deletion — V1 has no hard-delete (DS-008).",
+          "raises": ["domain.exceptions.NotFoundError"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["BaseRepository"],
+        "expects": ["sqlalchemy.orm.Session", "domain.exceptions.NotFoundError"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/base.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/infrastructure/db/repositories/master.py",
+      "purpose": "Six entity-specific repositories. Each is a thin subclass of BaseRepository binding TModel and adding entity-specific lookups (e.g. grades by code, design-grade by (design_id, grade_id)).",
+      "layer": "infrastructure",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "SupplierRepository",
+          "inputs": [],
+          "outputs": [{ "name": "repo", "type": "BaseRepository[SupplierModel]" }],
+          "description": "Subclass of BaseRepository[SupplierModel]. No extra methods in S1."
+        },
+        {
+          "name": "StaffRepository",
+          "inputs": [],
+          "outputs": [{ "name": "repo", "type": "BaseRepository[StaffModel]" }],
+          "description": "Subclass of BaseRepository[StaffModel]."
+        },
+        {
+          "name": "DealerRepository",
+          "inputs": [],
+          "outputs": [{ "name": "repo", "type": "BaseRepository[DealerModel]" }],
+          "description": "Subclass of BaseRepository[DealerModel]."
+        },
+        {
+          "name": "GradeRepository",
+          "inputs": [],
+          "outputs": [{ "name": "repo", "type": "BaseRepository[GradeModel]" }],
+          "description": "Subclass of BaseRepository[GradeModel]. Adds get_by_code(code: str) → GradeModel | None for uniqueness checks on create."
+        },
+        {
+          "name": "TradingDesignRepository",
+          "inputs": [],
+          "outputs": [{ "name": "repo", "type": "BaseRepository[TradingDesignModel]" }],
+          "description": "Subclass of BaseRepository[TradingDesignModel]."
+        },
+        {
+          "name": "DesignGradeMapRepository",
+          "inputs": [],
+          "outputs": [{ "name": "repo", "type": "BaseRepository[DesignGradeMapModel]" }],
+          "description": "Subclass of BaseRepository[DesignGradeMapModel]. Adds: list_active_by_design(design_id: int) → list[DesignGradeMapModel] for the M-001 endpoint GET /designs/{id}/grades (consumed by S2 transaction forms). Adds get_by_pair(design_id, grade_id) → DesignGradeMapModel | None to enforce UNIQUE(design_id, grade_id) on create per AC-016."
+        }
+      ],
+      "interfaces": {
+        "exports": [
+          "SupplierRepository",
+          "StaffRepository",
+          "DealerRepository",
+          "GradeRepository",
+          "TradingDesignRepository",
+          "DesignGradeMapRepository"
+        ],
+        "expects": ["BaseRepository", "all 6 ORM models"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/base.py",
+        "backend/src/infrastructure/db/models/master.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/domain/exceptions.py",
+      "purpose": "Domain-level exception hierarchy. Mapped to HTTP responses by the presentation/api/errors.py handler.",
+      "layer": "domain",
+      "module_ref": "M-007",
+      "functions": [
+        {
+          "name": "DomainError",
+          "inputs": [{ "name": "message", "type": "str" }],
+          "outputs": [{ "name": "exc", "type": "Exception" }],
+          "description": "Base class for all domain errors. Stores message; maps to HTTP 500 if no subclass matches."
+        },
+        {
+          "name": "NotFoundError",
+          "inputs": [{ "name": "entity", "type": "str" }, { "name": "id_", "type": "int" }],
+          "outputs": [{ "name": "exc", "type": "DomainError" }],
+          "description": "Raised when repository lookup misses. Maps to HTTP 404."
+        },
+        {
+          "name": "ConflictError",
+          "inputs": [{ "name": "message", "type": "str" }],
+          "outputs": [{ "name": "exc", "type": "DomainError" }],
+          "description": "Raised on UNIQUE violations (e.g. duplicate grade_code, duplicate design-grade pair). Maps to HTTP 409."
+        },
+        {
+          "name": "ValidationError",
+          "inputs": [{ "name": "message", "type": "str" }],
+          "outputs": [{ "name": "exc", "type": "DomainError" }],
+          "description": "Raised for domain-level rule violations not caught by Pydantic. Maps to HTTP 422."
+        }
+      ],
+      "interfaces": {
+        "exports": ["DomainError", "NotFoundError", "ConflictError", "ValidationError"],
+        "expects": []
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+    {
+      "path": "backend/src/application/services/supplier_service.py",
+      "purpose": "Supplier use cases. Owns transactional boundary (commits) and Pydantic→ORM translation. Routers call services; services call repositories.",
+      "layer": "application",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "SupplierService.list_suppliers",
+          "inputs": [
+            { "name": "include_inactive", "type": "bool", "required": false }
+          ],
+          "outputs": [{ "name": "items", "type": "list[SupplierRead]" }],
+          "description": "Delegates to repo.list and maps each ORM row to SupplierRead Pydantic schema."
+        },
+        {
+          "name": "SupplierService.create_supplier",
+          "inputs": [{ "name": "payload", "type": "SupplierCreate" }],
+          "outputs": [{ "name": "item", "type": "SupplierRead" }],
+          "description": "Validates supplier_name and place non-empty (AC-001), creates row, commits, returns hydrated SupplierRead."
+        },
+        {
+          "name": "SupplierService.update_supplier",
+          "inputs": [
+            { "name": "supplier_id", "type": "int" },
+            { "name": "patch", "type": "SupplierUpdate" }
+          ],
+          "outputs": [{ "name": "item", "type": "SupplierRead" }],
+          "description": "Partial update; ignores None fields. Commits. NotFoundError → 404.",
+          "raises": ["NotFoundError"]
+        },
+        {
+          "name": "SupplierService.deactivate_supplier",
+          "inputs": [{ "name": "supplier_id", "type": "int" }],
+          "outputs": [{ "name": "item", "type": "SupplierRead" }],
+          "description": "Soft-delete via repo.soft_delete (AC-002). Commits.",
+          "raises": ["NotFoundError"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["SupplierService"],
+        "expects": ["SupplierRepository", "Pydantic schemas (SupplierCreate/Update/Read)"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/presentation/schemas/master.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/application/services/staff_service.py",
+      "purpose": "Staff use cases. Same CRUD shape as supplier_service.",
+      "layer": "application",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "StaffService.list_staff",
+          "inputs": [{ "name": "include_inactive", "type": "bool", "required": false }],
+          "outputs": [{ "name": "items", "type": "list[StaffRead]" }],
+          "description": "AC-005 active-only by default."
+        },
+        {
+          "name": "StaffService.create_staff",
+          "inputs": [{ "name": "payload", "type": "StaffCreate" }],
+          "outputs": [{ "name": "item", "type": "StaffRead" }],
+          "description": "staff_name required (AC-004)."
+        },
+        {
+          "name": "StaffService.update_staff",
+          "inputs": [{ "name": "staff_id", "type": "int" }, { "name": "patch", "type": "StaffUpdate" }],
+          "outputs": [{ "name": "item", "type": "StaffRead" }],
+          "description": "Partial update.",
+          "raises": ["NotFoundError"]
+        },
+        {
+          "name": "StaffService.deactivate_staff",
+          "inputs": [{ "name": "staff_id", "type": "int" }],
+          "outputs": [{ "name": "item", "type": "StaffRead" }],
+          "description": "Soft-delete (AC-005).",
+          "raises": ["NotFoundError"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["StaffService"],
+        "expects": ["StaffRepository", "Pydantic schemas (StaffCreate/Update/Read)"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/presentation/schemas/master.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/application/services/dealer_service.py",
+      "purpose": "Dealer use cases.",
+      "layer": "application",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "DealerService.list_dealers",
+          "inputs": [{ "name": "include_inactive", "type": "bool", "required": false }],
+          "outputs": [{ "name": "items", "type": "list[DealerRead]" }],
+          "description": "AC-008 active-only by default."
+        },
+        {
+          "name": "DealerService.create_dealer",
+          "inputs": [{ "name": "payload", "type": "DealerCreate" }],
+          "outputs": [{ "name": "item", "type": "DealerRead" }],
+          "description": "name + place required (AC-007)."
+        },
+        {
+          "name": "DealerService.update_dealer",
+          "inputs": [{ "name": "dealer_id", "type": "int" }, { "name": "patch", "type": "DealerUpdate" }],
+          "outputs": [{ "name": "item", "type": "DealerRead" }],
+          "description": "Partial update.",
+          "raises": ["NotFoundError"]
+        },
+        {
+          "name": "DealerService.deactivate_dealer",
+          "inputs": [{ "name": "dealer_id", "type": "int" }],
+          "outputs": [{ "name": "item", "type": "DealerRead" }],
+          "description": "Soft-delete (AC-008).",
+          "raises": ["NotFoundError"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["DealerService"],
+        "expects": ["DealerRepository", "Pydantic schemas (DealerCreate/Update/Read)"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/presentation/schemas/master.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/application/services/grade_service.py",
+      "purpose": "Grade use cases. Read-mostly per F-004. Adds UNIQUE(grade_code) enforcement on create (AC-011).",
+      "layer": "application",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "GradeService.list_grades",
+          "inputs": [{ "name": "include_inactive", "type": "bool", "required": false }],
+          "outputs": [{ "name": "items", "type": "list[GradeRead]" }],
+          "description": "Active-only by default. Used to drive AC-012."
+        },
+        {
+          "name": "GradeService.create_grade",
+          "inputs": [{ "name": "payload", "type": "GradeCreate" }],
+          "outputs": [{ "name": "item", "type": "GradeRead" }],
+          "description": "Pre-checks repo.get_by_code; raises ConflictError if duplicate. Otherwise persists.",
+          "raises": ["ConflictError"]
+        },
+        {
+          "name": "GradeService.update_grade",
+          "inputs": [{ "name": "grade_id", "type": "int" }, { "name": "patch", "type": "GradeUpdate" }],
+          "outputs": [{ "name": "item", "type": "GradeRead" }],
+          "description": "Partial update; re-checks uniqueness if grade_code in patch.",
+          "raises": ["NotFoundError", "ConflictError"]
+        },
+        {
+          "name": "GradeService.deactivate_grade",
+          "inputs": [{ "name": "grade_id", "type": "int" }],
+          "outputs": [{ "name": "item", "type": "GradeRead" }],
+          "description": "AC-012 — soft-deletes grade; deactivated grades disappear from design-grade combinations through is_active filter on the map's read endpoint.",
+          "raises": ["NotFoundError"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["GradeService"],
+        "expects": ["GradeRepository", "Pydantic schemas (GradeCreate/Update/Read)"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/presentation/schemas/master.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/application/services/design_service.py",
+      "purpose": "Trading-design use cases.",
+      "layer": "application",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "DesignService.list_designs",
+          "inputs": [{ "name": "include_inactive", "type": "bool", "required": false }],
+          "outputs": [{ "name": "items", "type": "list[DesignRead]" }],
+          "description": "Active-only by default (AC-015)."
+        },
+        {
+          "name": "DesignService.create_design",
+          "inputs": [{ "name": "payload", "type": "DesignCreate" }],
+          "outputs": [{ "name": "item", "type": "DesignRead" }],
+          "description": "size + design_name required (AC-013)."
+        },
+        {
+          "name": "DesignService.update_design",
+          "inputs": [{ "name": "design_id", "type": "int" }, { "name": "patch", "type": "DesignUpdate" }],
+          "outputs": [{ "name": "item", "type": "DesignRead" }],
+          "description": "Partial update.",
+          "raises": ["NotFoundError"]
+        },
+        {
+          "name": "DesignService.deactivate_design",
+          "inputs": [{ "name": "design_id", "type": "int" }],
+          "outputs": [{ "name": "item", "type": "DesignRead" }],
+          "description": "Soft-delete (AC-015).",
+          "raises": ["NotFoundError"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["DesignService"],
+        "expects": ["TradingDesignRepository", "Pydantic schemas (DesignCreate/Update/Read)"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/presentation/schemas/master.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/application/services/design_grade_map_service.py",
+      "purpose": "Design-Grade map use cases. Owns the GET /designs/{id}/grades endpoint contract that S2 transaction forms will consume.",
+      "layer": "application",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "DesignGradeMapService.list_mappings",
+          "inputs": [{ "name": "include_inactive", "type": "bool", "required": false }],
+          "outputs": [{ "name": "items", "type": "list[DesignGradeMapRead]" }],
+          "description": "Admin listing — returns hydrated rows with design.design_name and grade.grade_code joined."
+        },
+        {
+          "name": "DesignGradeMapService.list_active_grades_for_design",
+          "inputs": [{ "name": "design_id", "type": "int" }],
+          "outputs": [{ "name": "items", "type": "list[DesignGradeReadMin]" }],
+          "description": "AC-019 — returns only is_active=true mappings for the design, projected as {grade_id, grade_code}. This is the contract the S2 transaction forms depend on (DF-006 in HLD)."
+        },
+        {
+          "name": "DesignGradeMapService.create_mapping",
+          "inputs": [{ "name": "payload", "type": "DesignGradeMapCreate" }],
+          "outputs": [{ "name": "item", "type": "DesignGradeMapRead" }],
+          "description": "AC-016 — pre-checks repo.get_by_pair; ConflictError on duplicate. Also verifies design_id and grade_id reference existing rows (NotFoundError otherwise).",
+          "raises": ["NotFoundError", "ConflictError"]
+        },
+        {
+          "name": "DesignGradeMapService.update_mapping",
+          "inputs": [{ "name": "map_id", "type": "int" }, { "name": "patch", "type": "DesignGradeMapUpdate" }],
+          "outputs": [{ "name": "item", "type": "DesignGradeMapRead" }],
+          "description": "Partial update (is_active toggle is the common case per AC-017).",
+          "raises": ["NotFoundError"]
+        },
+        {
+          "name": "DesignGradeMapService.deactivate_mapping",
+          "inputs": [{ "name": "map_id", "type": "int" }],
+          "outputs": [{ "name": "item", "type": "DesignGradeMapRead" }],
+          "description": "AC-017 — soft-deletes without deleting; historical transactions are unaffected (V1 has no transactions yet in S1; the contract still holds).",
+          "raises": ["NotFoundError"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["DesignGradeMapService"],
+        "expects": [
+          "DesignGradeMapRepository",
+          "TradingDesignRepository",
+          "GradeRepository",
+          "Pydantic schemas (DesignGradeMapCreate/Update/Read, DesignGradeReadMin)"
+        ]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/presentation/schemas/master.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/schemas/master.py",
+      "purpose": "Pydantic v2 schemas for all 6 masters — request bodies (Create / Update) and response shapes (Read). Validation rules enforced here per acceptance criteria.",
+      "layer": "presentation",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "SupplierCreate",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: supplier_name (constr min_length=1), place (constr min_length=1). is_active defaults True on create. Enforces AC-001."
+        },
+        {
+          "name": "SupplierUpdate",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "All fields Optional; partial update."
+        },
+        {
+          "name": "SupplierRead",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: supplier_id, supplier_name, place, is_active, created_at. model_config = ConfigDict(from_attributes=True)."
+        },
+        {
+          "name": "StaffCreate / StaffUpdate / StaffRead",
+          "inputs": [],
+          "outputs": [{ "name": "schemas", "type": "BaseModel" }],
+          "description": "Mirror of supplier without place. AC-004."
+        },
+        {
+          "name": "DealerCreate / DealerUpdate / DealerRead",
+          "inputs": [],
+          "outputs": [{ "name": "schemas", "type": "BaseModel" }],
+          "description": "Mirror of supplier (name + place). AC-007."
+        },
+        {
+          "name": "GradeCreate / GradeUpdate / GradeRead",
+          "inputs": [],
+          "outputs": [{ "name": "schemas", "type": "BaseModel" }],
+          "description": "grade_code constr min_length=1, strip_whitespace. AC-010, AC-011 (UNIQUE enforced at DB + service)."
+        },
+        {
+          "name": "DesignCreate / DesignUpdate / DesignRead",
+          "inputs": [],
+          "outputs": [{ "name": "schemas", "type": "BaseModel" }],
+          "description": "size + design_name constr min_length=1. AC-013."
+        },
+        {
+          "name": "DesignGradeMapCreate / DesignGradeMapUpdate / DesignGradeMapRead",
+          "inputs": [],
+          "outputs": [{ "name": "schemas", "type": "BaseModel" }],
+          "description": "Create requires design_id, grade_id (positive int). Read embeds design_name and grade_code for admin display. AC-016 / AC-017."
+        },
+        {
+          "name": "DesignGradeReadMin",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Minimal projection {grade_id: int, grade_code: str} — response shape for GET /designs/{id}/grades (AC-019, HLD DF-006)."
+        }
+      ],
+      "interfaces": {
+        "exports": [
+          "SupplierCreate", "SupplierUpdate", "SupplierRead",
+          "StaffCreate", "StaffUpdate", "StaffRead",
+          "DealerCreate", "DealerUpdate", "DealerRead",
+          "GradeCreate", "GradeUpdate", "GradeRead",
+          "DesignCreate", "DesignUpdate", "DesignRead",
+          "DesignGradeMapCreate", "DesignGradeMapUpdate", "DesignGradeMapRead",
+          "DesignGradeReadMin"
+        ],
+        "expects": ["pydantic.BaseModel", "pydantic.ConfigDict"]
+      },
+      "depends_on": [],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/dependencies.py",
+      "purpose": "FastAPI dependency providers — get_db (re-export) and per-entity service factories.",
+      "layer": "presentation",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "get_supplier_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "SupplierService" }],
+          "description": "Wires session → SupplierRepository → SupplierService."
+        },
+        {
+          "name": "get_staff_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "StaffService" }],
+          "description": "Mirror for staff."
+        },
+        {
+          "name": "get_dealer_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "DealerService" }],
+          "description": "Mirror for dealer."
+        },
+        {
+          "name": "get_grade_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "GradeService" }],
+          "description": "Mirror for grade."
+        },
+        {
+          "name": "get_design_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "DesignService" }],
+          "description": "Mirror for design."
+        },
+        {
+          "name": "get_design_grade_map_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "DesignGradeMapService" }],
+          "description": "Wires session + design repo + grade repo + map repo into DesignGradeMapService."
+        }
+      ],
+      "interfaces": {
+        "exports": [
+          "get_supplier_service", "get_staff_service", "get_dealer_service",
+          "get_grade_service", "get_design_service", "get_design_grade_map_service"
+        ],
+        "expects": ["get_db", "all 6 services"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/session.py",
+        "backend/src/application/services/supplier_service.py",
+        "backend/src/application/services/staff_service.py",
+        "backend/src/application/services/dealer_service.py",
+        "backend/src/application/services/grade_service.py",
+        "backend/src/application/services/design_service.py",
+        "backend/src/application/services/design_grade_map_service.py"
+      ],
+      "test_required": false
+    },
+    {
+      "path": "backend/src/presentation/api/errors.py",
+      "purpose": "Maps DomainError subclasses to HTTP responses via FastAPI exception handlers.",
+      "layer": "presentation",
+      "module_ref": "M-007",
+      "functions": [
+        {
+          "name": "register_error_handlers",
+          "inputs": [{ "name": "app", "type": "FastAPI" }],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Adds @app.exception_handler(NotFoundError) → 404, (ConflictError) → 409, (ValidationError) → 422, (IntegrityError) → 409 with message 'unique constraint violation'."
+        }
+      ],
+      "interfaces": {
+        "exports": ["register_error_handlers"],
+        "expects": ["DomainError subclasses", "fastapi.FastAPI", "sqlalchemy.exc.IntegrityError"]
+      },
+      "depends_on": ["backend/src/domain/exceptions.py"],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/suppliers.py",
+      "purpose": "FastAPI router for /api/v1/suppliers — full CRUD for F-001.",
+      "layer": "presentation",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "list_suppliers",
+          "inputs": [
+            { "name": "include_inactive", "type": "bool = Query(False)" },
+            { "name": "service", "type": "SupplierService = Depends(get_supplier_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "list[SupplierRead]" }],
+          "description": "GET /suppliers."
+        },
+        {
+          "name": "create_supplier",
+          "inputs": [
+            { "name": "payload", "type": "SupplierCreate" },
+            { "name": "service", "type": "SupplierService = Depends(get_supplier_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "SupplierRead" }],
+          "description": "POST /suppliers — 201 Created."
+        },
+        {
+          "name": "update_supplier",
+          "inputs": [
+            { "name": "supplier_id", "type": "int (path)" },
+            { "name": "payload", "type": "SupplierUpdate" },
+            { "name": "service", "type": "SupplierService = Depends(get_supplier_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "SupplierRead" }],
+          "description": "PATCH /suppliers/{supplier_id}."
+        },
+        {
+          "name": "delete_supplier",
+          "inputs": [
+            { "name": "supplier_id", "type": "int (path)" },
+            { "name": "service", "type": "SupplierService = Depends(get_supplier_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "SupplierRead" }],
+          "description": "DELETE /suppliers/{supplier_id} — soft delete (DS-008). Returns the deactivated row."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/suppliers', tags=['suppliers'])"],
+        "expects": ["SupplierService via Depends", "SupplierCreate/Update/Read"]
+      },
+      "depends_on": [
+        "backend/src/application/services/supplier_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/master.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/staff.py",
+      "purpose": "FastAPI router for /api/v1/staff — full CRUD for F-002.",
+      "layer": "presentation",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "list_staff / create_staff / update_staff / delete_staff",
+          "inputs": [],
+          "outputs": [{ "name": "router", "type": "APIRouter" }],
+          "description": "Same shape as suppliers router with StaffService + Staff schemas."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/staff', tags=['staff'])"],
+        "expects": ["StaffService via Depends", "Staff schemas"]
+      },
+      "depends_on": [
+        "backend/src/application/services/staff_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/master.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/dealers.py",
+      "purpose": "FastAPI router for /api/v1/dealers — full CRUD for F-003.",
+      "layer": "presentation",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "list_dealers / create_dealer / update_dealer / delete_dealer",
+          "inputs": [],
+          "outputs": [{ "name": "router", "type": "APIRouter" }],
+          "description": "Same shape as suppliers router with DealerService + Dealer schemas."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/dealers', tags=['dealers'])"],
+        "expects": ["DealerService via Depends", "Dealer schemas"]
+      },
+      "depends_on": [
+        "backend/src/application/services/dealer_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/master.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/grades.py",
+      "purpose": "FastAPI router for /api/v1/grades — full CRUD for F-004.",
+      "layer": "presentation",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "list_grades / create_grade / update_grade / delete_grade",
+          "inputs": [],
+          "outputs": [{ "name": "router", "type": "APIRouter" }],
+          "description": "Same shape as suppliers router with GradeService + Grade schemas. POST surfaces 409 on duplicate grade_code (AC-011)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/grades', tags=['grades'])"],
+        "expects": ["GradeService via Depends", "Grade schemas"]
+      },
+      "depends_on": [
+        "backend/src/application/services/grade_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/master.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/designs.py",
+      "purpose": "FastAPI router for /api/v1/designs — full CRUD for F-005 plus the M-001 read endpoint GET /designs/{id}/grades.",
+      "layer": "presentation",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "list_designs / create_design / update_design / delete_design",
+          "inputs": [],
+          "outputs": [{ "name": "router", "type": "APIRouter" }],
+          "description": "Same shape as suppliers router with DesignService + Design schemas."
+        },
+        {
+          "name": "list_grades_for_design",
+          "inputs": [
+            { "name": "design_id", "type": "int (path)" },
+            { "name": "service", "type": "DesignGradeMapService = Depends(get_design_grade_map_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "list[DesignGradeReadMin]" }],
+          "description": "GET /designs/{design_id}/grades — returns active mappings projected as {grade_id, grade_code}. Implements AC-019 and the M-001 contract that S2 transaction forms depend on (HLD DF-006)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/designs', tags=['designs'])"],
+        "expects": ["DesignService + DesignGradeMapService via Depends", "Design schemas + DesignGradeReadMin"]
+      },
+      "depends_on": [
+        "backend/src/application/services/design_service.py",
+        "backend/src/application/services/design_grade_map_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/master.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/design_grade_map.py",
+      "purpose": "FastAPI router for /api/v1/design-grade-map — admin CRUD for F-006.",
+      "layer": "presentation",
+      "module_ref": "M-001",
+      "functions": [
+        {
+          "name": "list_mappings / create_mapping / update_mapping / delete_mapping",
+          "inputs": [],
+          "outputs": [{ "name": "router", "type": "APIRouter" }],
+          "description": "Same shape as suppliers router with DesignGradeMapService + DesignGradeMap schemas. POST returns 409 on UNIQUE(design_id, grade_id) violation (AC-016). Note: GET /designs/{id}/grades lives in designs.py not here."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/design-grade-map', tags=['design-grade-map'])"],
+        "expects": ["DesignGradeMapService via Depends", "DesignGradeMap schemas"]
+      },
+      "depends_on": [
+        "backend/src/application/services/design_grade_map_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/master.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/main.py",
+      "purpose": "FastAPI app entry. Configures CORS, registers routers under /api/v1, mounts exception handlers, exposes /health.",
+      "layer": "presentation",
+      "module_ref": "M-007",
+      "functions": [
+        {
+          "name": "create_app",
+          "inputs": [],
+          "outputs": [{ "name": "app", "type": "FastAPI" }],
+          "description": "Factory: instantiates FastAPI(title='Jayanth Trading Tiles API', version='1.0.0'), adds CORS middleware using settings.api_cors_origins, calls register_error_handlers(app), include_router for all 6 master routers under prefix='/api/v1', registers /health → {'status': 'ok'}."
+        },
+        {
+          "name": "app",
+          "inputs": [],
+          "outputs": [{ "name": "app", "type": "FastAPI" }],
+          "description": "Module-level instance: `app = create_app()`. uvicorn entry point: `uvicorn src.main:app --reload`."
+        }
+      ],
+      "interfaces": {
+        "exports": ["create_app", "app"],
+        "expects": [
+          "Settings.api_cors_origins",
+          "register_error_handlers",
+          "all 6 routers"
+        ]
+      },
+      "depends_on": [
+        "backend/src/config.py",
+        "backend/src/presentation/api/errors.py",
+        "backend/src/presentation/api/routers/suppliers.py",
+        "backend/src/presentation/api/routers/staff.py",
+        "backend/src/presentation/api/routers/dealers.py",
+        "backend/src/presentation/api/routers/grades.py",
+        "backend/src/presentation/api/routers/designs.py",
+        "backend/src/presentation/api/routers/design_grade_map.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/db/migrations/env.py",
+      "purpose": "Alembic env. Wires sqlalchemy.url from settings.database_url and target_metadata = Base.metadata so autogenerate sees all ORM models.",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "functions": [
+        {
+          "name": "run_migrations_offline",
+          "inputs": [],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Configures context with url=settings.database_url, target_metadata=Base.metadata, dialect_opts={'paramstyle':'named'}. Emits SQL."
+        },
+        {
+          "name": "run_migrations_online",
+          "inputs": [],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Builds engine_from_config or create_engine(settings.database_url, poolclass=pool.NullPool), opens connection, runs migrations with target_metadata=Base.metadata."
+        }
+      ],
+      "interfaces": {
+        "exports": [],
+        "expects": [
+          "Base.metadata (from infrastructure.db.base)",
+          "all 6 ORM classes imported so Base.metadata sees them",
+          "settings.database_url"
+        ]
+      },
+      "depends_on": [
+        "backend/src/config.py",
+        "backend/src/infrastructure/db/base.py",
+        "backend/src/infrastructure/db/models/master.py"
+      ],
+      "test_required": false
+    },
+    {
+      "path": "backend/db/migrations/versions/0002_master_tables.py",
+      "purpose": "Alembic revision that creates the 6 master tables, indices, and UNIQUE constraints. First real migration (0001 is a placeholder).",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "functions": [
+        {
+          "name": "upgrade",
+          "inputs": [],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "op.create_table for tbl_supplier_master, tbl_staff_master, tbl_dealer_master, tbl_grade_master (with UNIQUE(grade_code)), tbl_trading_design_master, tbl_design_grade_map (with FKs design_id, grade_id + UNIQUE(design_id, grade_id)). Adds INDEX(is_active) on each. Generated via `alembic revision --autogenerate -m 'master tables'` after ORM models are committed; reviewer must verify the generated DDL matches LLD."
+        },
+        {
+          "name": "downgrade",
+          "inputs": [],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "op.drop_table for the 6 tables in reverse dependency order (design_grade_map first)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["revision identifiers", "upgrade", "downgrade"],
+        "expects": ["alembic.op", "sqlalchemy.sa"]
+      },
+      "depends_on": [
+        "backend/db/migrations/env.py",
+        "backend/src/infrastructure/db/models/master.py"
+      ],
+      "test_required": false
+    },
+    {
+      "path": "backend/scripts/seed_master_data.py",
+      "purpose": "Idempotent seeding of master data per PRD sample. Run via `python -m scripts.seed_master_data` after `alembic upgrade head`.",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "functions": [
+        {
+          "name": "seed_suppliers",
+          "inputs": [{ "name": "session", "type": "Session" }],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Inserts Manjunatha/Mallur, Dinnesh Reddy/Mallur, Antony Tiles/Kerala if not present by (supplier_name, place). AC-003."
+        },
+        {
+          "name": "seed_staff",
+          "inputs": [{ "name": "session", "type": "Session" }],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Inserts 9 staff: Chandran, Jayapal, Ramachandraiah, Sujatha, Ramya, Vijay, Sajil, Ashu, Amaresh if not present by staff_name. AC-006."
+        },
+        {
+          "name": "seed_dealers",
+          "inputs": [{ "name": "session", "type": "Session" }],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Inserts Raj Hardwares/Dindivanam, Tiles Mart/Attibelle, Shanmugam & Co/Coimbatore. AC-009."
+        },
+        {
+          "name": "seed_grades",
+          "inputs": [{ "name": "session", "type": "Session" }],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Inserts grade_code values: 1, 2, 2A, 4, 5, 6, 1OB, OB, DIM (exactly 9). Skips if present (idempotent via UNIQUE). AC-010."
+        },
+        {
+          "name": "seed_designs",
+          "inputs": [{ "name": "session", "type": "Session" }],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Inserts: 16X10/16X10 Ridges, 12X8/12X8 Ridges, 11X7/11X7 Ridges. AC-014."
+        },
+        {
+          "name": "seed_design_grade_map",
+          "inputs": [{ "name": "session", "type": "Session" }],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Inserts 6 combinations: 16X10 Ridges{1,2}, 12X8 Ridges{1,OB}, 11X7 Ridges{1,2}. Resolves grade_id by grade_code and design_id by (size, design_name). AC-018."
+        },
+        {
+          "name": "main",
+          "inputs": [],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Opens a SessionLocal, runs the 6 seed_* functions inside a single transaction, commits. CLI entry."
+        }
+      ],
+      "interfaces": {
+        "exports": ["main"],
+        "expects": ["SessionLocal", "all 6 ORM models"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/session.py",
+        "backend/src/infrastructure/db/models/master.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/lib/api/client.ts",
+      "purpose": "Axios instance bound to NEXT_PUBLIC_API_URL with JSON content-type defaults and a shared error interceptor that surfaces 404/409/422 messages.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "apiClient",
+          "inputs": [],
+          "outputs": [{ "name": "client", "type": "AxiosInstance" }],
+          "description": "axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL, headers: {'Content-Type':'application/json'} }) + response interceptor that throws { status, message } on error."
+        }
+      ],
+      "interfaces": {
+        "exports": ["apiClient"],
+        "expects": ["env: NEXT_PUBLIC_API_URL"]
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+    {
+      "path": "frontend/src/types/masters.ts",
+      "purpose": "Shared TypeScript types mirroring the backend SupplierRead / StaffRead / DealerRead / GradeRead / DesignRead / DesignGradeMapRead and the Create/Update DTOs.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "type Supplier / SupplierCreate / SupplierUpdate",
+          "inputs": [],
+          "outputs": [{ "name": "type", "type": "TS type" }],
+          "description": "{ supplier_id; supplier_name; place; is_active; created_at }."
+        },
+        {
+          "name": "type Staff / StaffCreate / StaffUpdate",
+          "inputs": [],
+          "outputs": [{ "name": "type", "type": "TS type" }],
+          "description": "{ staff_id; staff_name; is_active; created_at }."
+        },
+        {
+          "name": "type Dealer / DealerCreate / DealerUpdate",
+          "inputs": [],
+          "outputs": [{ "name": "type", "type": "TS type" }],
+          "description": "{ dealer_id; dealer_name; place; is_active; created_at }."
+        },
+        {
+          "name": "type Grade / GradeCreate / GradeUpdate",
+          "inputs": [],
+          "outputs": [{ "name": "type", "type": "TS type" }],
+          "description": "{ grade_id; grade_code; is_active }."
+        },
+        {
+          "name": "type Design / DesignCreate / DesignUpdate",
+          "inputs": [],
+          "outputs": [{ "name": "type", "type": "TS type" }],
+          "description": "{ design_id; size; design_name; is_active; created_at }."
+        },
+        {
+          "name": "type DesignGradeMap / DesignGradeMapCreate / DesignGradeMapUpdate / DesignGradeMin",
+          "inputs": [],
+          "outputs": [{ "name": "type", "type": "TS type" }],
+          "description": "{ map_id; design_id; grade_id; is_active; design_name; grade_code } + minimal { grade_id; grade_code } for GET /designs/{id}/grades."
+        }
+      ],
+      "interfaces": {
+        "exports": [
+          "Supplier", "SupplierCreate", "SupplierUpdate",
+          "Staff", "StaffCreate", "StaffUpdate",
+          "Dealer", "DealerCreate", "DealerUpdate",
+          "Grade", "GradeCreate", "GradeUpdate",
+          "Design", "DesignCreate", "DesignUpdate",
+          "DesignGradeMap", "DesignGradeMapCreate", "DesignGradeMapUpdate", "DesignGradeMin"
+        ],
+        "expects": []
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+    {
+      "path": "frontend/src/lib/api/masters.ts",
+      "purpose": "Typed CRUD wrappers for each master. Used by TanStack Query hooks.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "suppliersApi (list/create/update/remove)",
+          "inputs": [],
+          "outputs": [{ "name": "fns", "type": "{ list, create, update, remove }" }],
+          "description": "Wraps apiClient.get/post/patch/delete on /suppliers."
+        },
+        {
+          "name": "staffApi / dealersApi / gradesApi / designsApi / designGradeMapApi",
+          "inputs": [],
+          "outputs": [{ "name": "fns", "type": "{ list, create, update, remove }" }],
+          "description": "Same shape per entity."
+        },
+        {
+          "name": "designsApi.getGrades",
+          "inputs": [{ "name": "design_id", "type": "number" }],
+          "outputs": [{ "name": "grades", "type": "DesignGradeMin[]" }],
+          "description": "GET /designs/{design_id}/grades — exposed on designsApi for S2 forms to import. Not used by S1 admin UI but the contract is delivered here."
+        }
+      ],
+      "interfaces": {
+        "exports": [
+          "suppliersApi", "staffApi", "dealersApi",
+          "gradesApi", "designsApi", "designGradeMapApi"
+        ],
+        "expects": ["apiClient", "types from types/masters.ts"]
+      },
+      "depends_on": [
+        "frontend/src/lib/api/client.ts",
+        "frontend/src/types/masters.ts"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/lib/query/provider.tsx",
+      "purpose": "Client component that wires QueryClientProvider for the App Router tree.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "QueryProvider",
+          "inputs": [{ "name": "children", "type": "ReactNode" }],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "'use client' component holding QueryClient (defaultOptions: queries.staleTime=30s, refetchOnWindowFocus=false) in useState and wrapping children with <QueryClientProvider>."
+        }
+      ],
+      "interfaces": {
+        "exports": ["QueryProvider"],
+        "expects": ["@tanstack/react-query"]
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+    {
+      "path": "frontend/src/lib/validation/master-schemas.ts",
+      "purpose": "Zod schemas for the 6 admin forms — kept beside types so backend + frontend validation stay consistent. Resolves react-hook-form against the same shape as Pydantic on the backend.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "supplierSchema",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "z.ZodObject" }],
+          "description": "{ supplier_name: z.string().min(1), place: z.string().min(1) }."
+        },
+        {
+          "name": "staffSchema",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "z.ZodObject" }],
+          "description": "{ staff_name: z.string().min(1) }."
+        },
+        {
+          "name": "dealerSchema",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "z.ZodObject" }],
+          "description": "{ dealer_name: z.string().min(1), place: z.string().min(1) }."
+        },
+        {
+          "name": "gradeSchema",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "z.ZodObject" }],
+          "description": "{ grade_code: z.string().min(1) }. Backend enforces UNIQUE; frontend surfaces 409 from API."
+        },
+        {
+          "name": "designSchema",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "z.ZodObject" }],
+          "description": "{ size: z.string().min(1), design_name: z.string().min(1) }."
+        },
+        {
+          "name": "designGradeMapSchema",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "z.ZodObject" }],
+          "description": "{ design_id: z.number().int().positive(), grade_id: z.number().int().positive() }."
+        }
+      ],
+      "interfaces": {
+        "exports": [
+          "supplierSchema", "staffSchema", "dealerSchema",
+          "gradeSchema", "designSchema", "designGradeMapSchema"
+        ],
+        "expects": ["zod"]
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+    {
+      "path": "frontend/src/app/layout.tsx",
+      "purpose": "Next.js App Router root layout. Wraps children with QueryProvider and Toaster. Loads global styles.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "RootLayout",
+          "inputs": [{ "name": "children", "type": "ReactNode" }],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "<html lang='en'><body><QueryProvider>{children}<Toaster /></QueryProvider></body></html>."
+        },
+        {
+          "name": "metadata",
+          "inputs": [],
+          "outputs": [{ "name": "metadata", "type": "Metadata" }],
+          "description": "{ title: 'Jayanth Trading Tiles', description: 'Trading tiles management system' }."
+        }
+      ],
+      "interfaces": {
+        "exports": ["default RootLayout", "metadata"],
+        "expects": ["QueryProvider", "shadcn Sonner"]
+      },
+      "depends_on": [
+        "frontend/src/lib/query/provider.tsx",
+        "frontend/src/components/ui/sonner.tsx"
+      ],
+      "test_required": false
+    },
+    {
+      "path": "frontend/src/app/page.tsx",
+      "purpose": "Landing page redirecting to /admin/suppliers (S1 has no transactions, dashboard, or reports yet).",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "HomePage",
+          "inputs": [],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Server component that calls `redirect('/admin/suppliers')` from next/navigation."
+        }
+      ],
+      "interfaces": {
+        "exports": ["default HomePage"],
+        "expects": ["next/navigation.redirect"]
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+    {
+      "path": "frontend/src/app/admin/layout.tsx",
+      "purpose": "Admin shell with left-side nav (Suppliers, Staff, Dealers, Grades, Designs, Design-Grade Map). Renders {children} in main panel.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "AdminLayout",
+          "inputs": [{ "name": "children", "type": "ReactNode" }],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Flex layout — fixed sidebar with 6 Next.js <Link> items, main content area renders children. Active link highlighted via usePathname."
+        }
+      ],
+      "interfaces": {
+        "exports": ["default AdminLayout"],
+        "expects": ["next/link", "next/navigation.usePathname", "lucide-react icons", "shadcn Button"]
+      },
+      "depends_on": [
+        "frontend/src/components/ui/button.tsx"
+      ],
+      "test_required": false
+    },
+    {
+      "path": "frontend/src/components/admin/MasterDataTable.tsx",
+      "purpose": "Reusable table component for master list pages. Generic over row type; columns passed in by parent. Renders Edit + Deactivate (or Reactivate) actions per row using the shadcn Table primitive.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "MasterDataTable<T>",
+          "inputs": [
+            { "name": "rows", "type": "T[]" },
+            { "name": "columns", "type": "{ key: keyof T; label: string }[]" },
+            { "name": "rowKey", "type": "(row: T) => string | number" },
+            { "name": "isActive", "type": "(row: T) => boolean" },
+            { "name": "onEdit", "type": "(row: T) => void" },
+            { "name": "onToggleActive", "type": "(row: T) => void" }
+          ],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Renders a header row from columns, body rows from rows, and an Actions column with two Button instances per row. is_active=false rows render with muted style."
+        }
+      ],
+      "interfaces": {
+        "exports": ["MasterDataTable"],
+        "expects": ["shadcn Table", "shadcn Button"]
+      },
+      "depends_on": [
+        "frontend/src/components/ui/table.tsx",
+        "frontend/src/components/ui/button.tsx"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/components/admin/MasterFormDialog.tsx",
+      "purpose": "Reusable Dialog wrapper. Title, form body via children, Save/Cancel footer. Drives the create + edit modal pattern shared by all 6 master pages.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "MasterFormDialog",
+          "inputs": [
+            { "name": "open", "type": "boolean" },
+            { "name": "onOpenChange", "type": "(open: boolean) => void" },
+            { "name": "title", "type": "string" },
+            { "name": "children", "type": "ReactNode" },
+            { "name": "onSubmit", "type": "() => void" },
+            { "name": "isSubmitting", "type": "boolean" }
+          ],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Wraps shadcn <Dialog>. Footer has Cancel (calls onOpenChange(false)) and Save (calls onSubmit; disabled while isSubmitting). children is the per-master form fields."
+        }
+      ],
+      "interfaces": {
+        "exports": ["MasterFormDialog"],
+        "expects": ["shadcn Dialog", "shadcn Button"]
+      },
+      "depends_on": [
+        "frontend/src/components/ui/dialog.tsx",
+        "frontend/src/components/ui/button.tsx"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/app/admin/suppliers/page.tsx",
+      "purpose": "Supplier admin page (F-001). Lists suppliers, allows create/edit/deactivate.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "SuppliersPage",
+          "inputs": [],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "'use client' component. useQuery(['suppliers'], suppliersApi.list); useMutation for create/update/remove; opens MasterFormDialog with SupplierForm; renders MasterDataTable. Implements AC-001/002."
+        }
+      ],
+      "interfaces": {
+        "exports": ["default SuppliersPage"],
+        "expects": [
+          "suppliersApi",
+          "SupplierForm",
+          "MasterDataTable",
+          "MasterFormDialog",
+          "@tanstack/react-query"
+        ]
+      },
+      "depends_on": [
+        "frontend/src/lib/api/masters.ts",
+        "frontend/src/components/admin/MasterDataTable.tsx",
+        "frontend/src/components/admin/MasterFormDialog.tsx",
+        "frontend/src/components/admin/suppliers/SupplierForm.tsx"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/components/admin/suppliers/SupplierForm.tsx",
+      "purpose": "Form fields for supplier create/edit. Uses react-hook-form + zod resolver. Composed pattern per DS-007 (closes TD-002).",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "SupplierForm",
+          "inputs": [
+            { "name": "defaultValues", "type": "Partial<SupplierCreate>" },
+            { "name": "onSubmit", "type": "(values: SupplierCreate) => void" },
+            { "name": "formId", "type": "string" }
+          ],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "useForm<SupplierCreate>({ resolver: zodResolver(supplierSchema), defaultValues }); renders Label + Input pairs for supplier_name and place; inline error <p> per field when formState.errors[field]. <form id={formId} onSubmit={handleSubmit(onSubmit)}>."
+        }
+      ],
+      "interfaces": {
+        "exports": ["SupplierForm"],
+        "expects": [
+          "react-hook-form",
+          "@hookform/resolvers/zod",
+          "supplierSchema",
+          "shadcn Input + Label"
+        ]
+      },
+      "depends_on": [
+        "frontend/src/components/ui/input.tsx",
+        "frontend/src/components/ui/label.tsx",
+        "frontend/src/lib/validation/master-schemas.ts",
+        "frontend/src/types/masters.ts"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/app/admin/staff/page.tsx",
+      "purpose": "Staff admin page (F-002).",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "StaffPage",
+          "inputs": [],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Mirror of SuppliersPage with staffApi + StaffForm. Implements AC-004/005."
+        }
+      ],
+      "interfaces": {
+        "exports": ["default StaffPage"],
+        "expects": ["staffApi", "StaffForm", "MasterDataTable", "MasterFormDialog"]
+      },
+      "depends_on": [
+        "frontend/src/lib/api/masters.ts",
+        "frontend/src/components/admin/MasterDataTable.tsx",
+        "frontend/src/components/admin/MasterFormDialog.tsx",
+        "frontend/src/components/admin/staff/StaffForm.tsx"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/components/admin/staff/StaffForm.tsx",
+      "purpose": "Staff form fields (staff_name only).",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "StaffForm",
+          "inputs": [
+            { "name": "defaultValues", "type": "Partial<StaffCreate>" },
+            { "name": "onSubmit", "type": "(values: StaffCreate) => void" },
+            { "name": "formId", "type": "string" }
+          ],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Same shape as SupplierForm — Label+Input for staff_name with zodResolver(staffSchema)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["StaffForm"],
+        "expects": ["react-hook-form", "staffSchema"]
+      },
+      "depends_on": [
+        "frontend/src/components/ui/input.tsx",
+        "frontend/src/components/ui/label.tsx",
+        "frontend/src/lib/validation/master-schemas.ts",
+        "frontend/src/types/masters.ts"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/app/admin/dealers/page.tsx",
+      "purpose": "Dealer admin page (F-003).",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "DealersPage",
+          "inputs": [],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Mirror of SuppliersPage with dealersApi + DealerForm. Implements AC-007/008."
+        }
+      ],
+      "interfaces": {
+        "exports": ["default DealersPage"],
+        "expects": ["dealersApi", "DealerForm", "MasterDataTable", "MasterFormDialog"]
+      },
+      "depends_on": [
+        "frontend/src/lib/api/masters.ts",
+        "frontend/src/components/admin/MasterDataTable.tsx",
+        "frontend/src/components/admin/MasterFormDialog.tsx",
+        "frontend/src/components/admin/dealers/DealerForm.tsx"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/components/admin/dealers/DealerForm.tsx",
+      "purpose": "Dealer form fields (dealer_name + place).",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "DealerForm",
+          "inputs": [
+            { "name": "defaultValues", "type": "Partial<DealerCreate>" },
+            { "name": "onSubmit", "type": "(values: DealerCreate) => void" },
+            { "name": "formId", "type": "string" }
+          ],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Mirror of SupplierForm using dealerSchema."
+        }
+      ],
+      "interfaces": {
+        "exports": ["DealerForm"],
+        "expects": ["react-hook-form", "dealerSchema"]
+      },
+      "depends_on": [
+        "frontend/src/components/ui/input.tsx",
+        "frontend/src/components/ui/label.tsx",
+        "frontend/src/lib/validation/master-schemas.ts",
+        "frontend/src/types/masters.ts"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/app/admin/grades/page.tsx",
+      "purpose": "Grade admin page (F-004).",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "GradesPage",
+          "inputs": [],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Mirror of SuppliersPage with gradesApi + GradeForm. Surfaces 409 from API as toast on duplicate grade_code (AC-011)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["default GradesPage"],
+        "expects": ["gradesApi", "GradeForm", "MasterDataTable", "MasterFormDialog"]
+      },
+      "depends_on": [
+        "frontend/src/lib/api/masters.ts",
+        "frontend/src/components/admin/MasterDataTable.tsx",
+        "frontend/src/components/admin/MasterFormDialog.tsx",
+        "frontend/src/components/admin/grades/GradeForm.tsx"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/components/admin/grades/GradeForm.tsx",
+      "purpose": "Grade form (grade_code only).",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "GradeForm",
+          "inputs": [
+            { "name": "defaultValues", "type": "Partial<GradeCreate>" },
+            { "name": "onSubmit", "type": "(values: GradeCreate) => void" },
+            { "name": "formId", "type": "string" }
+          ],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Mirror of SupplierForm using gradeSchema. Single input."
+        }
+      ],
+      "interfaces": {
+        "exports": ["GradeForm"],
+        "expects": ["react-hook-form", "gradeSchema"]
+      },
+      "depends_on": [
+        "frontend/src/components/ui/input.tsx",
+        "frontend/src/components/ui/label.tsx",
+        "frontend/src/lib/validation/master-schemas.ts",
+        "frontend/src/types/masters.ts"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/app/admin/designs/page.tsx",
+      "purpose": "Trading-design admin page (F-005).",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "DesignsPage",
+          "inputs": [],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Mirror of SuppliersPage with designsApi + DesignForm. Implements AC-013/015."
+        }
+      ],
+      "interfaces": {
+        "exports": ["default DesignsPage"],
+        "expects": ["designsApi", "DesignForm", "MasterDataTable", "MasterFormDialog"]
+      },
+      "depends_on": [
+        "frontend/src/lib/api/masters.ts",
+        "frontend/src/components/admin/MasterDataTable.tsx",
+        "frontend/src/components/admin/MasterFormDialog.tsx",
+        "frontend/src/components/admin/designs/DesignForm.tsx"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/components/admin/designs/DesignForm.tsx",
+      "purpose": "Trading-design form (size + design_name).",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "DesignForm",
+          "inputs": [
+            { "name": "defaultValues", "type": "Partial<DesignCreate>" },
+            { "name": "onSubmit", "type": "(values: DesignCreate) => void" },
+            { "name": "formId", "type": "string" }
+          ],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "Mirror of SupplierForm using designSchema."
+        }
+      ],
+      "interfaces": {
+        "exports": ["DesignForm"],
+        "expects": ["react-hook-form", "designSchema"]
+      },
+      "depends_on": [
+        "frontend/src/components/ui/input.tsx",
+        "frontend/src/components/ui/label.tsx",
+        "frontend/src/lib/validation/master-schemas.ts",
+        "frontend/src/types/masters.ts"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/app/admin/design-grade-map/page.tsx",
+      "purpose": "Design-Grade map admin page (F-006). Lists all mappings with design_name + grade_code resolved; allows create/edit/deactivate.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "DesignGradeMapPage",
+          "inputs": [],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "'use client' component. useQuery(['design-grade-map'], designGradeMapApi.list); also fetches designs + grades for the create-form dropdowns; opens MasterFormDialog with DesignGradeMapForm. Surfaces 409 (duplicate pair) per AC-016."
+        }
+      ],
+      "interfaces": {
+        "exports": ["default DesignGradeMapPage"],
+        "expects": [
+          "designGradeMapApi", "designsApi.list", "gradesApi.list",
+          "DesignGradeMapForm", "MasterDataTable", "MasterFormDialog"
+        ]
+      },
+      "depends_on": [
+        "frontend/src/lib/api/masters.ts",
+        "frontend/src/components/admin/MasterDataTable.tsx",
+        "frontend/src/components/admin/MasterFormDialog.tsx",
+        "frontend/src/components/admin/design-grade-map/DesignGradeMapForm.tsx"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "frontend/src/components/admin/design-grade-map/DesignGradeMapForm.tsx",
+      "purpose": "Design-Grade map form. Two Select dropdowns (design + grade) populated from API.",
+      "layer": "presentation",
+      "module_ref": "M-006",
+      "functions": [
+        {
+          "name": "DesignGradeMapForm",
+          "inputs": [
+            { "name": "defaultValues", "type": "Partial<DesignGradeMapCreate>" },
+            { "name": "designs", "type": "Design[]" },
+            { "name": "grades", "type": "Grade[]" },
+            { "name": "onSubmit", "type": "(values: DesignGradeMapCreate) => void" },
+            { "name": "formId", "type": "string" }
+          ],
+          "outputs": [{ "name": "element", "type": "JSX.Element" }],
+          "description": "useForm with designGradeMapSchema; renders two shadcn Select components (only is_active=true options) wired via react-hook-form Controller."
+        }
+      ],
+      "interfaces": {
+        "exports": ["DesignGradeMapForm"],
+        "expects": [
+          "react-hook-form (incl. Controller)",
+          "designGradeMapSchema",
+          "shadcn Select + Label"
+        ]
+      },
+      "depends_on": [
+        "frontend/src/components/ui/select.tsx",
+        "frontend/src/components/ui/label.tsx",
+        "frontend/src/lib/validation/master-schemas.ts",
+        "frontend/src/types/masters.ts"
+      ],
+      "test_required": true
+    }
+  ],
+  "dependency_graph_notes": {
+    "summary": "Backend forms an acyclic chain: config → infrastructure.db.{base, session, models, repositories} → application.services → presentation.{schemas, dependencies, errors, routers} → main.py. Frontend forms: lib/api/client + types → lib/api/masters + lib/validation → components/admin/{MasterDataTable, MasterFormDialog, per-master Form} → app/admin/<entity>/page.tsx; app/layout depends on lib/query/provider.",
+    "no_circular_dependencies": true,
+    "critical_chain": [
+      "config.py",
+      "infrastructure/db/base.py",
+      "infrastructure/db/models/master.py",
+      "infrastructure/db/repositories/{base.py, master.py}",
+      "application/services/*.py",
+      "presentation/api/routers/*.py",
+      "main.py"
+    ]
+  },
+  "open_items_for_sprint_gate": [
+    "TD-002 (form pattern) is closed by DS-007 in this LLD — verify in sprint-gate.",
+    "TD-003 (Next.js CVE-2025-66478) remains open; S1 LLD does not upgrade Next.js. Revisit at S1 sprint-close.",
+    "Pagination not added on master list endpoints — V1 master tables are small (≤ ~50 rows each). Document explicitly so /ases-tasks does not over-engineer."
+  ]
+}

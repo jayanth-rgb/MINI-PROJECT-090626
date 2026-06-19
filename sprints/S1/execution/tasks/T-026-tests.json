@@ -1,0 +1,8 @@
+{
+  "task_id": "T-026",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "jest",
+  "covers_acs": [],
+  "note": "Type definitions are compile-checked only — no runtime tests."
+}

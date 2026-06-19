@@ -1,0 +1,11 @@
+{
+  "task_id": "T-009",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "manual_verification": [
+    { "step": "Install testcontainers", "command": "backend/.venv/Scripts/pip install -r backend/requirements-dev.txt", "expected": "Successfully installed testcontainers" },
+    { "step": "Collect tests", "command": "backend/.venv/Scripts/python.exe -m pytest backend/tests/ --collect-only 2>&1 | head -10", "expected": "no errors, collection succeeds" }
+  ],
+  "framework": "pytest",
+  "covered_indirectly_by": "every TC that uses a real DB (TC-005..006, TC-018, TC-019, TC-024..032, TC-033..038)"
+}

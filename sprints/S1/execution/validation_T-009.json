@@ -1,0 +1,96 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate",
+  "consumed_by": ["/ases-dev"],
+  "task_id": "T-009",
+  "sprint_id": "S1",
+  "verdict": "PROCEED",
+  "performed_at": "2026-06-17",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS_WITH_NOTE",
+      "reads_from_declared": [
+        "backend/src/infrastructure/db/base.py",
+        "backend/src/infrastructure/db/session.py",
+        "backend/src/main.py"
+      ],
+      "evidence": {
+        "backend/src/infrastructure/db/base.py": "PRESENT — exports Base (T-002 complete)",
+        "backend/src/infrastructure/db/session.py": "PRESENT — exports get_db (T-002 complete)",
+        "backend/src/main.py": "ABSENT — T-023 has not yet been implemented (later in execution_order)"
+      },
+      "note": "main.py is declared in reads_from but doesn't exist yet. The conftest plan uses a LAZY import (`from src.main import app` is INSIDE the `client` fixture body, NOT at module-import top level). At pytest --collect-only time, only the top-level imports evaluate; the client fixture body runs only when a test requests it. Since no service or integration tests use `client` until T-017+ land (and by then T-023 will have shipped), the lazy-import pattern keeps T-009 writeable and collectable today. /ases-dev MUST preserve this lazy pattern."
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "n/a — T-009 is an analysis-gap resolution task (INFRA-001), not a numbered LLD file entry. Plan-only specification.",
+      "expected_artifacts": [
+        "backend/tests/conftest.py exposing pg_container (session-scoped), db_session (function-scoped via SAVEPOINT), client (TestClient with get_db override)",
+        "backend/requirements-dev.txt with one new line: testcontainers[postgres]==4.9.0"
+      ],
+      "drift_detected": false,
+      "notes": [
+        "Plan delivers SAVEPOINT-rollback pattern for per-test isolation — avoids DROP/CREATE between tests for speed and determinism.",
+        "Container scope=session (start once per test run); db_session scope=function (per-test rollback).",
+        "FastAPI dependency override via app.dependency_overrides[get_db] = _override — standard pattern.",
+        "psycopg URL conversion: testcontainers default `postgresql+psycopg2://` rewritten to `postgresql+psycopg://` to match the v3 driver installed in requirements.txt (psycopg 3.2.3)."
+      ]
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_files": [
+        "backend/tests/conftest.py",
+        "backend/requirements-dev.txt"
+      ],
+      "do_not_touch_declared": [
+        "backend/requirements.txt (only the dev-deps file)",
+        "any source file"
+      ],
+      "in_progress_task_overlap": [],
+      "evidence": "conftest.py is owned solely by T-009. requirements-dev.txt only receives an append (not a rewrite). No other task lists either file in its output_files[]."
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on_declared": ["T-002"],
+      "depends_on_status": [
+        { "task_id": "T-002", "status": "complete" }
+      ],
+      "evidence": "T-002 (DB infrastructure trio: Base + SessionLocal + alembic env.py) marked complete with iteration_count=1 after CLEAN critique. All imports at conftest top-level resolve."
+    }
+  },
+  "environment_check": {
+    "python_venv": "backend/.venv/Scripts/python.exe — PRESENT",
+    "current_dev_deps": ["pytest==8.3.4", "pytest-asyncio==0.25.0", "pytest-cov==6.0.0", "httpx==0.28.1", "ruff==0.8.4"],
+    "testcontainers_status": "NOT YET INSTALLED — /ases-dev will add testcontainers[postgres]==4.9.0 to requirements-dev.txt then pip install",
+    "docker_required_at_runtime": "YES — testcontainers spawns a postgres:16 Docker container. Manifest write + pytest --collect-only do NOT require Docker. Running any test that uses pg_container DOES. Tracked under PO action item DB-001 (Docker install on host).",
+    "psycopg_driver": "psycopg==3.2.3 already installed; conftest converts testcontainers' default psycopg2 URL to psycopg v3 URL"
+  },
+  "gap_resolution": {
+    "INFRA-001": "Analysis flagged integration test DB strategy as unsettled. T-009 resolves with testcontainers-postgres + SAVEPOINT-per-test conftest. After T-009 lands, TC-018 + TC-026 (DB-level UNIQUE tests) and TC-033..TC-038 (FastAPI TestClient integration) all have a viable execution path."
+  },
+  "instruction_packet_for_dev": {
+    "task_plan": "sprints/S1/execution/tasks/T-009-plan.md",
+    "task_plan_json": "sprints/S1/execution/tasks/T-009-plan.json",
+    "tests_spec": "n/a — this IS the test infrastructure",
+    "lld_slice": "n/a — analysis-gap resolution",
+    "decisions": ["DS-001 (PG required for real semantics)", "DS-002 (echo: S2 needs SELECT FOR UPDATE which only PG supports faithfully)"],
+    "schema_slice": "n/a — Base.metadata.create_all is used to materialise all 6 tables in the test container",
+    "write_scope": [
+      "backend/tests/conftest.py",
+      "backend/requirements-dev.txt"
+    ],
+    "lazy_import_preservation": "The `client` fixture body imports `from src.main import app` lazily. /ases-dev MUST keep this inside the fixture function so pytest --collect-only works today.",
+    "success_check_commands": [
+      "backend/.venv/Scripts/pip install -r backend/requirements-dev.txt",
+      "backend/.venv/Scripts/python.exe -m pytest backend/tests/ --collect-only 2>&1 | head -10"
+    ]
+  },
+  "summary": {
+    "verdict": "PROCEED",
+    "blocking_holds": 0,
+    "soft_notes": 1,
+    "rationale": "T-002 dependency complete. Only soft note is the lazy-import of main.py (which doesn't exist until T-023) — this is intentional per the plan and lets pytest --collect-only work today. The chicken-and-egg between T-009 (conftest) and T-023 (main.py) is resolved by lazy evaluation: tests that request the `client` fixture won't run until T-023 lands, but the conftest itself is writeable and collectable now."
+  },
+  "next": "/ases-dev T-009 S1"
+}

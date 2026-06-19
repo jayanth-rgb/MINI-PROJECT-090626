@@ -1,0 +1,89 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate",
+  "consumed_by": ["/ases-dev"],
+  "task_id": "T-007",
+  "sprint_id": "S1",
+  "verdict": "PROCEED",
+  "performed_at": "2026-06-16",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "reads_from_declared": ["sprints/S1/design/schema.json"],
+      "evidence": {
+        "sprints/S1/design/schema.json": "PRESENT — declares all 6 entity field shapes that the Pydantic schemas mirror",
+        "backend/src/presentation/schemas/__init__.py": "PRESENT (from sprint-scaffold) — target directory ready"
+      },
+      "env_vars_declared": []
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[13] — backend/src/presentation/schemas/master.py",
+      "expected_exports": [
+        "SupplierCreate", "SupplierUpdate", "SupplierRead",
+        "StaffCreate", "StaffUpdate", "StaffRead",
+        "DealerCreate", "DealerUpdate", "DealerRead",
+        "GradeCreate", "GradeUpdate", "GradeRead",
+        "DesignCreate", "DesignUpdate", "DesignRead",
+        "DesignGradeMapCreate", "DesignGradeMapUpdate", "DesignGradeMapRead",
+        "DesignGradeReadMin"
+      ],
+      "drift_detected": false,
+      "notes": [
+        "Create task — no existing implementation to drift from.",
+        "Plan defines all 19 schemas matching LLD files[13].functions[].",
+        "Grade + DesignGradeMap Read have NO created_at — matches T-004 ORM (verified during T-004 critique).",
+        "DesignGradeMapRead carries optional design_name + grade_code for hydration from joined ORM relationships.",
+        "UR-W002 (ui-review warning carried in context.json): plan correctly declares is_active: bool | None on all 6 *Update schemas (SupplierUpdate, StaffUpdate, DealerUpdate, GradeUpdate, DesignUpdate, DesignGradeMapUpdate). Frontend Reactivate flow can rely on PATCH with {is_active: true}."
+      ]
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_files": ["backend/src/presentation/schemas/master.py"],
+      "do_not_touch_declared": ["any other file"],
+      "in_progress_task_overlap": [],
+      "evidence": "No other task writes to schemas/master.py. Downstream services (T-010..T-015), routers (T-017..T-022), and dependencies (T-016) read this file but write elsewhere."
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on_declared": [],
+      "evidence": "T-007 has zero dependencies — parallel-group 1 task. Pure stdlib + pydantic import; no project module imports."
+    }
+  },
+  "environment_check": {
+    "python_venv": "backend/.venv/Scripts/python.exe — PRESENT",
+    "pydantic": "pydantic 2.10.4 — supports Field(min_length=...), ConfigDict(from_attributes=True), str | None unions"
+  },
+  "test_case_alignment": {
+    "TC-002": "SupplierCreate empty supplier_name → ValidationError (Field min_length=1)",
+    "TC-003": "SupplierCreate empty place → ValidationError",
+    "TC-009": "StaffCreate empty staff_name → ValidationError",
+    "TC-013": "DealerCreate empty dealer_name OR empty place → ValidationError (parameterised)",
+    "TC-021": "DesignCreate empty size OR empty design_name → ValidationError (parameterised)"
+  },
+  "instruction_packet_for_dev": {
+    "task_plan": "sprints/S1/execution/tasks/T-007-plan.md",
+    "task_plan_json": "sprints/S1/execution/tasks/T-007-plan.json",
+    "tests_spec": "sprints/S1/execution/tasks/T-007-tests.md",
+    "lld_slice": "lld.json files[13] (backend/src/presentation/schemas/master.py)",
+    "decisions": ["DS-007 (presentation layer — no domain/infrastructure imports)"],
+    "schema_slice": "sprints/S1/design/schema.json (all 6 entities — field types + nullability)",
+    "write_scope": ["backend/src/presentation/schemas/master.py"],
+    "success_check_command": "backend/.venv/Scripts/python.exe -c \"from src.presentation.schemas.master import SupplierCreate; SupplierCreate(supplier_name='', place='X')\""
+  },
+  "ur_w002_resolution": {
+    "warning_id": "UR-W002",
+    "from": "ui_review.md",
+    "issue": "Pydantic *Update schemas must explicitly declare is_active: bool | None for Reactivate flow.",
+    "plan_compliance": "Plan declares `is_active: bool | None = None` on SupplierUpdate, StaffUpdate, DealerUpdate, GradeUpdate, DesignUpdate, DesignGradeMapUpdate — directly resolving UR-W002.",
+    "status_after_dev": "Will be marked RESOLVED after /ases-dev T-007 lands and /ases-critique CLEAN."
+  },
+  "summary": {
+    "verdict": "PROCEED",
+    "blocking_holds": 0,
+    "soft_notes": 0,
+    "rationale": "All four pre-flight checks pass. Zero-dependency Pydantic-only task. Plan delivers all 19 schemas with the exact min_length/gt constraints required by TC-002/003/009/013/021. UR-W002 (is_active on Update schemas) is explicitly addressed by the plan. Ready for /ases-dev."
+  },
+  "next": "/ases-dev T-007 S1"
+}

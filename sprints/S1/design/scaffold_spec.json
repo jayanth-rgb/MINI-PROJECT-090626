@@ -1,0 +1,252 @@
+{
+  "$schema": "ases/v3.0/scaffold_spec",
+  "document": "scaffold_spec",
+  "produced_by": "/ases-sprint-scaffold S1 Step A (Opus)",
+  "consumed_by": "/ases-sprint-scaffold S1 Step B (Sonnet)",
+  "sprint_id": "S1",
+  "tech_stack": {
+    "backend": "fastapi",
+    "frontend": "nextjs",
+    "database": "postgresql",
+    "test_framework": "pytest + jest"
+  },
+  "scope_note": "Sprint S1 sprint-scaffold pass. Creates package skeleton + test directory structure required by the LLD file map (33 backend files + 23 frontend files + 1 alembic env.py + 1 migration), installs the frontend test framework that test_cases.json requires (8 jest cases, gap DEP-001 from analysis.json), and aligns env-var examples with LLD config.py field names (gap ENV-001). NO business logic is written here — only __init__.py stubs, new directories, jest config, and env-var appends. The alembic env.py + migration 0002 are explicitly deferred to /ases-dev (they require real wiring against Base.metadata + autogenerate against the ORM, both of which are /ases-dev work, not sprint-scaffold).",
+  "files_to_create": [
+    {
+      "path": "backend/src/domain/__init__.py",
+      "type": "init",
+      "content": "# domain layer — pure functions + exception types (LLD layer: domain)\n"
+    },
+    {
+      "path": "backend/src/infrastructure/__init__.py",
+      "type": "init",
+      "content": "# infrastructure layer — SQLAlchemy ORM, repositories, alembic, config (LLD layer: infrastructure)\n"
+    },
+    {
+      "path": "backend/src/infrastructure/db/__init__.py",
+      "type": "init",
+      "content": "# infrastructure.db — declarative base, session, models, repositories\n"
+    },
+    {
+      "path": "backend/src/infrastructure/db/models/__init__.py",
+      "type": "init",
+      "content": "# infrastructure.db.models — SQLAlchemy ORM models (source of truth for alembic autogenerate)\n"
+    },
+    {
+      "path": "backend/src/infrastructure/db/repositories/__init__.py",
+      "type": "init",
+      "content": "# infrastructure.db.repositories — generic BaseRepository[TModel] + per-entity finders (DS-012)\n"
+    },
+    {
+      "path": "backend/src/application/__init__.py",
+      "type": "init",
+      "content": "# application layer — use-case services (LLD layer: application)\n"
+    },
+    {
+      "path": "backend/src/application/services/__init__.py",
+      "type": "init",
+      "content": "# application.services — per-entity use cases; own the DB transactional boundary\n"
+    },
+    {
+      "path": "backend/src/presentation/__init__.py",
+      "type": "init",
+      "content": "# presentation layer — FastAPI routers, Pydantic schemas, error handlers (LLD layer: presentation)\n"
+    },
+    {
+      "path": "backend/src/presentation/schemas/__init__.py",
+      "type": "init",
+      "content": "# presentation.schemas — Pydantic v2 request/response models\n"
+    },
+    {
+      "path": "backend/src/presentation/api/__init__.py",
+      "type": "init",
+      "content": "# presentation.api — FastAPI dependencies, error handlers, router registration\n"
+    },
+    {
+      "path": "backend/src/presentation/api/routers/__init__.py",
+      "type": "init",
+      "content": "# presentation.api.routers — one router per master entity; all mounted under /api/v1 (DS-010)\n"
+    },
+    {
+      "path": "backend/scripts/__init__.py",
+      "type": "init",
+      "content": "# scripts — operational entry points (seed_master_data, etc.)\n"
+    },
+
+    {
+      "path": "backend/tests/unit/application/__init__.py",
+      "type": "init",
+      "content": "# tests.unit.application — service-layer unit tests\n"
+    },
+    {
+      "path": "backend/tests/unit/application/services/__init__.py",
+      "type": "init",
+      "content": "# tests.unit.application.services — per-service unit tests (test_supplier_service, test_staff_service, ...)\n"
+    },
+    {
+      "path": "backend/tests/unit/presentation/__init__.py",
+      "type": "init",
+      "content": "# tests.unit.presentation — Pydantic schema unit tests\n"
+    },
+    {
+      "path": "backend/tests/unit/presentation/schemas/__init__.py",
+      "type": "init",
+      "content": "# tests.unit.presentation.schemas — schema validation tests (TC-002, TC-003, TC-009, TC-013, TC-021)\n"
+    },
+    {
+      "path": "backend/tests/unit/scripts/__init__.py",
+      "type": "init",
+      "content": "# tests.unit.scripts — seed-script unit tests (TC-007, TC-011, TC-015, TC-016, TC-022, TC-030)\n"
+    },
+    {
+      "path": "backend/tests/integration/db/__init__.py",
+      "type": "init",
+      "content": "# tests.integration.db — DB-constraint integration tests (TC-018, TC-026)\n"
+    },
+    {
+      "path": "backend/tests/integration/api/__init__.py",
+      "type": "init",
+      "content": "# tests.integration.api — FastAPI TestClient contract tests (TC-033..038)\n"
+    },
+
+    {
+      "path": "frontend/.gitkeep_dirs",
+      "type": "stub",
+      "content": "# Marker file placeholder — NOT a real .gitkeep. Documents the directories created in this scaffold.\n# Created directories (Next.js does not require __init__.py; layout is convention-based):\n#   frontend/src/lib/api/\n#   frontend/src/lib/query/\n#   frontend/src/lib/validation/\n#   frontend/src/types/\n#   frontend/src/components/admin/\n#   frontend/src/components/admin/{suppliers,staff,dealers,grades,designs,design-grade-map}/\n#   frontend/src/components/admin/{suppliers,staff,dealers,grades,designs,design-grade-map}/__tests__/\n#   frontend/src/app/admin/\n#   frontend/src/app/admin/{suppliers,staff,dealers,grades,designs,design-grade-map}/\n#   frontend/src/app/admin/{suppliers,grades,design-grade-map}/__tests__/\n",
+      "notes": "Pure documentation; lives alongside frontend/. /ases-dev may remove if found redundant."
+    },
+
+    {
+      "path": "frontend/jest.config.ts",
+      "type": "config",
+      "content": "/* Sprint S1 — jest configuration\n * Uses next/jest for SWC-powered TS/JSX transform (no ts-jest needed).\n * Test pattern: __tests__/*.test.{ts,tsx} co-located with source.\n */\nimport type { Config } from 'jest'\nimport nextJest from 'next/jest.js'\n\nconst createJestConfig = nextJest({ dir: './' })\n\nconst config: Config = {\n  testEnvironment: 'jsdom',\n  setupFilesAfterEach: ['<rootDir>/jest.setup.ts'],\n  moduleNameMapper: {\n    '^@/(.*)$': '<rootDir>/src/$1',\n  },\n  testPathIgnorePatterns: ['/node_modules/', '/.next/'],\n}\n\nexport default createJestConfig(config)\n",
+      "notes": "Config-only — no business logic. Permitted as test-framework config bundled with the dependency_changes addition."
+    },
+    {
+      "path": "frontend/jest.setup.ts",
+      "type": "config",
+      "content": "// Sprint S1 — jest test setup. Extends expect with @testing-library/jest-dom matchers.\nimport '@testing-library/jest-dom'\n",
+      "notes": "Config-only — single import to register matchers."
+    }
+  ],
+  "directories_to_create": [
+    "backend/scripts",
+    "backend/src/application/services",
+    "backend/src/domain",
+    "backend/src/infrastructure/db/models",
+    "backend/src/infrastructure/db/repositories",
+    "backend/src/presentation/api/routers",
+    "backend/src/presentation/schemas",
+    "backend/tests/integration/api",
+    "backend/tests/integration/db",
+    "backend/tests/unit/application/services",
+    "backend/tests/unit/presentation/schemas",
+    "backend/tests/unit/scripts",
+    "frontend/src/app/admin",
+    "frontend/src/app/admin/suppliers",
+    "frontend/src/app/admin/suppliers/__tests__",
+    "frontend/src/app/admin/staff",
+    "frontend/src/app/admin/dealers",
+    "frontend/src/app/admin/grades",
+    "frontend/src/app/admin/grades/__tests__",
+    "frontend/src/app/admin/designs",
+    "frontend/src/app/admin/design-grade-map",
+    "frontend/src/app/admin/design-grade-map/__tests__",
+    "frontend/src/components/admin",
+    "frontend/src/components/admin/suppliers",
+    "frontend/src/components/admin/suppliers/__tests__",
+    "frontend/src/components/admin/staff",
+    "frontend/src/components/admin/staff/__tests__",
+    "frontend/src/components/admin/dealers",
+    "frontend/src/components/admin/dealers/__tests__",
+    "frontend/src/components/admin/grades",
+    "frontend/src/components/admin/designs",
+    "frontend/src/components/admin/designs/__tests__",
+    "frontend/src/components/admin/design-grade-map",
+    "frontend/src/components/admin/design-grade-map/__tests__",
+    "frontend/src/lib/api",
+    "frontend/src/lib/query",
+    "frontend/src/lib/validation",
+    "frontend/src/types"
+  ],
+  "config_entries_to_append": [
+    {
+      "file": ".env.example",
+      "rationale": "ENV-001 (analysis.json) — LLD config.py expects `API_CORS_ORIGINS` and `API_ENV` field names. APPEND new variants (do NOT remove the existing APP_* entries — they stay for any operator using the older convention). Pydantic-settings is case-insensitive and reads the explicit name first.",
+      "lines_to_append": "\n# Sprint S1 — LLD-aligned env vars (ENV-001 resolution). Pydantic-settings reads these into Settings fields.\nAPI_CORS_ORIGINS=http://localhost:3000\nAPI_ENV=development\n"
+    },
+    {
+      "file": "backend/.env.example",
+      "rationale": "ENV-001 — same rename as root .env.example. APPEND new names; legacy APP_* stay.",
+      "lines_to_append": "\n# Sprint S1 — LLD-aligned env vars (ENV-001 resolution).\nAPI_CORS_ORIGINS=http://localhost:3000\nAPI_ENV=development\n"
+    },
+    {
+      "file": "frontend/.env.example",
+      "rationale": "ENV-001 — LLD lib/api/client.ts uses `process.env.NEXT_PUBLIC_API_URL` (not _BASE_URL). APPEND new name.",
+      "lines_to_append": "\n# Sprint S1 — LLD-aligned env var (ENV-001 resolution).\nNEXT_PUBLIC_API_URL=http://localhost:8000/api/v1\n"
+    }
+  ],
+  "dependency_changes": {
+    "backend": {
+      "add": [],
+      "remove": [],
+      "bump": [],
+      "note": "No backend deps change. All required runtime + dev packages already pinned in deps_manifest and installed in backend/.venv per scaffold.json."
+    },
+    "frontend": {
+      "add": [
+        {
+          "name": "jest",
+          "version": "29.7.0",
+          "reason": "Required for TC-039..TC-046 (8 jest unit tests in test_cases.json). Resolves analysis gap DEP-001 / sprint_gate warning W1."
+        },
+        {
+          "name": "jest-environment-jsdom",
+          "version": "29.7.0",
+          "reason": "DOM environment for React component tests. Required peer of jest@29 + @testing-library/react. Resolves DEP-001."
+        },
+        {
+          "name": "@testing-library/react",
+          "version": "16.1.0",
+          "reason": "React 19 compatible rendering API for component tests (TC-039..046). Resolves DEP-001."
+        },
+        {
+          "name": "@testing-library/jest-dom",
+          "version": "6.6.3",
+          "reason": "Custom jest matchers (toBeInTheDocument, etc.) used by all 8 jest test cases. Resolves DEP-001."
+        },
+        {
+          "name": "@testing-library/user-event",
+          "version": "14.5.2",
+          "reason": "User-interaction simulator for form-submit assertions (TC-039, TC-040, TC-041, TC-042, TC-043, TC-044, TC-045, TC-046). Resolves DEP-001."
+        },
+        {
+          "name": "@types/jest",
+          "version": "29.5.14",
+          "reason": "TypeScript type declarations for jest globals (describe, it, expect). Required because next/jest uses SWC, not ts-jest, so types must be installed separately. Resolves DEP-001 dev-typing gap."
+        }
+      ],
+      "remove": [],
+      "bump": [],
+      "note": "next/jest (bundled with next@15.1.3) handles TS/JSX transform via SWC. ts-jest intentionally NOT added — standard Next.js 15 pattern. TD-003 (Next.js CVE-2025-66478) is acknowledged carry-forward; this sprint does NOT bump next — PO ack at sprint_gate W3 + analyze SEC-001 stands."
+    },
+    "provenance": "These additions are NOT in lld.new_dependencies[] (LLD does not declare a new_dependencies field). They are introduced via the analysis → sprint-gate → PO-approval chain: sprint_gate W1 + analyze DEP-001 → PO 'APPROVED' on sprint_gate. DS-014 spirit honoured: each dep entry has explicit rationale tying back to a test_case ID and a documented gap."
+  },
+  "post_install_commands": [
+    "cd frontend && npm install --save-dev jest@29.7.0 jest-environment-jsdom@29.7.0 @testing-library/react@16.1.0 @testing-library/jest-dom@6.6.3 @testing-library/user-event@14.5.2 @types/jest@29.5.14"
+  ],
+  "files_explicitly_deferred_to_ases_dev": [
+    {
+      "path": "backend/db/migrations/env.py",
+      "reason": "Real alembic env wiring requires importing Base from infrastructure.db.base AND all ORM model modules so Base.metadata sees them — that is implementation code, not a stub. Belongs in the first /ases-dev task (likely T-002 or similar in /ases-tasks output). Listed in LLD files[] line 984 as a regular task target.",
+      "ases_tasks_hint": "Order: must run BEFORE alembic revision --autogenerate command for 0002_master_tables."
+    },
+    {
+      "path": "backend/db/migrations/versions/0002_master_tables.py",
+      "reason": "Per DS-009, generated via `alembic revision --autogenerate` after ORM models are committed. Not a stub. Belongs in /ases-dev as the migration-output of the ORM-models task.",
+      "ases_tasks_hint": "Order: depends_on the ORM-models task + the env.py task."
+    }
+  ],
+  "verify_cmd": "cd frontend && npx jest --listTests > /dev/null && echo 'jest_install_ok' ; cd .. && backend/.venv/Scripts/python.exe -c \"import pathlib; req = ['backend/src/domain/__init__.py','backend/src/infrastructure/__init__.py','backend/src/infrastructure/db/__init__.py','backend/src/infrastructure/db/models/__init__.py','backend/src/infrastructure/db/repositories/__init__.py','backend/src/application/__init__.py','backend/src/application/services/__init__.py','backend/src/presentation/__init__.py','backend/src/presentation/schemas/__init__.py','backend/src/presentation/api/__init__.py','backend/src/presentation/api/routers/__init__.py','backend/scripts/__init__.py']; missing = [p for p in req if not pathlib.Path(p).exists()]; print('backend_skeleton_ok' if not missing else 'MISSING:' + ','.join(missing))\"",
+  "expected_verify_output": "Two lines: 'jest_install_ok' and 'backend_skeleton_ok'."
+}

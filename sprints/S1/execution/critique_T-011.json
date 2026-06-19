@@ -1,0 +1,92 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-011",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-18",
+  "reviewed_files": ["backend/src/application/services/staff_service.py"],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-011-plan.json",
+    "sprints/S1/design/lld.json (files[8])",
+    "sprints/S1/design/test_cases.json (TC-008, TC-010)",
+    ".ases/decisions.json"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-007", "applicability": "application layer; service calls repo ✓" },
+    { "id": "DS-008", "applicability": "deactivate_staff via repo.soft_delete; no delete_* method ✓" },
+    { "id": "DS-012", "applicability": "via BaseRepository[StaffModel] ✓" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "4 public methods: list_staff, create_staff, update_staff, deactivate_staff — match LLD files[8].functions[]",
+        "Mirror of T-010 SupplierService canonical pattern with Staff types substituted",
+        "Service-owned commit (writes only); list path is idempotent",
+        "All methods return StaffRead via model_validate(orm)"
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_exports": ["StaffService"],
+      "actual_exports_match": true,
+      "downstream_callers_satisfied": [
+        "T-016 dependencies.get_staff_service: returns StaffService(db) — ctor matches",
+        "T-018 staff router: calls list/create/update/deactivate — names match"
+      ],
+      "imports_check": [
+        "sqlalchemy.orm.Session — ctor annotation",
+        "StaffRepository (T-006) — instantiated",
+        "StaffCreate/StaffUpdate/StaffRead (T-007) — used"
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs_in_tasks_json": ["TC-008", "TC-010"],
+      "checks": [
+        "TC-008 (create_staff with staff_name 'Chandran'): payload.model_dump() → repo.create → commit → StaffRead with staff_id=1, is_active=True. Pydantic enforces min_length=1 upstream (T-007 TC-009 verified).",
+        "TC-010 (deactivate_staff + list excludes inactive): repo.soft_delete(3) sets is_active=False; subsequent list_staff() (default include_inactive=False) filters out id 3 — matches expected after_deactivate_list_includes_id_3=false, row_is_active=false"
+      ],
+      "edge_cases_handled": [
+        "Partial update via exclude_none=True (consistent with T-010)",
+        "NotFoundError propagation from repo (set name 'Staff' from removesuffix('Model') verified in T-005 critique)",
+        "Session commit failure surfaces via FastAPI get_db rollback path (T-002)"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "Pydantic validates upstream (T-007: StaffCreate.staff_name min_length=1)",
+        "All DB access via parameterised repo — no injection",
+        "exclude_none=True prevents accidental nulling",
+        "List does not commit"
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "PASS",
+      "checks": [
+        "Single class, 1 ctor + 4 methods; no helpers",
+        "All imports used; inbound deps satisfied (T-006 ✓, T-007 ✓, T-003 ✓)",
+        "Outbound forms when T-016 + T-018 land"
+      ]
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "soft_notes": [],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "StaffService is a byte-equivalent mirror of T-010 (CLEAN) with Staff entity types. 4 methods, correct signatures, service-owned commit, repo.soft_delete for deactivate, model_validate for ORM→DTO. AC-004 + AC-005 supported via TC-008 / TC-010.",
+    "iteration_cap_state": "1/3 — well clear of escalation."
+  },
+  "next": "Mark T-011 status=complete. Proceed to /ases-validate T-012 S1 (DealerService — same pattern)."
+}

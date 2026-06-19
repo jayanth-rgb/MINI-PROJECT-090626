@@ -1,0 +1,20 @@
+{
+  "task_id": "T-036",
+  "title": "Staff admin page + StaffForm (F-002)",
+  "module_ref": "M-006",
+  "output_files": [
+    "frontend/src/app/admin/staff/page.tsx",
+    "frontend/src/components/admin/staff/StaffForm.tsx"
+  ],
+  "scope": "Mirror of SuppliersPage using staffApi + StaffForm. StaffForm has a single staff_name field with zodResolver(staffSchema). AC-004, AC-005.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-028", "T-030", "T-033", "T-034"],
+  "test_case_refs": ["TC-041"],
+  "decisions_referenced": ["DS-011"],
+  "success_criteria": {
+    "manual": "Create/edit/deactivate staff against running backend.",
+    "automated": "TC-041 (form blocks empty staff_name).",
+    "definition_of_done": "Same shape as T-035 using Staff types."
+  },
+  "checkout_prompt": "'Staff admin — page + form. AC-004 + AC-005.'"
+}

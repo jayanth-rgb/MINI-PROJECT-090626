@@ -1,0 +1,17 @@
+{
+  "task_id": "T-021",
+  "title": "Designs router (F-005 + DF-006 contract)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/presentation/api/routers/designs.py"],
+  "scope": "APIRouter(prefix='/designs', tags=['designs']) with CRUD endpoints PLUS GET /{design_id}/grades returning list[DesignGradeReadMin] from DesignGradeMapService.list_active_grades_for_design — the DF-006 contract S2 transaction forms depend on.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-016"],
+  "test_case_refs": ["TC-036", "TC-037"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-010"],
+  "success_criteria": {
+    "manual": "GET /api/v1/designs/{id}/grades returns [{grade_id, grade_code}] for active mappings only.",
+    "automated": "TC-036 (active projection), TC-037 (empty list).",
+    "definition_of_done": "5 endpoints; nested /grades route uses get_design_grade_map_service. Response body shape matches DesignGradeReadMin exactly (no extra fields)."
+  },
+  "checkout_prompt": "'Designs router — CRUD + /designs/{id}/grades DF-006 contract delivered.'"
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "T-017",
+  "title": "Suppliers router (F-001)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/presentation/api/routers/suppliers.py"],
+  "scope": "APIRouter(prefix='/suppliers', tags=['suppliers']) exposing GET / (list with include_inactive query), POST / (201 create), PATCH /{supplier_id} (update), DELETE /{supplier_id} (soft delete returns the deactivated row). Uses get_supplier_service via Depends.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-016"],
+  "test_case_refs": ["TC-033", "TC-034"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-010"],
+  "success_criteria": {
+    "manual": "Router exports `router`; OpenAPI lists 4 routes after main.py mounts under /api/v1.",
+    "automated": "TC-033 (POST -> 201 + body), TC-034 (DELETE -> 200 + is_active=false, row preserved).",
+    "definition_of_done": "4 endpoints all delegating to SupplierService; DELETE returns the deactivated row, not 204."
+  },
+  "checkout_prompt": "'Suppliers router — 4 endpoints, soft DELETE returns deactivated row.'"
+}

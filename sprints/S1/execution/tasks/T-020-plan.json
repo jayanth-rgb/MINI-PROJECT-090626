@@ -1,0 +1,17 @@
+{
+  "task_id": "T-020",
+  "title": "Grades router (F-004)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/presentation/api/routers/grades.py"],
+  "scope": "APIRouter(prefix='/grades', tags=['grades']) with GET / POST / PATCH /{grade_id} / DELETE /{grade_id}. POST surfaces 409 (ConflictError or IntegrityError mapped by errors.py) on duplicate grade_code.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-016"],
+  "test_case_refs": ["TC-035"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-010"],
+  "success_criteria": {
+    "manual": "POST same grade_code twice -> first 201, second 409.",
+    "automated": "TC-035 (duplicate grade_code -> 409).",
+    "definition_of_done": "Router delegates fully to GradeService; mapping to 409 happens via global error handlers (T-008)."
+  },
+  "checkout_prompt": "'Grades router — 4 endpoints; 409 on duplicate grade_code.'"
+}

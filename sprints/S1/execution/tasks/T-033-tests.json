@@ -1,0 +1,8 @@
+{
+  "task_id": "T-033",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "jest",
+  "covers_acs": [],
+  "note": "Behaviour verified through TC-040 page-level test (SuppliersPage)."
+}

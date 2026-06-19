@@ -1,0 +1,83 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate",
+  "consumed_by": ["/ases-dev"],
+  "task_id": "T-011",
+  "sprint_id": "S1",
+  "verdict": "PROCEED",
+  "performed_at": "2026-06-18",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "reads_from_declared": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/presentation/schemas/master.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "evidence": {
+        "backend/src/infrastructure/db/repositories/master.py": "PRESENT — exports StaffRepository (T-006 complete)",
+        "backend/src/presentation/schemas/master.py": "PRESENT — exports StaffCreate / StaffUpdate / StaffRead (T-007 complete)",
+        "backend/src/domain/exceptions.py": "PRESENT — NotFoundError available (T-003 complete)"
+      }
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[8] — backend/src/application/services/staff_service.py",
+      "expected_exports": ["StaffService"],
+      "expected_methods": [
+        { "name": "__init__", "signature": "(session: Session)" },
+        { "name": "list_staff", "signature": "(include_inactive: bool = False) -> list[StaffRead]" },
+        { "name": "create_staff", "signature": "(payload: StaffCreate) -> StaffRead — commits" },
+        { "name": "update_staff", "signature": "(staff_id: int, patch: StaffUpdate) -> StaffRead — commits" },
+        { "name": "deactivate_staff", "signature": "(staff_id: int) -> StaffRead — commits via repo.soft_delete" }
+      ],
+      "drift_detected": false,
+      "notes": [
+        "Mirror of T-010 (SupplierService) with Staff types substituted.",
+        "Canonical pattern established by T-010 critique CLEAN; T-011 reuses it byte-for-byte modulo entity names."
+      ]
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_files": ["backend/src/application/services/staff_service.py"],
+      "do_not_touch_declared": ["any other file"],
+      "in_progress_task_overlap": [],
+      "evidence": "No overlap. Downstream: T-016 dependencies + T-018 staff router."
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on_declared": ["T-006", "T-007", "T-003"],
+      "depends_on_status": [
+        { "task_id": "T-006", "status": "complete" },
+        { "task_id": "T-007", "status": "complete" },
+        { "task_id": "T-003", "status": "complete" }
+      ],
+      "evidence": "All 3 deps complete with CLEAN critique."
+    }
+  },
+  "environment_check": {
+    "python_venv": "backend/.venv/Scripts/python.exe — PRESENT",
+    "all_resolved": true
+  },
+  "ac_alignment": {
+    "AC-004": "Admin creates staff with name; staff_name required. StaffCreate enforces min_length=1 (T-007 verified TC-009).",
+    "AC-005": "Admin soft-deletes staff; deactivated staff hidden from default list. repo.soft_delete (DS-008) + repo.list default filter (T-005)."
+  },
+  "instruction_packet_for_dev": {
+    "task_plan": "sprints/S1/execution/tasks/T-011-plan.md",
+    "task_plan_json": "sprints/S1/execution/tasks/T-011-plan.json",
+    "tests_spec": "sprints/S1/execution/tasks/T-011-tests.md (TC-008, TC-010)",
+    "lld_slice": "lld.json files[8]",
+    "decisions": ["DS-007", "DS-008", "DS-012"],
+    "write_scope": ["backend/src/application/services/staff_service.py"],
+    "success_check_command": "backend/.venv/Scripts/python.exe -c \"from src.application.services.staff_service import StaffService; print(sorted(m for m in dir(StaffService) if not m.startswith('_')))\""
+  },
+  "summary": {
+    "verdict": "PROCEED",
+    "blocking_holds": 0,
+    "soft_notes": 0,
+    "rationale": "Same canonical pattern as T-010 (CLEAN). Deps satisfied. AC-004 + AC-005 covered."
+  },
+  "next": "/ases-dev T-011 S1"
+}

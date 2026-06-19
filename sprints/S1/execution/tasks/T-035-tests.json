@@ -1,0 +1,10 @@
+{
+  "task_id": "T-035",
+  "test_case_refs": ["TC-039", "TC-040"],
+  "test_files_to_create": [
+    "frontend/src/components/admin/suppliers/__tests__/SupplierForm.test.tsx",
+    "frontend/src/app/admin/suppliers/__tests__/page.test.tsx"
+  ],
+  "framework": "jest",
+  "covers_acs": ["AC-001", "AC-002"]
+}

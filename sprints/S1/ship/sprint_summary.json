@@ -1,0 +1,65 @@
+{
+  "$schema": "ases/v3.0/sprint_summary",
+  "sprint_id": "S1",
+  "completed_tasks": [
+    "T-001", "T-002", "T-003", "T-004", "T-005", "T-006", "T-007", "T-008", "T-009",
+    "T-010", "T-011", "T-012", "T-013", "T-014", "T-015", "T-016",
+    "T-017", "T-018", "T-019", "T-020", "T-021", "T-022", "T-023",
+    "T-024", "T-025",
+    "T-026", "T-027", "T-028", "T-029", "T-030", "T-031", "T-032", "T-033", "T-034",
+    "T-035", "T-036", "T-037", "T-038", "T-039", "T-040"
+  ],
+  "deferred_tasks": [],
+  "escalated_tasks": [],
+  "new_decisions": [],
+  "tech_debt": [
+    {
+      "id": "TD-005",
+      "source": "critique_loop",
+      "description": "Migration 0002_master_tables.py was hand-authored from ORM (not `alembic --autogenerate`) because no PG instance was provisioned during dev. DDL exactly mirrors Base.metadata; constraint names align with TC-018 / TC-026. Verification deferred: PO must run `cd backend && docker-compose up -d db && alembic upgrade head`; optionally `alembic check` to confirm no spurious diff vs ORM.",
+      "severity": "minor",
+      "target_sprint": "S1"
+    },
+    {
+      "id": "TD-006",
+      "source": "critique_loop",
+      "description": "T-025 seed_master_data.py runtime verification (33 inserts on first run / 0 on re-run, exact PRD rows per TC-007/011/015/016/022/030) deferred until W5 closes (same PO action chain as TD-005). Static cross-check against TC expected_output is CLEAN.",
+      "severity": "minor",
+      "target_sprint": "S1"
+    },
+    {
+      "id": "TD-007",
+      "source": "critique_loop",
+      "description": "ORM TimestampMixin uses `Mapped[datetime]` → SQLAlchemy emits plain TIMESTAMP (without timezone), not TIMESTAMPTZ as the LLD prose suggests. Migration 0002 mirrors the ORM (DS-009). If TIMESTAMPTZ semantics are wanted, edit base.py (`mapped_column(DateTime(timezone=True), ...)`) and ship a follow-up migration in S2 or earlier. Not blocking V1 since all writes go through SQLAlchemy and reads round-trip via the same column type.",
+      "severity": "minor",
+      "target_sprint": "S2"
+    }
+  ],
+  "next_sprint_inputs": {
+    "carry_forward_tasks": [
+      "PO action W5: bring up PG and apply migrations + seed. Steps: (1) write backend/.env with DATABASE_URL=postgresql+psycopg://trading_app:<pwd>@localhost:5432/jayanth_trading; (2) docker-compose up -d db; (3) cd backend && alembic upgrade head; (4) python -m scripts.seed_master_data; (5) re-run step 4 to confirm 0-insert idempotency. Closes TD-005, TD-006, opens TC verification gate for Phase 3."
+    ],
+    "known_constraints": [
+      "DS-005 V1 no-auth — must remain explicit; any S2 endpoint that introduces user-state requires the Auth module slot from HLD.",
+      "DS-008 soft-delete only — repository BaseRepository exposes soft_delete(); no delete(). S2 transaction modules MUST honor this; FKs in 0002_master_tables use ON DELETE RESTRICT to enforce at the DB.",
+      "DS-009 Alembic source-of-truth — ORM (Base.metadata) is canonical; any S2 schema change must be ORM-first then `alembic --autogenerate` (or hand-authored ORM-mirror with `alembic check` verification per TD-005 pattern).",
+      "DS-010 /api/v1 versioning — S2 routers must mount under this prefix; breaking changes spawn /api/v2 in parallel."
+    ],
+    "suggested_prd_updates": [
+      "No PRD changes required from S1 learnings. All 25 backend tasks and 15 UI tasks delivered per spec; no acceptance-criteria slippage observed."
+    ],
+    "new_risks": [
+      "R-S1-01 (low): TIMESTAMP vs TIMESTAMPTZ drift (TD-007). Materializes only if backend is deployed in a timezone different from PG container's. Mitigation: TIMESTAMPTZ migration in S2.",
+      "R-S1-02 (low): PG container not yet brought up in dev environment (W5). Mitigation: PO action chain is documented and self-contained; nothing in S1 is undeliverable, only un-verified at runtime."
+    ]
+  },
+  "test_case_refs_to_verify": [
+    "TC-001", "TC-002", "TC-003", "TC-004", "TC-005", "TC-006", "TC-007",
+    "TC-008", "TC-009", "TC-010", "TC-011", "TC-012", "TC-013", "TC-014", "TC-015", "TC-016",
+    "TC-017", "TC-018", "TC-019", "TC-020", "TC-021", "TC-022", "TC-023",
+    "TC-024", "TC-025", "TC-026", "TC-027", "TC-028", "TC-029", "TC-030", "TC-031", "TC-032",
+    "TC-033", "TC-034", "TC-035", "TC-036", "TC-037", "TC-038",
+    "TC-039", "TC-040", "TC-041", "TC-042", "TC-043", "TC-044", "TC-045", "TC-046"
+  ],
+  "ui_scaffold_manifest_ref": "sprints/S1/execution/ui_scaffold_manifest.json"
+}

@@ -1,0 +1,26 @@
+{
+  "task_id": "T-004",
+  "title": "ORM Models (master.py)",
+  "module_ref": "M-007",
+  "output_files": ["backend/src/infrastructure/db/models/master.py"],
+  "scope": "Six SQLAlchemy ORM models per schema.json. All inherit (Base, TimestampMixin) EXCEPT GradeModel and DesignGradeMapModel which inherit only (Base,) — those entities have no created_at column per schema.json.notes[].",
+  "models": [
+    { "name": "SupplierModel", "table": "tbl_supplier_master", "inherits": "(Base, TimestampMixin)" },
+    { "name": "StaffModel", "table": "tbl_staff_master", "inherits": "(Base, TimestampMixin)" },
+    { "name": "DealerModel", "table": "tbl_dealer_master", "inherits": "(Base, TimestampMixin)" },
+    { "name": "GradeModel", "table": "tbl_grade_master", "inherits": "(Base,)", "note": "No created_at; UNIQUE(grade_code)" },
+    { "name": "TradingDesignModel", "table": "tbl_trading_design_master", "inherits": "(Base, TimestampMixin)" },
+    { "name": "DesignGradeMapModel", "table": "tbl_design_grade_map", "inherits": "(Base,)", "note": "No created_at; UniqueConstraint(design_id, grade_id); 2 FKs; relationship('design', lazy='joined'), relationship('grade', lazy='joined')" }
+  ],
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-002"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-009"],
+  "schema_ref": "sprints/S1/design/schema.json (entities[])",
+  "success_criteria": {
+    "manual": "`python -c 'from src.infrastructure.db.models.master import SupplierModel, StaffModel, DealerModel, GradeModel, TradingDesignModel, DesignGradeMapModel; print(len(SupplierModel.__table__.columns))'` → 5 for supplier; verify all 6 importable.",
+    "automated": "Indirectly verified by T-024 alembic autogenerate (produces 0002_master_tables.py from these models) + TC-018, TC-026 (UNIQUE constraints).",
+    "definition_of_done": "All 6 models importable; columns + constraints match schema.json; indexes declared via Index/UniqueConstraint in __table_args__."
+  },
+  "checkout_prompt": "'6 ORM models created (Supplier, Staff, Dealer, Grade, TradingDesign, DesignGradeMap) per schema.json. UNIQUE(grade_code) and UNIQUE(design_id, grade_id) declared.'"
+}

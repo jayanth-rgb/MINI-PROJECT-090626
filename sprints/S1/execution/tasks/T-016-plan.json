@@ -1,0 +1,17 @@
+{
+  "task_id": "T-016",
+  "title": "FastAPI dependency providers",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/presentation/api/dependencies.py"],
+  "scope": "Six get_*_service factories wiring Session -> Repository -> Service for SupplierService, StaffService, DealerService, GradeService, DesignService, DesignGradeMapService. Each consumes Session = Depends(get_db) and returns the constructed service.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-002", "T-010", "T-011", "T-012", "T-013", "T-014", "T-015"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-012"],
+  "success_criteria": {
+    "manual": "Import dependencies; verify 6 callables exist and each takes a Session argument bound via Depends(get_db).",
+    "automated": "Indirectly exercised by router-level integration tests (TC-033..TC-038).",
+    "definition_of_done": "All 6 factories present; each returns the correct service type; no service constructed without an injected Session."
+  },
+  "checkout_prompt": "'API dependencies wired — 6 service factories ready for routers.'"
+}

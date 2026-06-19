@@ -1,0 +1,185 @@
+{
+  "$schema": "ases/v3.0/ui_scaffold_manifest",
+  "document": "ui_scaffold_manifest",
+  "produced_by": "/ases-ui-scaffold S1",
+  "consumed_by": ["/ases-validate", "/ases-dev", "/ases-critique", "/ases-final-audit"],
+  "sprint_id": "S1",
+  "produced_at": "2026-06-16",
+  "scope_tasks_completed": [
+    "T-026", "T-027", "T-028", "T-029", "T-030", "T-031", "T-032", "T-033", "T-034",
+    "T-035", "T-036", "T-037", "T-038", "T-039", "T-040"
+  ],
+  "stack_versions": {
+    "next": "15.1.3",
+    "react": "19.0.0",
+    "typescript": "5.7.2",
+    "tailwindcss": "3.4.17",
+    "shadcn_primitives": ["Table", "Dialog", "Input", "Label", "Select", "Button", "Skeleton", "Badge", "Sonner"],
+    "@tanstack/react-query": "5.62.7",
+    "react-hook-form": "7.54.2",
+    "zod": "3.24.1",
+    "@hookform/resolvers": "3.9.1",
+    "axios": "1.7.9",
+    "sonner": "^2.0.7",
+    "lucide-react": "^0.469.0"
+  },
+  "build_verification": {
+    "typecheck": "PASS — tsc --noEmit clean",
+    "build": "PASS — next build produced 8 static routes (/, /admin/{suppliers,staff,dealers,grades,designs,design-grade-map}, /_not-found)",
+    "command_used": "npm run typecheck && npm run build",
+    "verified_at": "2026-06-16"
+  },
+  "files_created": {
+    "types": [
+      "frontend/src/types/masters.ts"
+    ],
+    "lib": [
+      "frontend/src/lib/mocks.ts",
+      "frontend/src/lib/api/client.ts",
+      "frontend/src/lib/api/masters.ts",
+      "frontend/src/lib/query/provider.tsx",
+      "frontend/src/lib/validation/master-schemas.ts"
+    ],
+    "app": [
+      "frontend/src/app/layout.tsx",
+      "frontend/src/app/page.tsx",
+      "frontend/src/app/admin/layout.tsx",
+      "frontend/src/app/admin/suppliers/page.tsx",
+      "frontend/src/app/admin/staff/page.tsx",
+      "frontend/src/app/admin/dealers/page.tsx",
+      "frontend/src/app/admin/grades/page.tsx",
+      "frontend/src/app/admin/designs/page.tsx",
+      "frontend/src/app/admin/design-grade-map/page.tsx"
+    ],
+    "components": [
+      "frontend/src/components/admin/MasterDataTable.tsx",
+      "frontend/src/components/admin/MasterFormDialog.tsx",
+      "frontend/src/components/admin/suppliers/SupplierForm.tsx",
+      "frontend/src/components/admin/staff/StaffForm.tsx",
+      "frontend/src/components/admin/dealers/DealerForm.tsx",
+      "frontend/src/components/admin/grades/GradeForm.tsx",
+      "frontend/src/components/admin/designs/DesignForm.tsx",
+      "frontend/src/components/admin/design-grade-map/DesignGradeMapForm.tsx"
+    ],
+    "config_fixes": [
+      {
+        "file": "frontend/tailwind.config.js",
+        "fix": "Extended theme.colors / borderRadius / fontFamily with shadcn CSS-variable tokens; added tailwindcss-animate plugin. Sprint-scaffold left an empty extend{} block which caused `border-border` and friends to fail compilation."
+      },
+      {
+        "file": "frontend/src/app/globals.css",
+        "fix": "Replaced Tailwind v4 imports (@import 'tw-animate-css'; @import 'shadcn/tailwind.css') with v3 directives (@tailwind base/components/utilities) — the project is on tailwindcss 3.4 but sprint-scaffold emitted v4 syntax."
+      },
+      {
+        "file": "frontend/jest.config.ts",
+        "fix": "Renamed `setupFilesAfterEach` → `setupFilesAfterEnv` — typo in sprint-scaffold output that blocked tsc."
+      }
+    ]
+  },
+  "integration_points": {
+    "boundary_file": "frontend/src/lib/api/masters.ts",
+    "rule": "Sonnet may ONLY rewrite this single file during /ases-dev to swap mock-backed implementations for live axios calls via @/lib/api/client.apiClient. After all functions point at the real backend, Sonnet must DELETE frontend/src/lib/mocks.ts. No other frontend/src/** file may be touched.",
+    "exports": [
+      {
+        "namespace": "suppliersApi",
+        "methods": [
+          { "name": "list", "signature": "(includeInactive?: boolean) => Promise<Supplier[]>", "live_endpoint": "GET /api/v1/suppliers?include_inactive={bool}" },
+          { "name": "create", "signature": "(payload: SupplierCreate) => Promise<Supplier>", "live_endpoint": "POST /api/v1/suppliers" },
+          { "name": "update", "signature": "(id: number, patch: SupplierUpdate) => Promise<Supplier>", "live_endpoint": "PATCH /api/v1/suppliers/{id}" },
+          { "name": "remove", "signature": "(id: number) => Promise<Supplier>", "live_endpoint": "DELETE /api/v1/suppliers/{id}" }
+        ]
+      },
+      {
+        "namespace": "staffApi",
+        "methods": [
+          { "name": "list", "live_endpoint": "GET /api/v1/staff?include_inactive={bool}" },
+          { "name": "create", "live_endpoint": "POST /api/v1/staff" },
+          { "name": "update", "live_endpoint": "PATCH /api/v1/staff/{id}" },
+          { "name": "remove", "live_endpoint": "DELETE /api/v1/staff/{id}" }
+        ]
+      },
+      {
+        "namespace": "dealersApi",
+        "methods": [
+          { "name": "list", "live_endpoint": "GET /api/v1/dealers?include_inactive={bool}" },
+          { "name": "create", "live_endpoint": "POST /api/v1/dealers" },
+          { "name": "update", "live_endpoint": "PATCH /api/v1/dealers/{id}" },
+          { "name": "remove", "live_endpoint": "DELETE /api/v1/dealers/{id}" }
+        ]
+      },
+      {
+        "namespace": "gradesApi",
+        "methods": [
+          { "name": "list", "live_endpoint": "GET /api/v1/grades?include_inactive={bool}" },
+          { "name": "create", "live_endpoint": "POST /api/v1/grades — 409 on duplicate grade_code (AC-011)" },
+          { "name": "update", "live_endpoint": "PATCH /api/v1/grades/{id}" },
+          { "name": "remove", "live_endpoint": "DELETE /api/v1/grades/{id}" }
+        ]
+      },
+      {
+        "namespace": "designsApi",
+        "methods": [
+          { "name": "list", "live_endpoint": "GET /api/v1/designs?include_inactive={bool}" },
+          { "name": "create", "live_endpoint": "POST /api/v1/designs" },
+          { "name": "update", "live_endpoint": "PATCH /api/v1/designs/{id}" },
+          { "name": "remove", "live_endpoint": "DELETE /api/v1/designs/{id}" },
+          { "name": "getGrades", "signature": "(designId: number) => Promise<DesignGradeMin[]>", "live_endpoint": "GET /api/v1/designs/{designId}/grades — DF-006 contract (AC-019)" }
+        ]
+      },
+      {
+        "namespace": "designGradeMapApi",
+        "methods": [
+          { "name": "list", "live_endpoint": "GET /api/v1/design-grade-map?include_inactive={bool}" },
+          { "name": "create", "live_endpoint": "POST /api/v1/design-grade-map — 409 on duplicate pair (AC-016), 404 on bad FK" },
+          { "name": "update", "live_endpoint": "PATCH /api/v1/design-grade-map/{id}" },
+          { "name": "remove", "live_endpoint": "DELETE /api/v1/design-grade-map/{id}" }
+        ]
+      }
+    ],
+    "error_contract": {
+      "shape": "{ status: number; detail: string }",
+      "scaffold_phase": "@/lib/mocks.throwApiError(status, detail) throws this shape directly",
+      "integration_phase": "@/lib/api/client.apiClient interceptor reads response.data.detail (W-001 fix), Promise.rejects with same shape",
+      "consumer_pattern": "All useMutation onError handlers: `(e: ApiError) => toast.error(e.detail ?? '...')`"
+    }
+  },
+  "locked_files": {
+    "policy": "All files under frontend/src/** EXCEPT frontend/src/lib/api/masters.ts are locked. Any structural change (new component, new route, layout change) requires a new ui-design → ui-review → ui-scaffold cycle.",
+    "deletable_after_integration": ["frontend/src/lib/mocks.ts"]
+  },
+  "responsive_implementation": {
+    "desktop_md_plus": "Fixed 64-wide sidebar nav (admin/layout.tsx), main content shifted ml-64 with max-w-6xl",
+    "mobile_below_md": "Hamburger menu in top bar (h-14) opens slide-in Sheet from left; nav items collapse drawer on tap",
+    "table_overflow": "MasterDataTable wraps table in overflow-x-auto so columns scroll horizontally on narrow viewports",
+    "dialog": "sm:max-w-[480px]; full-width on mobile",
+    "ds010_compliance": "Two-tier responsive (mobile / md+) matches ui_spec.responsive_behavior breakpoints. tablet is treated as desktop layout from md (768px) up — no distinct tablet view per ui_spec."
+  },
+  "test_id_summary": {
+    "page_containers": ["suppliers-page", "staff-page", "dealers-page", "grades-page", "designs-page", "design-grade-map-page"],
+    "add_buttons": ["add-supplier-btn", "add-staff-btn", "add-dealer-btn", "add-grade-btn", "add-design-btn", "add-mapping-btn"],
+    "form_inputs": [
+      "supplier-name-input", "supplier-place-input",
+      "staff-name-input",
+      "dealer-name-input", "dealer-place-input",
+      "grade-code-input",
+      "design-size-input", "design-name-input",
+      "design-select", "grade-select"
+    ],
+    "shared": ["master-data-table", "master-form-dialog", "dialog-save-btn", "dialog-cancel-btn", "edit-btn-{id}", "toggle-btn-{id}", "row-{id}"]
+  },
+  "warnings_addressed": {
+    "UR-W001": "RESOLVED — apiClient interceptor (lib/api/client.ts) prefers response.data.detail first per FastAPI convention.",
+    "UR-W002": "DEFERRED — Pydantic *Update schemas should declare is_active: bool | None; fix in /ases-dev T-007. Frontend types already include is_active? in Update DTOs.",
+    "UR-W004": "RESOLVED — lib/mocks.ts throwApiError emits {status, detail} matching the live interceptor shape.",
+    "UR-W005": "RESOLVED — MasterDataTable accepts a per-column `render` override; every page passes statusBadge(row.is_active) for the is_active column. Default fallback still renders the Badge if a caller omits render."
+  },
+  "feature_coverage": {
+    "F-001": "Suppliers admin (T-035) — AC-001 enforced client + server; AC-002 deactivate flow",
+    "F-002": "Staff admin (T-036) — AC-004 + AC-005",
+    "F-003": "Dealers admin (T-037) — AC-007 + AC-008",
+    "F-004": "Grades admin (T-038) — AC-011 (409 toast) + AC-012",
+    "F-005": "Designs admin (T-039) — AC-013 + AC-015",
+    "F-006": "Design-Grade Map admin (T-040) — AC-016 (409 toast) + AC-017; DF-006 contract exposed via designsApi.getGrades for S2"
+  },
+  "next": "/ases-validate T-001 S1"
+}

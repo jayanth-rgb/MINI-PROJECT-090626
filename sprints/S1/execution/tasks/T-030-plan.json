@@ -1,0 +1,17 @@
+{
+  "task_id": "T-030",
+  "title": "Zod validation schemas for admin forms",
+  "module_ref": "M-006",
+  "output_files": ["frontend/src/lib/validation/master-schemas.ts"],
+  "scope": "Zod schemas: supplierSchema, staffSchema, dealerSchema, gradeSchema, designSchema, designGradeMapSchema. Mirror Pydantic Create constraints (min_length=1 on names; positive int on FK fields).",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-011"],
+  "success_criteria": {
+    "manual": "supplierSchema.safeParse({supplier_name:'',place:'X'}).success === false.",
+    "automated": "Exercised through form tests TC-039, TC-041, TC-042, TC-044, TC-046.",
+    "definition_of_done": "6 exported schemas with the exact field shapes consumed by react-hook-form resolvers."
+  },
+  "checkout_prompt": "'Zod schemas — 6 admin form validators mirroring Pydantic.'"
+}

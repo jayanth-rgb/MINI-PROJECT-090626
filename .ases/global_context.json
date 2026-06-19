@@ -1,0 +1,9 @@
+{
+  "$schema": "ases/v3.0/global_context",
+  "document": "global_context",
+  "produced_by": "/ases-init",
+  "updated_by": ["/ases-release", "/ases-prd-update", "/ases-sprint-close", "/ases-inject"],
+  "consumed_by": ["/ases-inject", "/ases-context", "/ases-gc"],
+  "version": 1,
+  "entries": []
+}

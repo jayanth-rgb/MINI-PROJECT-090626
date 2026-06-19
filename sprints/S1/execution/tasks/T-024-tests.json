@@ -1,0 +1,10 @@
+{
+  "task_id": "T-024",
+  "test_case_refs": ["TC-018", "TC-026"],
+  "test_files_to_create": [
+    "backend/tests/integration/db/test_grade_master_unique.py",
+    "backend/tests/integration/db/test_design_grade_map_unique.py"
+  ],
+  "framework": "pytest",
+  "covers_acs": ["AC-011", "AC-016"]
+}

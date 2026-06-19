@@ -1,0 +1,8 @@
+{
+  "task_id": "T-027",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "jest",
+  "covers_acs": [],
+  "note": "No dedicated tests; exercised indirectly by TC-040/TC-043/TC-045 page-level tests with mocked axios."
+}

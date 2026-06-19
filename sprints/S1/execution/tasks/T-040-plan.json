@@ -1,0 +1,20 @@
+{
+  "task_id": "T-040",
+  "title": "Design-Grade Map admin page + DesignGradeMapForm (F-006)",
+  "module_ref": "M-006",
+  "output_files": [
+    "frontend/src/app/admin/design-grade-map/page.tsx",
+    "frontend/src/components/admin/design-grade-map/DesignGradeMapForm.tsx"
+  ],
+  "scope": "Page lists mappings (with design_name + grade_code resolved); fetches designs + grades for dropdowns; opens MasterFormDialog with DesignGradeMapForm. Surfaces 409 toast on duplicate (design_id, grade_id) (AC-016 client). Form has two shadcn Select dropdowns (design, grade) wired via react-hook-form Controller with zodResolver(designGradeMapSchema).",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-028", "T-030", "T-033", "T-034"],
+  "test_case_refs": ["TC-045", "TC-046"],
+  "decisions_referenced": ["DS-011"],
+  "success_criteria": {
+    "manual": "Create duplicate pair -> red toast; submit empty -> two inline errors.",
+    "automated": "TC-045 (toast on 409), TC-046 (form blocks when either dropdown empty).",
+    "definition_of_done": "Page renders DesignGradeMap list with resolved names; form uses Controller for selects; only is_active rows appear in dropdowns."
+  },
+  "checkout_prompt": "'Design-Grade Map admin — page + Select-based form; 409 toast (AC-016 client).'"
+}

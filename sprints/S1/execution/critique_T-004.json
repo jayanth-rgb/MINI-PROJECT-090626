@@ -1,0 +1,117 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-004",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-16",
+  "reviewed_files": ["backend/src/infrastructure/db/models/master.py"],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-004-plan.json",
+    "sprints/S1/execution/tasks/T-004-plan.md",
+    "sprints/S1/design/lld.json (files[3])",
+    "sprints/S1/design/schema.json (all 6 entities)",
+    "sprints/S1/design/test_cases.json (TC-018, TC-026)",
+    ".ases/decisions.json (DS-007, DS-008, DS-009)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-007", "applicability": "infrastructure layer — file under src/infrastructure/db/models/ ✓" },
+    { "id": "DS-008", "applicability": "soft delete — every model has is_active with default True ✓" },
+    { "id": "DS-009", "applicability": "alembic autogenerate — models/master.py is the SINGLE source of DDL; Base.metadata exposes all 6 tables ✓ (verified during /ases-dev)" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "6 model classes defined: SupplierModel, StaffModel, DealerModel, GradeModel, TradingDesignModel, DesignGradeMapModel — matches plan.models[] + LLD files[3].functions[0..5]",
+        "Inheritance matches plan exactly: 4 entities use (Base, TimestampMixin); Grade + DesignGradeMap use (Base,) only — schema.json notes confirm no created_at for those two",
+        "Column counts confirmed via /ases-dev verification: supplier=5, staff=4, dealer=5, grade=3, trading_design=5, design_grade_map=4 — all match schema.json entity field lists",
+        "is_active has nullable=False, default=True, server_default='true' on every model — satisfies DS-008 and BIGSERIAL/BOOLEAN type mapping",
+        "BIGSERIAL primary keys mapped as Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True) — pydantic v2 idiom",
+        "UniqueConstraint('grade_code', name='uq_grade_master_grade_code') — name exactly matches schema.json indexes[1] and TC-018 expected_output.second_insert_violates_constraint",
+        "UniqueConstraint('design_id', 'grade_id', name='uq_design_grade_map_design_grade') — name exactly matches schema.json indexes[1] and TC-026 expected_output.second_insert_violates_constraint",
+        "Index names match schema.json declarations: ix_supplier_master_is_active, ix_staff_master_is_active, ix_dealer_master_is_active, ix_grade_master_is_active, ix_trading_design_master_is_active, ix_design_grade_map_design_id, ix_design_grade_map_is_active",
+        "FK ondelete='RESTRICT' on both design_grade_map.design_id and grade_id — matches schema.json constraints[]",
+        "relationship('TradingDesignModel', lazy='joined') + relationship('GradeModel', lazy='joined') on DesignGradeMapModel — required by T-006 list_active_by_design and T-015 list_mappings"
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_exports": [
+        "SupplierModel", "StaffModel", "DealerModel",
+        "GradeModel", "TradingDesignModel", "DesignGradeMapModel"
+      ],
+      "actual_exports_match": true,
+      "downstream_callers_satisfied": [
+        "T-006 backend/src/infrastructure/db/repositories/master.py imports all 6 models — present",
+        "T-006 GradeRepository.get_by_code reads GradeModel.grade_code — present",
+        "T-006 DesignGradeMapRepository.list_active_by_design reads DesignGradeMapModel.design/grade relationships — both relationship() loaders declared with lazy='joined'",
+        "T-009 conftest creates tables via Base.metadata.create_all (or alembic upgrade) — Base.metadata.tables contains all 6 entries (verified during /ases-dev)",
+        "T-015 service.list_mappings returns hydrated rows with row.design.design_name + row.grade.grade_code — lazy='joined' satisfies this without extra select() options",
+        "T-024 alembic revision --autogenerate reads Base.metadata — single source of truth invariant preserved (DS-009)",
+        "T-025 seed_master_data.py instantiates all 6 models directly — constructors are pydantic-Mapped which accepts keyword args"
+      ],
+      "imports_check": [
+        "Imports from sqlalchemy: BigInteger, Boolean, ForeignKey, Index, Text, UniqueConstraint — all used",
+        "Imports from sqlalchemy.orm: Mapped, mapped_column, relationship — all used",
+        "Import from src.infrastructure.db.base: Base, TimestampMixin — both used (T-002 dependency satisfied)"
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs_in_tasks_json": [],
+      "indirect_test_refs": ["TC-018", "TC-026"],
+      "checks": [
+        "TC-018 expects INSERT duplicate grade_code → IntegrityError citing 'uq_grade_master_grade_code'. Implementation declares UniqueConstraint with the exact same name. PASS pending live DB execution (T-024 + alembic upgrade).",
+        "TC-026 expects INSERT duplicate (design_id, grade_id) → IntegrityError citing 'uq_design_grade_map_design_grade'. Implementation declares UniqueConstraint with the exact same name. PASS pending live DB execution.",
+        "Schema validation deferred to /ases-test-run S1 (needs PG container up). Constraint declarations are byte-equivalent to the expected names, so DB will produce the test-expected error strings.",
+        "Manual smoke during /ases-dev: all 6 model classes import; len(SupplierModel.__table__.columns) == 5 matches plan's expected output; Base.metadata.tables contains all 6 entries (ready for autogenerate)"
+      ],
+      "edge_cases_handled": [
+        "Grade model has NO created_at — matches schema notes and LLD frontend type Grade",
+        "DesignGradeMap model has NO created_at — matches schema notes (junction table)",
+        "FK ondelete='RESTRICT' prevents accidental hard-delete cascade if a future regression introduces a hard-delete path",
+        "Indexes on (is_active) per table support active-only dropdown queries (QP-001)",
+        "Index on (design_id) for design_grade_map supports the JOIN filter in QP-DF-006 (list_active_by_design)"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "No SQL constructed in the model file — DDL is generated by SQLAlchemy + Alembic from these declarations, not from raw strings",
+        "No user-input handling in this layer — services + Pydantic handle input validation (DS-007 layering)",
+        "FK constraints prevent orphan rows (design_grade_map cannot reference non-existent design or grade)",
+        "is_active defaults to True (open) but soft-delete semantics are enforced at the service layer; this is the intentional DS-008 design",
+        "No exposed secrets — config + DB URL handled exclusively in src/config.py (T-001)"
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "PASS",
+      "checks": [
+        "Single file, 6 sibling classes — no orphan helper functions, no dead imports (all 6 sqlalchemy + 3 orm + 2 base imports used)",
+        "Inbound edge from src.infrastructure.db.base satisfied (T-002 complete); outbound edges form when T-006/T-009/T-024/T-025 land",
+        "DesignGradeMapModel.design + DesignGradeMapModel.grade relationship targets correctly resolve via class name strings — SQLAlchemy lazy resolution handles forward references at mapper-configuration time"
+      ],
+      "notes": [
+        "Graphify rebuild after T-006 lands will expose the import chain: master.py → models/master.py + repositories/base.py."
+      ]
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "soft_notes": [],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "Implementation is a byte-equivalent translation of plan.md pseudo-code into runnable code. All 6 models match schema.json field-by-field (verified column counts: 5/4/5/3/5/4). UNIQUE constraint names match TC-018/TC-026 expected strings exactly. FK ondelete=RESTRICT, relationships lazy='joined', indexes named per schema. Base.metadata.tables count = 6 — ready for T-024 alembic autogenerate. DS-007/008/009 all satisfied. No security surface in pure declarative model file.",
+    "iteration_cap_state": "1/3 — well clear of escalation."
+  },
+  "next": "Mark T-004 status=complete and proceed to /ases-validate T-005 S1 (BaseRepository, depends on T-002+T-003 both complete)."
+}

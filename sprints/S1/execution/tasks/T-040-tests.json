@@ -1,0 +1,10 @@
+{
+  "task_id": "T-040",
+  "test_case_refs": ["TC-045", "TC-046"],
+  "test_files_to_create": [
+    "frontend/src/app/admin/design-grade-map/__tests__/page.test.tsx",
+    "frontend/src/components/admin/design-grade-map/__tests__/DesignGradeMapForm.test.tsx"
+  ],
+  "framework": "jest",
+  "covers_acs": ["AC-016"]
+}

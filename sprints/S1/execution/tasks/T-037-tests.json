@@ -1,0 +1,7 @@
+{
+  "task_id": "T-037",
+  "test_case_refs": ["TC-042"],
+  "test_files_to_create": ["frontend/src/components/admin/dealers/__tests__/DealerForm.test.tsx"],
+  "framework": "jest",
+  "covers_acs": ["AC-007"]
+}

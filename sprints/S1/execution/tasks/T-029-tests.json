@@ -1,0 +1,8 @@
+{
+  "task_id": "T-029",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "jest",
+  "covers_acs": [],
+  "note": "Boilerplate provider; correctness emerges through page-level useQuery tests."
+}

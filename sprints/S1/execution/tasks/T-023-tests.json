@@ -1,0 +1,8 @@
+{
+  "task_id": "T-023",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "pytest",
+  "covers_acs": [],
+  "note": "Implicit coverage through every integration TC that uses TestClient(app)."
+}

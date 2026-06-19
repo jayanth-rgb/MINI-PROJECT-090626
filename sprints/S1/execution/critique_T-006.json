@@ -1,0 +1,128 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-006",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-16",
+  "reviewed_files": ["backend/src/infrastructure/db/repositories/master.py"],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-006-plan.json",
+    "sprints/S1/execution/tasks/T-006-plan.md",
+    "sprints/S1/design/lld.json (files[5])",
+    "sprints/S1/design/test_cases.json (TC-017, TC-019, TC-024, TC-025, TC-027, TC-028, TC-031, TC-032)",
+    ".ases/decisions.json (M-001 entries)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-007", "applicability": "infrastructure layer — repos use BaseRepository abstraction, no direct service-to-SQL bridging ✓" },
+    { "id": "DS-012", "applicability": "generic repository pattern + per-entity finders. All raw SQLAlchemy `select()` constructs live in this file or BaseRepository, never in services ✓" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "6 subclasses present: SupplierRepository, StaffRepository, DealerRepository, GradeRepository, TradingDesignRepository, DesignGradeMapRepository — matches LLD files[5] verbatim",
+        "5 thin BaseRepository[TModel] subclasses (Supplier, Staff, Dealer, TradingDesign) declared with `pass` — DS-012 generic pattern",
+        "GradeRepository.get_by_code(code: str) -> GradeModel | None: select(GradeModel).where(grade_code == code).scalar_one_or_none() — matches LLD files[5].functions[3] description",
+        "DesignGradeMapRepository.get_by_pair(design_id, grade_id) -> DesignGradeMapModel | None: AND-filter on both columns + scalar_one_or_none() — matches LLD files[5].functions[5]",
+        "DesignGradeMapRepository.list_active_by_design(design_id) -> list[DesignGradeMapModel]: explicit JOIN on GradeModel + filter on BOTH DesignGradeMapModel.is_active AND GradeModel.is_active — implements AC-019 invariant (and reused by TC-019 indirect)",
+        "No raw SQL strings — all queries use sqlalchemy.select(...).where(...) parameterised API",
+        "No unused imports — `from sqlalchemy.orm import Session` listed in plan.md was dead code; this impl correctly omits it (no Session type annotation appears in the file)"
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_exports": [
+        "SupplierRepository", "StaffRepository", "DealerRepository",
+        "GradeRepository", "TradingDesignRepository", "DesignGradeMapRepository"
+      ],
+      "actual_exports_match": true,
+      "downstream_callers_satisfied": [
+        "T-010 SupplierService(session): self.repo = SupplierRepository(session); calls list/create/update/soft_delete — all inherited from BaseRepository ✓",
+        "T-011 StaffService: same pattern with StaffRepository ✓",
+        "T-012 DealerService: same pattern with DealerRepository ✓",
+        "T-013 GradeService.create_grade: pre-checks via self.repo.get_by_code(code) — present ✓",
+        "T-014 DesignService: same pattern with TradingDesignRepository ✓",
+        "T-015 DesignGradeMapService.create_mapping: pre-checks via self.repo.get_by_pair(design_id, grade_id) — present ✓",
+        "T-015 DesignGradeMapService.list_active_grades_for_design: uses self.repo.list_active_by_design(design_id) — present ✓",
+        "T-015 DesignGradeMapService FK checks: uses self.design_repo.get + self.grade_repo.get — both inherited from BaseRepository ✓"
+      ],
+      "imports_check": [
+        "sqlalchemy.select — used by get_by_code, get_by_pair, list_active_by_design",
+        "6 ORM models — every one is bound to a Repository class via BaseRepository[Model] (T-004 dependency)",
+        "BaseRepository — base class for all 6 repos (T-005 dependency)"
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs_in_tasks_json": [],
+      "indirect_test_refs": [
+        "TC-017 (grade duplicate via get_by_code)",
+        "TC-019 (active-grades JOIN excluding inactive grade)",
+        "TC-024 (map create happy path via get_by_pair returning None then create)",
+        "TC-025 (map duplicate via get_by_pair returning existing)",
+        "TC-027 / TC-028 (NotFoundError via repo.get inherited from BaseRepository)",
+        "TC-031 (active projection via list_active_by_design)",
+        "TC-032 (empty list — JOIN returns no rows when no active mapping)"
+      ],
+      "checks": [
+        "TC-017: GradeService.create_grade calls get_by_code; if grade exists, service raises ConflictError. Repo returns existing GradeModel via scalar_one_or_none ✓",
+        "TC-019: After grade.deactivate, list_active_by_design must exclude that mapping. The JOIN filter `GradeModel.is_active.is_(True)` excludes the row ✓",
+        "TC-024: Happy path — get_by_pair returns None, then service calls create which inserts; matches",
+        "TC-025: Duplicate pair — get_by_pair returns existing row; service raises ConflictError before any INSERT attempt",
+        "TC-031: list_active_by_design with both mappings active but seed_mappings has grade_id=2 with is_active=false — JOIN filters it out, returns only grade_id=1 row",
+        "TC-032: list_active_by_design on design with no active mappings — returns empty list (JOIN matches nothing, list() conversion produces []) ✓",
+        "Manual /ases-dev verification: all 6 repo classes import; .model bindings correct; get_by_code/get_by_pair/list_active_by_design all present"
+      ],
+      "edge_cases_handled": [
+        "get_by_code / get_by_pair use scalar_one_or_none — returns None on no-match instead of raising. Services interpret None as 'free to insert' for AC-011/AC-016 pre-check.",
+        "list_active_by_design uses explicit JOIN (not lazy='joined') — guarantees the WHERE clause sees grade.is_active even when called outside the lazy-load scope",
+        "5 thin subclasses with `pass` body — relies entirely on BaseRepository inherited methods including DS-008 (no delete method) invariant"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "All queries use sqlalchemy.select(...).where(GradeModel.grade_code == code) parameterised expression API — no string concatenation, no injection surface even with hostile input",
+        "code: str parameter type-hinted; SQLAlchemy binds it as a query parameter",
+        "design_id / grade_id: int parameters — type-enforced; SQLAlchemy binds as parameters",
+        "scalar_one_or_none() returns None safely; never raises MultipleResultsFound for these queries (UNIQUE constraints enforce single-row guarantee per T-004)",
+        "No raw SQL strings, no shell, no FS, no credentials"
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "PASS",
+      "checks": [
+        "Single file, 6 classes; 3 entity-specific finders only on the classes that need them (Grade, DesignGradeMap)",
+        "Inbound edges: src.infrastructure.db.models.master (T-004 ✓), src.infrastructure.db.repositories.base (T-005 ✓), sqlalchemy.select",
+        "Outbound edges form as T-010..T-015 land — graphify will surface 6 service nodes consuming these repos",
+        "No orphans, no dead imports (Session correctly omitted)"
+      ]
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "soft_notes": [
+    {
+      "id": "N-001",
+      "topic": "Plan.md imports `Session` but it's unused",
+      "where": "plan.md line 10 lists `from sqlalchemy.orm import Session`",
+      "observation": "The plan pseudo-code includes an unused import (Session is not referenced anywhere in the file because all session access is via self.session through BaseRepository). Developer correctly omitted it — this is best-practice (no dead imports) and not a scope violation. Flagging here only so future critique passes don't flag the omission as drift from plan.",
+      "actionable_for": "Future T-006 plan revisions could drop the Session line."
+    }
+  ],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "All 6 entity repos + 3 finders match LLD files[5] verbatim. AC-019 invariant (JOIN-level filter on both map.is_active AND grade.is_active) correctly implemented. Downstream service consumers (T-010..T-015) all supported. 7 indirect test cases (TC-017/019/024/025/027/028/031/032) handled. No security surface — parameterised queries throughout. The only deviation from plan.md is the omission of an unused `Session` import, which is correct best practice.",
+    "iteration_cap_state": "1/3 — well clear of escalation."
+  },
+  "next": "Mark T-006 status=complete and proceed to /ases-validate T-007 S1 (Pydantic schemas; parallel-group 1 zero deps)."
+}

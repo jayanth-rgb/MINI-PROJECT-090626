@@ -1,0 +1,204 @@
+{
+  "$schema": "ases/v3.0/prd",
+  "document": "prd",
+  "produced_by": "/ases-prd",
+  "consumed_by": ["/ases-hld", "/ases-lld", "/ases-test-spec", "/ases-sprint-gate", "/ases-uat"],
+  "prd_version": 1,
+  "product_name": "Jayanth Trading Tiles System",
+  "objective": "Track inward purchases, outward sales, stock adjustments, current stock position, and sales reporting for traded tiles — organised by tile design and grade — in a self-contained single-tenant web application.",
+  "users": [
+    "Data Entry Staff",
+    "Stock Verifier",
+    "Management / Supervisor"
+  ],
+  "features": [
+    {
+      "id": "F-001",
+      "name": "Supplier Master",
+      "description": "CRUD admin screen for suppliers (name, place). Soft delete via is_active. Active suppliers feed the Inward Form dropdown.",
+      "priority": "critical",
+      "sprint_allocation": "S1",
+      "acceptance_criteria": [
+        { "id": "AC-001", "criterion": "Admin can create a supplier with name and place; both are required.", "testable": true },
+        { "id": "AC-002", "criterion": "Admin can edit and soft-delete (is_active=false) a supplier; soft-deleted suppliers do not appear in the Inward Form dropdown.", "testable": true },
+        { "id": "AC-003", "criterion": "Seed data loads: Manjunatha/Mallur, Dinnesh Reddy/Mallur, Antony Tiles/Kerala.", "testable": true }
+      ]
+    },
+    {
+      "id": "F-002",
+      "name": "Staff Master",
+      "description": "CRUD admin screen for staff members. Soft delete via is_active. Active staff feed dropdowns across Inward, Sales, and Adjustment forms.",
+      "priority": "critical",
+      "sprint_allocation": "S1",
+      "acceptance_criteria": [
+        { "id": "AC-004", "criterion": "Admin can create staff with name; staff_name is required.", "testable": true },
+        { "id": "AC-005", "criterion": "Admin can soft-delete a staff member; soft-deleted staff do not appear in any transaction form dropdown.", "testable": true },
+        { "id": "AC-006", "criterion": "Seed data loads 9 staff per the sample PRD: Chandran, Jayapal, Ramachandraiah, Sujatha, Ramya, Vijay, Sajil, Ashu, Amaresh.", "testable": true }
+      ]
+    },
+    {
+      "id": "F-003",
+      "name": "Dealer Master",
+      "description": "CRUD admin screen for dealers (name, place). Soft delete via is_active. Active dealers feed Sales Form dropdown and Sales Report filter.",
+      "priority": "critical",
+      "sprint_allocation": "S1",
+      "acceptance_criteria": [
+        { "id": "AC-007", "criterion": "Admin can create a dealer with name and place; both are required.", "testable": true },
+        { "id": "AC-008", "criterion": "Admin can soft-delete a dealer; soft-deleted dealers do not appear in the Sales Form dropdown or report filter.", "testable": true },
+        { "id": "AC-009", "criterion": "Seed data loads: Raj Hardwares/Dindivanam, Tiles Mart/Attibelle, Shanmugam & Co/Coimbatore.", "testable": true }
+      ]
+    },
+    {
+      "id": "F-004",
+      "name": "Grade Master",
+      "description": "Maintains the canonical 9 grades. Read-mostly; seeded at install and rarely edited.",
+      "priority": "critical",
+      "sprint_allocation": "S1",
+      "acceptance_criteria": [
+        { "id": "AC-010", "criterion": "Seed data loads exactly 9 grade codes: 1, 2, 2A, 4, 5, 6, 1OB, OB, DIM.", "testable": true },
+        { "id": "AC-011", "criterion": "grade_code is UNIQUE in the database.", "testable": true },
+        { "id": "AC-012", "criterion": "Admin can deactivate a grade via is_active=false; deactivated grades disappear from Design-Grade combinations.", "testable": true }
+      ]
+    },
+    {
+      "id": "F-005",
+      "name": "Trading Size-Design Master",
+      "description": "CRUD admin screen for traded tile designs (size, design_name). Separate from any manufactured-tile design list.",
+      "priority": "critical",
+      "sprint_allocation": "S1",
+      "acceptance_criteria": [
+        { "id": "AC-013", "criterion": "Admin can create a design with size and design_name; both are required.", "testable": true },
+        { "id": "AC-014", "criterion": "Seed data loads: 16X10 / 16X10 Ridges, 12X8 / 12X8 Ridges, 11X7 / 11X7 Ridges.", "testable": true },
+        { "id": "AC-015", "criterion": "Soft-deleted designs do not appear in the Inward, Sales, or Adjustment form design dropdowns.", "testable": true }
+      ]
+    },
+    {
+      "id": "F-006",
+      "name": "Tile Design-Grade Combination Table",
+      "description": "Maps each design to its valid grades. Drives grade-row auto-population on Inward, Sales, and Adjustment forms.",
+      "priority": "critical",
+      "sprint_allocation": "S1",
+      "acceptance_criteria": [
+        { "id": "AC-016", "criterion": "Admin can map a (design_id, grade_id) combination with a UNIQUE constraint preventing duplicates.", "testable": true },
+        { "id": "AC-017", "criterion": "Admin can deactivate a combination via is_active=false without deleting it; deactivated combinations are hidden from form grade rows but existing transactions remain unaffected.", "testable": true },
+        { "id": "AC-018", "criterion": "Seed data loads the 6 combinations from the sample PRD: 16X10 Ridges{1,2}, 12X8 Ridges{1,OB}, 11X7 Ridges{1,2}.", "testable": true },
+        { "id": "AC-019", "criterion": "GET /designs/{id}/grades returns only is_active=true combinations for the design.", "testable": true }
+      ]
+    },
+    {
+      "id": "F-007",
+      "name": "Trading Tiles Inward Form",
+      "description": "Records tile purchases from suppliers. Header (date, supplier, place auto-fill, entered_by) plus line items where selecting a design auto-renders one row per valid active grade for that design.",
+      "priority": "critical",
+      "sprint_allocation": "S2",
+      "acceptance_criteria": [
+        { "id": "AC-020", "criterion": "Form blocks save when purchase_date > today (ERR-001).", "testable": true },
+        { "id": "AC-021", "criterion": "Form blocks save when purchase_date < today - 7 days (ERR-002).", "testable": true },
+        { "id": "AC-022", "criterion": "Selecting a supplier auto-populates place from tbl_supplier_master and renders the field read-only.", "testable": true },
+        { "id": "AC-023", "criterion": "Selecting a design queries tbl_design_grade_map and renders one grade row per active mapping; the grade label is not user-editable.", "testable": true },
+        { "id": "AC-024", "criterion": "NOS must be an integer > 0; decimal and zero are rejected (ERR-007).", "testable": true },
+        { "id": "AC-025", "criterion": "Grade rows where NOS is blank or zero are silently skipped at save (RULE-017).", "testable": true },
+        { "id": "AC-026", "criterion": "Save requires at least one design line with at least one grade row NOS > 0 (RULE-015 / ERR-006 / ERR-008).", "testable": true },
+        { "id": "AC-027", "criterion": "On save, header + valid lines persist atomically and stock ledger increases per (design, grade, purchase_date).", "testable": true }
+      ]
+    },
+    {
+      "id": "F-008",
+      "name": "Trading Tiles Sales Form",
+      "description": "Records tile sales / dispatch to dealers. Header (date, dealer, place auto-fill, loading_staff, verified_by) plus line items with grade-row auto-population identical to Inward.",
+      "priority": "critical",
+      "sprint_allocation": "S2",
+      "acceptance_criteria": [
+        { "id": "AC-028", "criterion": "Form blocks save when sales_date is in the future or > 7 days prior (ERR-001 / ERR-002).", "testable": true },
+        { "id": "AC-029", "criterion": "Selecting a dealer auto-populates place from tbl_dealer_master read-only.", "testable": true },
+        { "id": "AC-030", "criterion": "Both loading_staff_id and verified_by_id are required; both come from active staff only.", "testable": true },
+        { "id": "AC-031", "criterion": "Design selection renders grade rows from tbl_design_grade_map active mappings; user can add more design lines.", "testable": true },
+        { "id": "AC-032", "criterion": "NOS validations identical to Inward (integer > 0; blank/zero skipped; RULE-015 minimum one valid line).", "testable": true },
+        { "id": "AC-033", "criterion": "On save, stock ledger decreases per (design, grade, sales_date) atomically with header + lines persistence.", "testable": true }
+      ]
+    },
+    {
+      "id": "F-009",
+      "name": "Trading Tiles Adjustment Form",
+      "description": "Records physical stock verification for a single design. System pulls software CB per grade as of stock_date; user enters physical_cb; difference applied to ledger.",
+      "priority": "critical",
+      "sprint_allocation": "S2",
+      "acceptance_criteria": [
+        { "id": "AC-034", "criterion": "Exactly one tile design per adjustment entry (single-select).", "testable": true },
+        { "id": "AC-035", "criterion": "Form blocks save when stock_date > entry_date (ERR-010).", "testable": true },
+        { "id": "AC-036", "criterion": "On design selection with stock_date set, grade rows render with software_closing_balance pulled from the stock ledger as of stock_date per grade.", "testable": true },
+        { "id": "AC-037", "criterion": "physical_cb is required for every grade row and must be integer >= 0 (zero is valid) (ERR-009).", "testable": true },
+        { "id": "AC-038", "criterion": "difference = physical_cb - software_closing_balance is computed live on each input and can be negative.", "testable": true },
+        { "id": "AC-039", "criterion": "On save, the difference is applied per grade row to the stock ledger atomically with header + lines persistence.", "testable": true },
+        { "id": "AC-040", "criterion": "If the selected design has no active grade combinations, line entry is blocked and ERR-012 is shown.", "testable": true }
+      ]
+    },
+    {
+      "id": "F-010",
+      "name": "Stock Dashboard",
+      "description": "Date-filtered view of Opening / Inward / Outward / Adjust / Closing per design-grade as of a selected date. Monthly opening balance auto-carries from previous month closing.",
+      "priority": "critical",
+      "sprint_allocation": "S3",
+      "acceptance_criteria": [
+        { "id": "AC-041", "criterion": "Selecting a date returns one row per (active design, active grade combination) with Opening, Inward, Outward, Adjust, Closing columns as defined in FORMULA-001.", "testable": true },
+        { "id": "AC-042", "criterion": "Opening balance for the first month of system use is zero (FORMULA-002).", "testable": true },
+        { "id": "AC-043", "criterion": "On the first day of any subsequent month, Opening = Closing of last day of previous month with no manual action.", "testable": true },
+        { "id": "AC-044", "criterion": "Closing balance for any date equals Opening + cumulative Inward - cumulative Outward + cumulative Adjust differences within the current month up to that date.", "testable": true },
+        { "id": "AC-045", "criterion": "Dashboard response is sub-second for any single date with up to 12 months of accumulated transactions.", "testable": false }
+      ]
+    },
+    {
+      "id": "F-011",
+      "name": "Sales Report",
+      "description": "Consolidation + Transaction views displayed simultaneously on one screen, with optional multi-select filters: date range, dealer, place, design.",
+      "priority": "critical",
+      "sprint_allocation": "S3",
+      "acceptance_criteria": [
+        { "id": "AC-046", "criterion": "All filters are optional and multi-select; no filters = full dataset (RULE-018).", "testable": true },
+        { "id": "AC-047", "criterion": "Consolidation Report groups by design_id + grade_id, sums nos, ordered by design_name ASC then grade_code ASC (RULE-019 / FORMULA-004).", "testable": true },
+        { "id": "AC-048", "criterion": "Transaction Report returns each sales line matching filters, ordered by sales_date ASC (RULE-020).", "testable": true },
+        { "id": "AC-049", "criterion": "Both sections render together on the same screen on every filter apply — no toggle, no tab, Consolidation first.", "testable": true },
+        { "id": "AC-050", "criterion": "Sum of Numbers across all rows of Transaction Report for any filter set equals the sum of Numbers in Consolidation Report for the same filter set.", "testable": true }
+      ]
+    },
+    {
+      "id": "F-012",
+      "name": "Monthly Stock Carry-Forward",
+      "description": "Automated logic: closing balance of Month N for every (design, grade) becomes opening balance of Month N+1, with no manual operation.",
+      "priority": "critical",
+      "sprint_allocation": "S3",
+      "acceptance_criteria": [
+        { "id": "AC-051", "criterion": "On the first transaction touching a (design, grade) in Month N+1, Opening = Closing as of last day of Month N (FORMULA-002).", "testable": true },
+        { "id": "AC-052", "criterion": "When no prior month data exists for a (design, grade), Opening = 0 (RULE-012).", "testable": true },
+        { "id": "AC-053", "criterion": "Carry-forward must remain correct after a back-dated transaction inside the 7-day window straddles a month boundary.", "testable": true }
+      ]
+    }
+  ],
+  "constraints": [
+    "Transaction dates restricted to today and up to 7 days prior",
+    "Adjustment Form: single design per entry",
+    "Trading Size-Design Master is separate from any manufactured-tile design list",
+    "No user authentication in V1 — all users share full access",
+    "Grade rows must derive from tbl_design_grade_map active rows, not hardcoded"
+  ],
+  "non_functional": {
+    "performance": "Dashboard sub-second for single date; data-entry form save round-trip < 500 ms; Sales Report < 2s for 1 year of data unfiltered",
+    "security": "V1 has no authentication; deployment must be on a trusted internal network. All inputs validated server-side (date bounds, integer types, FK existence)",
+    "scalability": "Single tenant, single-digit concurrent users. PostgreSQL row-level locking on stock ledger writes (LLD open item #5)",
+    "accessibility": "Forms keyboard-navigable; tab order from header to line items; required-field highlighting on save error"
+  },
+  "edge_cases": [
+    "Design selected on Inward/Sales but has zero active grade mappings — line cannot be entered (ERR-012)",
+    "Adjustment with physical_cb = 0 against software_cb = N — valid; difference = -N applied to ledger",
+    "Back-dated transaction that crosses a month boundary — must update both months' opening/closing correctly",
+    "User edits the Design-Grade map AFTER transactions exist for a now-deactivated combination — historical transactions remain visible in reports and stock; only future forms hide the grade",
+    "Concurrent saves on the same (design, grade) — must be serialized via row-level lock on stock ledger"
+  ],
+  "non_goals": [
+    "User authentication and RBAC (V2)",
+    "Pricing, invoicing, payment tracking",
+    "Manufacturing tiles module",
+    "Inward Report",
+    "Report export to PDF / Excel"
+  ]
+}

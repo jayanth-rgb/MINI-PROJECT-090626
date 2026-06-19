@@ -1,0 +1,26 @@
+{
+  "task_id": "T-001",
+  "title": "Pydantic Settings (config.py)",
+  "module_ref": "M-007",
+  "output_files": ["backend/src/config.py"],
+  "scope": "Single file. Defines Settings BaseSettings subclass + get_settings @lru_cache singleton. Reads env vars from backend/.env via SettingsConfigDict(env_file='.env', extra='ignore').",
+  "fields": [
+    { "name": "database_url", "type": "str", "env": "DATABASE_URL" },
+    { "name": "api_cors_origins", "type": "list[str]", "env": "API_CORS_ORIGINS", "default": "[]" },
+    { "name": "api_env", "type": "str", "env": "API_ENV", "default": "development" }
+  ],
+  "do_not_touch": [
+    "backend/.env (PO-owned)",
+    "backend/.env.example (already aligned by /ases-sprint-scaffold S1)",
+    "any file outside backend/src/config.py"
+  ],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-001", "DS-010"],
+  "success_criteria": {
+    "manual": "Run `backend/.venv/Scripts/python.exe -c 'from src.config import get_settings; s = get_settings(); print(type(s).__name__, s.api_env)'` → 'Settings development'.",
+    "automated": "No unit tests for this task; downstream tests transitively cover it.",
+    "definition_of_done": "config.py imports cleanly; get_settings() returns a Settings instance; pydantic v2 SettingsConfigDict used correctly with extra='ignore'."
+  },
+  "checkout_prompt": "On completion, return 1-2 sentences: 'Settings + get_settings created in src/config.py. Reads DATABASE_URL, API_CORS_ORIGINS, API_ENV from .env.'"
+}

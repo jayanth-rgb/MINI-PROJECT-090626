@@ -1,0 +1,10 @@
+{
+  "task_id": "T-008",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "manual_verification": [
+    { "step": "Handlers register", "command": "backend/.venv/Scripts/python.exe -c \"from fastapi import FastAPI; from src.presentation.api.errors import register_error_handlers; app = FastAPI(); register_error_handlers(app); print(len(app.exception_handlers) >= 4)\"", "expected": "True" }
+  ],
+  "framework": "pytest",
+  "covered_indirectly_by": "TC-034 (404 path), TC-035 (409 via ConflictError or IntegrityError), TC-038 (409 via duplicate pair)"
+}

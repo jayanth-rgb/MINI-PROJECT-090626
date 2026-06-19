@@ -1,0 +1,281 @@
+{
+  "$schema": "ases/v3.0/scaffold",
+  "document": "scaffold",
+  "produced_by": "/ases-scaffold Step D (Opus)",
+  "consumed_by": ["/ases-lld", "/ases-analyze", "/ases-tasks", "/ases-final-audit"],
+  "created_at": "2026-06-09",
+  "scaffold_spec_ref": "contracts/scaffold_spec.json",
+  "topology": "monorepo",
+  "deployment_mode": "docker-compose",
+  "tech_stack": {
+    "backend": "fastapi",
+    "frontend": "nextjs",
+    "database": "postgresql",
+    "test_framework": "pytest",
+    "python_version": "3.12.9",
+    "node_version": "24.16.0",
+    "npm_version": "11.13.0"
+  },
+  "db": {
+    "name": "jayanth_trading",
+    "app_role": "trading_app",
+    "host": "db (inside docker-compose) | localhost (outside)",
+    "port": 5432,
+    "extensions": ["pgcrypto"],
+    "bootstrap_sql_path": "backend/db/bootstrap.sql",
+    "bootstrap_mode": "docker-init.d",
+    "bootstrap_verified": false,
+    "bootstrap_verified_reason": "Docker not installed on host at scaffold time; verify deferred to first docker-compose up. PO must run `docker-compose up -d db` then `docker logs jayanth_db` to confirm `01_bootstrap.sql` ran cleanly."
+  },
+  "backend": {
+    "venv_path": "backend/.venv",
+    "venv_created": true,
+    "python_executable": "backend/.venv/Scripts/python.exe",
+    "installed_packages": [
+      { "name": "alembic", "version": "1.14.0" },
+      { "name": "annotated-types", "version": "0.7.0" },
+      { "name": "anyio", "version": "4.13.0" },
+      { "name": "certifi", "version": "2026.5.20" },
+      { "name": "click", "version": "8.4.1" },
+      { "name": "colorama", "version": "0.4.6" },
+      { "name": "coverage", "version": "7.14.1" },
+      { "name": "fastapi", "version": "0.115.6" },
+      { "name": "greenlet", "version": "3.5.1" },
+      { "name": "h11", "version": "0.16.0" },
+      { "name": "httpcore", "version": "1.0.9" },
+      { "name": "httptools", "version": "0.8.0" },
+      { "name": "httpx", "version": "0.28.1" },
+      { "name": "idna", "version": "3.18" },
+      { "name": "iniconfig", "version": "2.3.0" },
+      { "name": "Mako", "version": "1.3.12" },
+      { "name": "MarkupSafe", "version": "3.0.3" },
+      { "name": "packaging", "version": "26.2" },
+      { "name": "pluggy", "version": "1.6.0" },
+      { "name": "psycopg", "version": "3.2.3" },
+      { "name": "psycopg-binary", "version": "3.2.3" },
+      { "name": "pydantic", "version": "2.10.4" },
+      { "name": "pydantic-settings", "version": "2.7.0" },
+      { "name": "pydantic_core", "version": "2.27.2" },
+      { "name": "pytest", "version": "8.3.4" },
+      { "name": "pytest-asyncio", "version": "0.25.0" },
+      { "name": "pytest-cov", "version": "6.0.0" },
+      { "name": "python-dateutil", "version": "2.9.0.post0" },
+      { "name": "python-dotenv", "version": "1.0.1" },
+      { "name": "PyYAML", "version": "6.0.3" },
+      { "name": "ruff", "version": "0.8.4" },
+      { "name": "six", "version": "1.17.0" },
+      { "name": "SQLAlchemy", "version": "2.0.36" },
+      { "name": "starlette", "version": "0.41.3" },
+      { "name": "typing_extensions", "version": "4.15.0" },
+      { "name": "tzdata", "version": "2026.2" },
+      { "name": "uvicorn", "version": "0.34.0" },
+      { "name": "watchfiles", "version": "1.2.0" },
+      { "name": "websockets", "version": "16.0" }
+    ],
+    "verify_cmd": "backend/.venv/Scripts/python.exe -c \"import fastapi, sqlalchemy, psycopg, alembic, pydantic; print('backend_deps_ok')\"",
+    "verify_output": "backend_deps_ok",
+    "verify_passed": true
+  },
+  "frontend": {
+    "package_manager": "npm",
+    "shadcn_initialized": true,
+    "shadcn_version": "4.11.0",
+    "shadcn_preset": "radix-nova",
+    "shadcn_base_color": "neutral (radix-nova default; spec asked for slate, but --base-color flag was removed in shadcn 4.x)",
+    "shadcn_components_installed": [
+      "badge", "button", "calendar", "card", "checkbox",
+      "dialog", "input", "label", "popover", "select",
+      "separator", "skeleton", "sonner", "table"
+    ],
+    "shadcn_components_skipped": [
+      { "component": "form", "reason": "shadcn 4.x radix-nova preset has no registry entry for 'form' — composition pattern only. Sprint 1 UI scaffold will compose forms from react-hook-form + label + input primitives." }
+    ],
+    "installed_packages_summary": "382 packages installed via npm install. Key pinned deps confirmed at requested versions: next@15.1.3, react@19.0.0, react-dom@19.0.0, @tanstack/react-query@5.62.7, axios@1.7.9, react-hook-form@7.54.2, @hookform/resolvers@3.9.1, zod@3.24.1, date-fns@4.1.0, lucide-react@0.469.0, tailwindcss@3.4.17, typescript@5.7.2.",
+    "verify_cmd": "cd frontend && npx tsc --noEmit",
+    "verify_output": "(empty)",
+    "verify_passed": true,
+    "verify_notes": "Required one fix: shadcn-generated calendar.tsx line 90 used classNames key `table:` which does not exist in react-day-picker@10.0.1 API. Changed to `month_grid:`. Logged as TD-001."
+  },
+  "files": [
+    { "path": "backend/Dockerfile", "type": "config", "written_by": "opus_step_a" },
+    { "path": "backend/.dockerignore", "type": "ignore", "written_by": "opus_step_a" },
+    { "path": "frontend/Dockerfile", "type": "config", "written_by": "opus_step_a" },
+    { "path": "frontend/.dockerignore", "type": "ignore", "written_by": "opus_step_a" },
+    { "path": "docker-compose.yml", "type": "config", "written_by": "sonnet_step_b" },
+    { "path": ".env.example", "type": "env", "written_by": "sonnet_step_b" },
+    { "path": ".claudeignore", "type": "ignore", "written_by": "sonnet_step_b" },
+    { "path": "backend/requirements.txt", "type": "config", "written_by": "sonnet_step_b" },
+    { "path": "backend/requirements-dev.txt", "type": "config", "written_by": "sonnet_step_b" },
+    { "path": "backend/pyproject.toml", "type": "config", "written_by": "sonnet_step_b" },
+    { "path": "backend/alembic.ini", "type": "config", "written_by": "sonnet_step_b" },
+    { "path": "backend/.env.example", "type": "env", "written_by": "sonnet_step_b" },
+    { "path": "backend/README.md", "type": "readme", "written_by": "sonnet_step_b" },
+    { "path": "backend/db/bootstrap.sql", "type": "config", "written_by": "sonnet_step_b" },
+    { "path": "backend/db/migrations/versions/0001_baseline.sql", "type": "config", "written_by": "sonnet_step_b" },
+    { "path": "backend/src/__init__.py", "type": "init", "written_by": "sonnet_step_b" },
+    { "path": "backend/tests/__init__.py", "type": "init", "written_by": "sonnet_step_b" },
+    { "path": "backend/tests/unit/__init__.py", "type": "init", "written_by": "sonnet_step_b" },
+    { "path": "backend/tests/integration/__init__.py", "type": "init", "written_by": "sonnet_step_b" },
+    { "path": "backend/tests/system/__init__.py", "type": "init", "written_by": "sonnet_step_b" },
+    { "path": "frontend/package.json", "type": "config", "written_by": "sonnet_step_b" },
+    { "path": "frontend/tsconfig.json", "type": "config", "written_by": "sonnet_step_b" },
+    { "path": "frontend/.env.example", "type": "env", "written_by": "sonnet_step_b" },
+    { "path": "frontend/README.md", "type": "readme", "written_by": "sonnet_step_b" },
+    { "path": "frontend/next.config.ts", "type": "config", "written_by": "sonnet_b_side_effect", "note": "Required for shadcn framework detection (Next.js)" },
+    { "path": "frontend/tailwind.config.js", "type": "config", "written_by": "sonnet_b_side_effect", "note": "Required by shadcn 4.x Tailwind validation" },
+    { "path": "frontend/postcss.config.js", "type": "config", "written_by": "sonnet_b_side_effect", "note": "Required by Tailwind setup" },
+    { "path": "frontend/src/app/globals.css", "type": "stub", "written_by": "sonnet_b_side_effect", "note": "Tailwind base/components/utilities directives + shadcn CSS variables" },
+    { "path": "frontend/components.json", "type": "config", "written_by": "shadcn_init" },
+    { "path": "frontend/src/lib/utils.ts", "type": "stub", "written_by": "shadcn_init" },
+    { "path": "frontend/src/components/ui/badge.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/button.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/calendar.tsx", "type": "stub", "written_by": "shadcn_add", "note": "Patched line 90: classNames `table` → `month_grid` to match react-day-picker v10. See TD-001." },
+    { "path": "frontend/src/components/ui/card.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/checkbox.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/dialog.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/input.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/label.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/popover.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/select.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/separator.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/skeleton.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/sonner.tsx", "type": "stub", "written_by": "shadcn_add" },
+    { "path": "frontend/src/components/ui/table.tsx", "type": "stub", "written_by": "shadcn_add" }
+  ],
+  "tech_debt_introduced": [
+    {
+      "id": "TD-001",
+      "description": "shadcn-generated calendar.tsx had to be patched (classNames `table:` → `month_grid:`) to compile against react-day-picker@10.0.1. Future shadcn add/upgrade may re-introduce the issue.",
+      "severity": "minor",
+      "source": "/ases-scaffold Step B",
+      "target_sprint": "S3"
+    },
+    {
+      "id": "TD-002",
+      "description": "shadcn 4.x radix-nova preset does not ship a `form.tsx` registry entry. Form composition pattern (react-hook-form + label + input) will be hand-rolled in S1's UI scaffold instead of using shadcn's form primitive.",
+      "severity": "minor",
+      "source": "/ases-scaffold Step B",
+      "target_sprint": "S1"
+    },
+    {
+      "id": "TD-003",
+      "description": "Next.js 15.1.3 has CVE-2025-66478 (security advisory disclosed in npm install warning). Pin is per scaffold spec; revisit upgrade after first sprint integration tests pass.",
+      "severity": "major",
+      "source": "/ases-scaffold Step B (npm install warning)",
+      "target_sprint": "S1"
+    }
+  ],
+  "skipped_steps": [
+    {
+      "step": "B.1 — Database bootstrap manual psql",
+      "reason": "deployment_mode=docker-compose; bootstrap.sql mounted into postgres init.d. PO runs `docker-compose up -d db` to trigger it."
+    },
+    {
+      "step": "B.3 — Database connection verify",
+      "reason": "Docker not installed on host at scaffold time; cannot verify without a running Postgres. PO will run docker-compose up -d db then re-run the verify command from scaffold_spec.json (Step B.3 commands)."
+    },
+    {
+      "step": "E — graphify update",
+      "reason": "graphify CLI not installed on host. Knowledge graph build deferred; can be run later via `/ases-graphify`."
+    }
+  ],
+  "post_scaffold_actions_required_by_po": [
+    "Install Docker Desktop on the Windows host",
+    "Copy .env.example to .env at project root; set DB_PASSWORD to a real value",
+    "Copy backend/.env.example to backend/.env; mirror DB_PASSWORD into DATABASE_URL",
+    "Run `docker-compose up -d db` — first start triggers bootstrap.sql automatically",
+    "Verify with `docker logs jayanth_db` showing `01_bootstrap.sql` completed cleanly",
+    "Optionally run the scaffold_spec B.3 verify command to confirm app-level connectivity"
+  ],
+  "sprint_S1": {
+    "produced_by": "/ases-sprint-scaffold S1 Step C",
+    "timestamp": "2026-06-12T00:00:00Z",
+    "scaffold_spec_ref": "sprints/S1/design/scaffold_spec.json",
+    "files_created": [
+      { "path": "backend/src/domain/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/src/infrastructure/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/src/infrastructure/db/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/src/infrastructure/db/models/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/src/infrastructure/db/repositories/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/src/application/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/src/application/services/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/src/presentation/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/src/presentation/schemas/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/src/presentation/api/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/src/presentation/api/routers/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/scripts/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/tests/unit/application/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/tests/unit/application/services/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/tests/unit/presentation/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/tests/unit/presentation/schemas/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/tests/unit/scripts/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/tests/integration/db/__init__.py", "type": "init", "hash": "" },
+      { "path": "backend/tests/integration/api/__init__.py", "type": "init", "hash": "" },
+      { "path": "frontend/jest.config.ts", "type": "config", "hash": "" },
+      { "path": "frontend/jest.setup.ts", "type": "config", "hash": "" }
+    ],
+    "directories_created": [
+      "backend/scripts",
+      "backend/src/application/services",
+      "backend/src/domain",
+      "backend/src/infrastructure/db/models",
+      "backend/src/infrastructure/db/repositories",
+      "backend/src/presentation/api/routers",
+      "backend/src/presentation/schemas",
+      "backend/tests/integration/api",
+      "backend/tests/integration/db",
+      "backend/tests/unit/application/services",
+      "backend/tests/unit/presentation/schemas",
+      "backend/tests/unit/scripts",
+      "frontend/src/app/admin",
+      "frontend/src/app/admin/{suppliers,staff,dealers,grades,designs,design-grade-map}",
+      "frontend/src/app/admin/{suppliers,grades,design-grade-map}/__tests__",
+      "frontend/src/components/admin",
+      "frontend/src/components/admin/{suppliers,staff,dealers,grades,designs,design-grade-map}",
+      "frontend/src/components/admin/{suppliers,staff,dealers,designs,design-grade-map}/__tests__",
+      "frontend/src/lib/api",
+      "frontend/src/lib/query",
+      "frontend/src/lib/validation",
+      "frontend/src/types"
+    ],
+    "config_appended": [
+      { "file": ".env.example",          "lines_appended": 4, "resolves_gap": "ENV-001" },
+      { "file": "backend/.env.example",  "lines_appended": 4, "resolves_gap": "ENV-001" },
+      { "file": "frontend/.env.example", "lines_appended": 3, "resolves_gap": "ENV-001" }
+    ],
+    "added_packages": [
+      { "side": "frontend", "name": "jest",                          "version": "29.7.0",  "type": "dev" },
+      { "side": "frontend", "name": "jest-environment-jsdom",        "version": "29.7.0",  "type": "dev" },
+      { "side": "frontend", "name": "@testing-library/react",        "version": "16.1.0",  "type": "dev" },
+      { "side": "frontend", "name": "@testing-library/jest-dom",     "version": "6.6.3",   "type": "dev" },
+      { "side": "frontend", "name": "@testing-library/user-event",   "version": "14.5.2",  "type": "dev" },
+      { "side": "frontend", "name": "@types/jest",                   "version": "29.5.14", "type": "dev" }
+    ],
+    "removed_packages": [],
+    "bumped_packages": [],
+    "npm_log_excerpt": "added 272 packages, and audited 976 packages in 2m\n5 vulnerabilities (2 low, 1 moderate, 1 high, 1 critical)\nTo address all issues, run: npm audit fix --force\nnpm warn deprecated whatwg-encoding@2.0.0 / abab@2.0.6 / inflight@1.0.6 / domexception@4.0.0 / glob@7.2.3 (transitive deps inside jest/jsdom tree)",
+    "pip_log_excerpt": "(no backend deps added in S1 sprint-scaffold)",
+    "migrations_applied": [],
+    "verify_passed": true,
+    "verify_output": "jest --version => 29.7.0; backend_skeleton_ok",
+    "skipped_steps": [
+      { "step": "B.5 — Apply migrations", "reason": "No migration files in scaffold_spec.files_to_create[]. Migration 0002_master_tables.py is deferred to /ases-dev (autogenerated from ORM per DS-009)." },
+      { "step": "B.6 — graphify update", "reason": "graphify CLI not installed on host (carried from /ases-scaffold skipped_steps[3]). Re-run /ases-graphify manually after /ases-dev." }
+    ],
+    "files_deferred_to_ases_dev": [
+      { "path": "backend/db/migrations/env.py", "reason": "Real alembic env wiring is implementation code, not a stub." },
+      { "path": "backend/db/migrations/versions/0002_master_tables.py", "reason": "Autogenerated post-ORM per DS-009." }
+    ],
+    "tech_debt_introduced": [
+      {
+        "id": "TD-004",
+        "description": "npm-installed jest/jsdom transitive tree carries 5 vulnerabilities (2 low, 1 moderate, 1 high, 1 critical) and 5 deprecated transitive packages (whatwg-encoding@2, abab@2, inflight@1, domexception@4, glob@7). These come from jest@29 + jsdom — well known; usually only visible via `npm audit`, not at runtime. Upstream `jest@30` already fixes several. Revisit at /ases-sprint-close S1: decide between (a) `npm audit fix --force` after S1, (b) bump to jest@30 stack, (c) accept and document.",
+        "severity": "minor",
+        "source": "/ases-sprint-scaffold S1 Step B (npm install warnings)",
+        "target_sprint": "S1"
+      }
+    ],
+    "gaps_resolved": ["ENV-001", "DEP-001"],
+    "gaps_still_open": ["INFRA-001 (test-DB strategy — for /ases-tasks)", "DB-001 (bootstrap verify — PO action)", "SEC-001 (TD-003 Next CVE — sprint-close review)", "MIGRATION-001 (env.py — /ases-dev)"]
+  }
+}

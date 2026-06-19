@@ -1,0 +1,7 @@
+{
+  "task_id": "T-025",
+  "test_case_refs": ["TC-007", "TC-011", "TC-015", "TC-016", "TC-022", "TC-030"],
+  "test_files_to_create": ["backend/tests/unit/scripts/test_seed_master_data.py"],
+  "framework": "pytest",
+  "covers_acs": ["AC-003", "AC-006", "AC-009", "AC-010", "AC-014", "AC-018"]
+}

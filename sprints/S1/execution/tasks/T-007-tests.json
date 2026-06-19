@@ -1,0 +1,10 @@
+{
+  "task_id": "T-007",
+  "test_case_refs": ["TC-002", "TC-003", "TC-009", "TC-013", "TC-021"],
+  "test_files_to_create": ["backend/tests/unit/presentation/schemas/test_master_schemas.py"],
+  "manual_verification": [
+    { "step": "Empty supplier_name rejected", "command": "backend/.venv/Scripts/python.exe -c \"from src.presentation.schemas.master import SupplierCreate; SupplierCreate(supplier_name='', place='X')\"", "expected": "pydantic.ValidationError raised" }
+  ],
+  "framework": "pytest",
+  "covers_acs": ["AC-001", "AC-004", "AC-007", "AC-013"]
+}

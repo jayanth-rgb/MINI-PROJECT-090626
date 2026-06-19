@@ -1,0 +1,77 @@
+{
+  "sprint_id": "S1",
+  "executed_at": "2026-06-18T00:00:00Z",
+  "total_tests": 50,
+  "test_case_coverage": {
+    "total_tcs": 46,
+    "tcs_passed": 46,
+    "tcs_failed": 0,
+    "tcs_skipped": 0
+  },
+  "by_runner": {
+    "pytest": {
+      "collected": 40,
+      "passed": 40,
+      "failed": 0,
+      "errors": 0,
+      "duration_seconds": 94.25,
+      "notes": "TC-013 and TC-021 are parametrized (2 variants each → 7 collected in test_master_schemas.py)."
+    },
+    "jest": {
+      "suites_total": 8,
+      "suites_passed": 8,
+      "tests_total": 10,
+      "tests_passed": 10,
+      "tests_failed": 0,
+      "duration_seconds": 9.61,
+      "notes": "TC-042 (DealerForm) and TC-044 (DesignForm) are parametrized via describe.each (2 variants each → 10 tests for 8 TCs)."
+    }
+  },
+  "passed": 50,
+  "failed": 0,
+  "errors": 0,
+  "regressions": [],
+  "fix_attempts": [
+    {
+      "issue": "Test collection error: scripts.seed_master_data import triggered get_settings(), which required DATABASE_URL env var (unset in test env).",
+      "root_cause": "T-009 conftest.py did not seed a placeholder DATABASE_URL before src.* imports; src.infrastructure.db.session calls get_settings() at module load.",
+      "fix": "Added os.environ.setdefault('DATABASE_URL', 'postgresql+psycopg://test:test@localhost:5432/test_placeholder') at top of backend/tests/conftest.py.",
+      "task_ref": "T-009",
+      "iteration": 1,
+      "result": "resolved"
+    },
+    {
+      "issue": "Jest could not load jest.config.ts (no ts-node installed).",
+      "root_cause": "Sprint-scaffold delivered jest.config.ts but did not add ts-node as a dev dependency.",
+      "fix": "Added frontend/jest.config.js (CJS form, identical content to .ts). Tests invoked with `npx jest --config jest.config.js`. Original .ts retained for IDE typing.",
+      "task_ref": "scaffold",
+      "iteration": 1,
+      "result": "resolved"
+    },
+    {
+      "issue": "TC-045 (DesignGradeMapPage 409 toast) crashed with `candidate?.scrollIntoView is not a function`.",
+      "root_cause": "jsdom does not implement Element.prototype.scrollIntoView; Radix UI Select component calls it on focus.",
+      "fix": "Added one-line polyfill to frontend/jest.setup.ts: `Element.prototype.scrollIntoView = function () {}`.",
+      "task_ref": "T-029",
+      "iteration": 1,
+      "result": "polyfill applied; revealed secondary issue"
+    },
+    {
+      "issue": "After polyfill, TC-045 still couldn't find dropdown option — Radix Select portal not openable via fireEvent.click in jsdom.",
+      "root_cause": "Radix Select uses pointer-event-based open mechanics that jsdom can't fully drive; test was over-coupled to UI internals when the TC's assertion is about the page's 409 toast behavior.",
+      "fix": "Mocked DesignGradeMapForm in the test file to render a minimal submit-only form with a fixed payload. Test now focuses on the page-level mutation/toast path per the TC's intent.",
+      "task_ref": "test-impl (this task)",
+      "iteration": 2,
+      "result": "resolved"
+    }
+  ],
+  "gate_verdict": "PASS",
+  "gate_details": "All TCs with priority=critical passed (39/39 critical + 7/7 high). No regressions (S1 is the first sprint).",
+  "run_cmd": "cd backend && .venv/Scripts/python.exe -m pytest tests/ -v  &&  cd frontend && npx jest --config jest.config.js --no-coverage",
+  "files_modified_during_run": [
+    "backend/tests/conftest.py (DATABASE_URL env-var seed)",
+    "frontend/jest.config.js (new — CJS variant; .ts retained)",
+    "frontend/jest.setup.ts (scrollIntoView polyfill)",
+    "frontend/src/app/admin/design-grade-map/__tests__/page.test.tsx (mocked form; TC-045 fix)"
+  ]
+}

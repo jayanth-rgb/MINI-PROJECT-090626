@@ -1,0 +1,17 @@
+{
+  "task_id": "T-019",
+  "title": "Dealers router (F-003)",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/presentation/api/routers/dealers.py"],
+  "scope": "APIRouter(prefix='/dealers', tags=['dealers']) with GET / POST / PATCH /{dealer_id} / DELETE /{dealer_id}. Delegates to DealerService via get_dealer_service Depends.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-016"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-010"],
+  "success_criteria": {
+    "manual": "Router exports 4 routes under /dealers prefix.",
+    "automated": "Service-layer coverage via TC-012/TC-014; UI tests TC-042 cover form validation.",
+    "definition_of_done": "Same shape as suppliers router using Dealer schemas and DealerService."
+  },
+  "checkout_prompt": "'Dealers router — mirror of suppliers, soft DELETE.'"
+}

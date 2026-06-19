@@ -1,0 +1,24 @@
+{
+  "task_id": "T-009",
+  "title": "Test infrastructure — testcontainers-postgres + conftest.py",
+  "module_ref": "M-007",
+  "output_files": [
+    "backend/tests/conftest.py",
+    "backend/requirements-dev.txt"
+  ],
+  "scope": "Resolves INFRA-001 (analysis.json). Adds testcontainers[postgres]==4.9.0 to requirements-dev.txt then writes conftest.py that exposes 3 fixtures: pg_container (session-scoped, brings up PostgreSQL 16 in Docker, runs Base.metadata.create_all), db_session (per-test, SAVEPOINT-rolled-back), client (FastAPI TestClient bound to db_session via dependency override).",
+  "do_not_touch": [
+    "backend/requirements.txt (only requirements-dev.txt is touched here)",
+    "any other file"
+  ],
+  "depends_on": ["T-002"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-001", "DS-002 (echo: real PG semantics needed for SELECT FOR UPDATE in S2)"],
+  "resolves_gaps": ["INFRA-001"],
+  "success_criteria": {
+    "manual": "(a) `pip install -r backend/requirements-dev.txt` adds testcontainers. (b) `pytest backend/tests/ --collect-only` discovers the conftest fixtures without error.",
+    "automated": "Implicitly used by all subsequent service + integration tests.",
+    "definition_of_done": "3 fixtures present; pg_container scope='session'; db_session uses SAVEPOINT for per-test isolation; client overrides get_db dependency."
+  },
+  "checkout_prompt": "'Test infrastructure ready — testcontainers-postgres + 3 conftest fixtures (pg_container, db_session, client). INFRA-001 resolved.'"
+}

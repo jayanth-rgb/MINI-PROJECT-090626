@@ -1,0 +1,60 @@
+{
+  "$schema": "ases/v3.0/sprint_gate",
+  "document": "sprint_gate",
+  "produced_by": "/ases-sprint-gate",
+  "consumed_by": ["/ases-analyze"],
+  "sprint_id": "S1",
+  "timestamp": "2026-06-12T00:00:00Z",
+  "checks": [
+    {
+      "check": "lld_files_cover_roadmap_scope",
+      "status": "pass",
+      "details": "Roadmap S1 declares features [F-001..F-006] and modules [M-001, M-007]. LLD scope_features and scope_modules match 1:1. Per-feature file coverage verified: F-001 Supplier → SupplierModel + SupplierRepository + SupplierService + suppliers router + SupplierCreate/Update/Read + SuppliersPage + SupplierForm; F-002..F-005 follow the same five-layer pattern; F-006 Design-Grade-Map adds DesignGradeMapModel + repository (with get_by_pair, list_active_by_design) + service + design-grade-map router + the additional list_grades_for_design endpoint mounted on /designs/{id}/grades per HLD DF-006. Backend layered chain (config → infrastructure → application → presentation → main.py) is acyclic per LLD dependency_graph_notes. Migration 0002_master_tables.py + seed_master_data.py present. No feature in roadmap[S1] is uncovered."
+    },
+    {
+      "check": "schema_entities_match_lld_models",
+      "status": "pass",
+      "details": "LLD declares 6 ORM models in backend/src/infrastructure/db/models/master.py (SupplierModel, StaffModel, DealerModel, GradeModel, TradingDesignModel, DesignGradeMapModel). schema.json contains exactly 6 corresponding entities (tbl_supplier_master, tbl_staff_master, tbl_dealer_master, tbl_grade_master, tbl_trading_design_master, tbl_design_grade_map). Every entity has hld_module ('M-001' for the 6 entities; migration 0002_master_tables owned by M-007 per schema.migrations). All FK relationships in tbl_design_grade_map are explicit (design_id → tbl_trading_design_master.design_id, grade_id → tbl_grade_master.grade_id); no implied FKs. created_at omission on tbl_grade_master and tbl_design_grade_map is documented in schema.json notes[] and matches the LLD frontend types (Grade and DesignGradeMap also omit created_at). UNIQUE constraints (grade_code, design_id+grade_id) match the LLD ORM (UniqueConstraint per LLD line 136) and the AC sources (AC-011, AC-016)."
+    },
+    {
+      "check": "test_cases_cover_all_ac",
+      "status": "pass",
+      "details": "S1 features F-001..F-006 expose 19 acceptance criteria in prd.json (AC-001..AC-019). test_cases.json.coverage_matrix enumerates all 19 ACs and every entry has at least one TC id — minimum coverage per AC verified. ac_coverage_total = 19, test_total = 46. Every test_case has ac_ref pointing at a real AC. The 3 highest-risk invariants (AC-011 UNIQUE(grade_code), AC-016 UNIQUE(design_id,grade_id), AC-019 GET /designs/{id}/grades active-only) are tested at three layers — service (ConflictError/NotFoundError), DB (IntegrityError on direct INSERT), and HTTP (409/200 via FastAPI TestClient). All 15 edge / negative cases explicitly typed 'edge'. Framework specified per case (pytest=38, jest=8). No invented criteria — completeness_check.no_invented_test_cases = true."
+    },
+    {
+      "check": "deps_manifest_complete",
+      "status": "pass",
+      "details": "All non-stdlib imports referenced by LLD files have deps_manifest entries: backend — fastapi (main+routers), uvicorn (main), SQLAlchemy (base/session/models/repositories), psycopg (session), alembic (migrations env+versions), pydantic (schemas/master), pydantic-settings + python-dotenv (config); pytest + pytest-asyncio + httpx (test scaffolds). Frontend — next (app/**), react (**.tsx), @tanstack/react-query (provider + admin pages), axios (api/client), react-hook-form + @hookform/resolvers + zod (admin forms + master-schemas), lucide-react (admin layout + MasterDataTable). Service & env_vars present: PostgreSQL 16 declared with docker-compose setup; DATABASE_URL, DB_PASSWORD, NEXT_PUBLIC_API_URL marked required. Migration 0002_master_tables.py listed under migrations[]. Two warnings logged separately (do not block): (a) jest + @testing-library/react not in deps_manifest although test_cases.json declares 8 jest cases — to be added before /ases-test-impl S1; (b) integration tests (TC-018, TC-026, TC-033..038) require a separate test database — strategy (ephemeral container vs schema) should be settled in /ases-tasks. Neither affects LLD-source completeness, hence pass with warnings."
+    },
+    {
+      "check": "no_lld_conflicts_with_previous_sprint",
+      "status": "n/a",
+      "details": "S1 is the first sprint per roadmap (sprints[0]); there is no prior LLD output to conflict with. context.json.completed_steps lists no previous sprint LLD ('lld:S1' is the only LLD entry). All files declared in this LLD are new — verified against the scaffold manifest: scaffold only created skeleton dirs and shadcn ui primitives, none of which the S1 LLD redefines."
+    }
+  ],
+  "verdict": "PASS",
+  "blocking_issues": [],
+  "warnings": [
+    "deps_manifest does not list jest, @testing-library/react, @testing-library/jest-dom, or @testing-library/user-event, although test_cases.json declares 8 jest cases (TC-039..046). Add these dev deps to the manifest (or to /ases-sprint-scaffold output) before /ases-test-impl S1, otherwise the frontend test cases will not be runnable.",
+    "Integration tests TC-018 + TC-026 (DB constraint enforcement) and TC-033..TC-038 (FastAPI TestClient API contracts) require a separate test database. deps_manifest only declares the development PostgreSQL service. /ases-tasks should resolve the test DB strategy (ephemeral testcontainer vs separate schema vs SQLite-in-memory) — current ASES default is testcontainers-postgres but is not yet declared.",
+    "TD-003 (Next.js 15.1.3 CVE-2025-66478) remains OPEN per context.json — target_sprint=S1 but the S1 LLD does not upgrade Next.js. Per LLD open_items_for_sprint_gate.line[2] this is acknowledged and deferred to /ases-sprint-close S1 review. PO should ack at gate approval; not blocking for design completeness.",
+    "TD-002 (shadcn form.tsx shim) is recorded in context.json as 'closed_by_DS-011 (pending sprint-gate verification)'. Verified: LLD DS-011 prescribes react-hook-form + Zod + shadcn primitives WITHOUT the form.tsx shim, and all 6 Form components in the LLD follow that pattern (SupplierForm, StaffForm, DealerForm, GradeForm, DesignForm, DesignGradeMapForm). TD-002 is verifiably closed — context.json should be updated by /ases-sprint-close S1 to mark TD-002 status='closed'."
+  ],
+  "schema_validation": {
+    "lld": "pass",
+    "schema": "pass",
+    "test_cases": "pass",
+    "deps_manifest": "pass"
+  },
+  "evidence": {
+    "ac_total_from_prd": 19,
+    "ac_total_in_test_cases": 19,
+    "test_cases_total": 46,
+    "lld_persistence_models": 6,
+    "schema_entities": 6,
+    "roadmap_features_in_scope": ["F-001", "F-002", "F-003", "F-004", "F-005", "F-006"],
+    "lld_scope_features": ["F-001", "F-002", "F-003", "F-004", "F-005", "F-006"],
+    "roadmap_modules_in_scope": ["M-001", "M-007"],
+    "lld_scope_modules": ["M-001", "M-007"]
+  }
+}

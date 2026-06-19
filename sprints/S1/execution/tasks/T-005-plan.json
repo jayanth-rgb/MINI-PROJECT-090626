@@ -1,0 +1,17 @@
+{
+  "task_id": "T-005",
+  "title": "BaseRepository (generic CRUD)",
+  "module_ref": "M-007",
+  "output_files": ["backend/src/infrastructure/db/repositories/base.py"],
+  "scope": "Generic BaseRepository[TModel] subclassed by all 6 master repos. Methods: list(include_inactive=False), get(id_), create(data), update(id_, patch), soft_delete(id_). No delete() method — DS-008.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-002", "T-003"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-012"],
+  "success_criteria": {
+    "manual": "`python -c 'from src.infrastructure.db.repositories.base import BaseRepository; print(hasattr(BaseRepository, \"soft_delete\"))'` → True; `print(hasattr(BaseRepository, \"delete\"))` → False.",
+    "automated": "Covered by all service tests transitively (TC-001, TC-004, TC-005, TC-006, TC-008, TC-010, TC-012, TC-014, TC-017, TC-019, TC-020, TC-023, TC-024, TC-025, TC-029, TC-031, TC-032).",
+    "definition_of_done": "Generic class with __class_getitem__ resolving self.model from TModel; list applies is_active filter when include_inactive=False; get/update/soft_delete raise NotFoundError on miss; no delete() method exists."
+  },
+  "checkout_prompt": "'BaseRepository[TModel] created — list, get, create, update, soft_delete only. No hard delete (DS-008).'"
+}

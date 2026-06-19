@@ -1,0 +1,87 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate",
+  "consumed_by": ["/ases-dev"],
+  "task_id": "T-006",
+  "sprint_id": "S1",
+  "verdict": "PROCEED",
+  "performed_at": "2026-06-16",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "reads_from_declared": [
+        "backend/src/infrastructure/db/repositories/base.py",
+        "backend/src/infrastructure/db/models/master.py"
+      ],
+      "evidence": {
+        "backend/src/infrastructure/db/repositories/base.py": "PRESENT — exports BaseRepository (T-005 complete)",
+        "backend/src/infrastructure/db/models/master.py": "PRESENT — exports 6 ORM models (T-004 complete)"
+      },
+      "env_vars_declared": []
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[5] — backend/src/infrastructure/db/repositories/master.py",
+      "expected_exports": [
+        "SupplierRepository", "StaffRepository", "DealerRepository",
+        "GradeRepository", "TradingDesignRepository", "DesignGradeMapRepository"
+      ],
+      "expected_extra_methods": [
+        { "class": "GradeRepository", "method": "get_by_code(code: str) -> GradeModel | None" },
+        { "class": "DesignGradeMapRepository", "method": "get_by_pair(design_id: int, grade_id: int) -> DesignGradeMapModel | None" },
+        { "class": "DesignGradeMapRepository", "method": "list_active_by_design(design_id: int) -> list[DesignGradeMapModel] — JOIN filter on map.is_active AND grade.is_active (AC-019)" }
+      ],
+      "drift_detected": false,
+      "notes": [
+        "Create task — no existing implementation to drift from.",
+        "Plan defines 6 subclasses + 3 finder methods, matching LLD files[5] verbatim.",
+        "list_active_by_design JOIN filter is the key AC-019 invariant; plan correctly filters BOTH DesignGradeMapModel.is_active AND GradeModel.is_active via explicit JOIN."
+      ]
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_files": ["backend/src/infrastructure/db/repositories/master.py"],
+      "do_not_touch_declared": ["any other file"],
+      "in_progress_task_overlap": [],
+      "evidence": "No other task writes to repositories/master.py. Downstream services (T-010..T-015) read from it but write to their own service files."
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on_declared": ["T-004", "T-005"],
+      "depends_on_status": [
+        { "task_id": "T-004", "status": "complete" },
+        { "task_id": "T-005", "status": "complete" }
+      ],
+      "evidence": "Both dependencies complete with CLEAN critique verdicts (T-004 iteration 1, T-005 iteration 1). ORM models + generic BaseRepository both available."
+    }
+  },
+  "environment_check": {
+    "python_venv": "backend/.venv/Scripts/python.exe — PRESENT",
+    "sqlalchemy": "SQLAlchemy 2.0.36 — supports select() + scalar_one_or_none() + join()",
+    "imports_resolved": [
+      "src.infrastructure.db.models.master (6 models) — verified during T-004 critique",
+      "src.infrastructure.db.repositories.base.BaseRepository — verified during T-005 critique"
+    ]
+  },
+  "instruction_packet_for_dev": {
+    "task_plan": "sprints/S1/execution/tasks/T-006-plan.md",
+    "task_plan_json": "sprints/S1/execution/tasks/T-006-plan.json",
+    "tests_spec": "sprints/S1/execution/tasks/T-006-tests.md (no direct TC refs; indirect via TC-017, TC-019, TC-024..028, TC-031, TC-032)",
+    "lld_slice": "lld.json files[5] (backend/src/infrastructure/db/repositories/master.py)",
+    "decisions": [
+      "DS-007 (infrastructure layer)",
+      "DS-012 (only persistence-access pattern services may use; raw SQL forbidden outside this file)"
+    ],
+    "schema_slice": "n/a — relies on T-004 model declarations",
+    "write_scope": ["backend/src/infrastructure/db/repositories/master.py"],
+    "success_check_command": "backend/.venv/Scripts/python.exe -c \"from src.infrastructure.db.repositories.master import SupplierRepository, StaffRepository, DealerRepository, GradeRepository, TradingDesignRepository, DesignGradeMapRepository; print(hasattr(GradeRepository, 'get_by_code'), hasattr(DesignGradeMapRepository, 'list_active_by_design'))\""
+  },
+  "summary": {
+    "verdict": "PROCEED",
+    "blocking_holds": 0,
+    "soft_notes": 0,
+    "rationale": "All four pre-flight checks pass. T-004 + T-005 both complete with CLEAN verdicts. The 3 finder methods (get_by_code, get_by_pair, list_active_by_design) are precisely the ones AC-011/AC-016/AC-019 require. Ready for /ases-dev."
+  },
+  "next": "/ases-dev T-006 S1"
+}

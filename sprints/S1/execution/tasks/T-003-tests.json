@@ -1,0 +1,10 @@
+{
+  "task_id": "T-003",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "manual_verification": [
+    { "step": "Raise NotFoundError", "command": "backend/.venv/Scripts/python.exe -c \"from src.domain.exceptions import NotFoundError; raise NotFoundError('Foo', 1)\"", "expected": "Traceback ends with `NotFoundError: Foo with id 1 not found`" }
+  ],
+  "framework": "pytest",
+  "covered_indirectly_by": "TC-017 (ConflictError on duplicate grade_code), TC-027/028 (NotFoundError on missing FK)"
+}

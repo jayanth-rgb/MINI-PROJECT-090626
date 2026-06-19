@@ -1,0 +1,8 @@
+{
+  "task_id": "T-031",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "jest",
+  "covers_acs": [],
+  "note": "Manual smoke only."
+}

@@ -1,0 +1,8 @@
+{
+  "task_id": "T-016",
+  "test_case_refs": [],
+  "test_files_to_create": [],
+  "framework": "pytest",
+  "covers_acs": [],
+  "note": "No dedicated tests — wiring exercised indirectly through router integration tests in T-017..T-022."
+}

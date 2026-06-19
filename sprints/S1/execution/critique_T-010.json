@@ -1,0 +1,100 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-fix", "/ases-sprint-close"],
+  "task_id": "T-010",
+  "sprint_id": "S1",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "reviewed_at": "2026-06-18",
+  "reviewed_files": ["backend/src/application/services/supplier_service.py"],
+  "inputs_consulted": [
+    "sprints/S1/execution/tasks/T-010-plan.json",
+    "sprints/S1/execution/tasks/T-010-plan.md",
+    "sprints/S1/design/lld.json (files[7])",
+    "sprints/S1/design/test_cases.json (TC-001, TC-004, TC-005, TC-006)",
+    ".ases/decisions.json (M-001 entries)"
+  ],
+  "decisions_consulted": [
+    { "id": "DS-007", "applicability": "application layer — service calls repo, never raw SQL ✓" },
+    { "id": "DS-008", "applicability": "deactivate via repo.soft_delete (sets is_active=False); no delete_* method exposed on service ✓" },
+    { "id": "DS-012", "applicability": "single persistence path is BaseRepository[SupplierModel] ✓" }
+  ],
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "checks": [
+        "SupplierService class with __init__(session: Session) — instantiates SupplierRepository(session)",
+        "4 public methods: list_suppliers, create_supplier, update_supplier, deactivate_supplier — matches LLD files[7].functions[]",
+        "list_suppliers(include_inactive: bool = False) -> list[SupplierRead]: delegates to repo.list, maps via SupplierRead.model_validate",
+        "create_supplier(payload): repo.create(payload.model_dump()) + session.commit() + return SupplierRead.model_validate(obj)",
+        "update_supplier(supplier_id, patch): repo.update(supplier_id, patch.model_dump(exclude_none=True)) + commit + return — partial update semantics via exclude_none=True",
+        "deactivate_supplier(supplier_id): repo.soft_delete(...) + commit + return",
+        "Service-owned commit pattern: every write method calls session.commit(); list does not"
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "expected_exports": ["SupplierService"],
+      "actual_exports_match": true,
+      "downstream_callers_satisfied": [
+        "T-016 backend/src/presentation/api/dependencies.py: get_supplier_service(db) returns SupplierService(db) — ctor signature matches",
+        "T-017 backend/src/presentation/api/routers/suppliers.py: list_suppliers/create_supplier/update_supplier/delete_supplier each call the corresponding service method — all 4 named correctly"
+      ],
+      "imports_check": [
+        "sqlalchemy.orm.Session — used as ctor parameter annotation",
+        "SupplierRepository (T-006 dep) — instantiated in __init__",
+        "SupplierCreate / SupplierUpdate / SupplierRead (T-007 dep) — all used in method signatures + bodies"
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "test_case_refs_in_tasks_json": ["TC-001", "TC-004", "TC-005", "TC-006"],
+      "checks": [
+        "TC-001 (create_supplier with name+place): persists via repo.create + commits + returns SupplierRead with DB-assigned supplier_id; payload.model_dump() flattens SupplierCreate to dict; SupplierRead.model_validate(obj) reads ORM attrs (from_attributes=True from T-007) — produces expected_output {supplier_id, supplier_name, place, is_active=true}",
+        "TC-004 (deactivate_supplier sets is_active=false; row preserved): repo.soft_delete (DS-008) → never DELETE → row physically remains; service returns SupplierRead with is_active=false",
+        "TC-005 (list_suppliers default excludes is_active=false): include_inactive defaults to False → repo.list filters .where(is_active.is_(True)) → only active rows returned",
+        "TC-006 (list_suppliers include_inactive=True returns both): repo.list(True) → no filter → both rows returned",
+        "Manual /ases-dev verification: all 4 method signatures inspect-confirmed; no delete_* method present"
+      ],
+      "edge_cases_handled": [
+        "Partial update via patch.model_dump(exclude_none=True): unset fields are omitted from the dict → repo.update skips them via setattr loop in BaseRepository (T-005 verified)",
+        "NotFoundError propagation: repo.update + repo.soft_delete raise NotFoundError('Supplier', id_) on miss; service does not catch → propagates to FastAPI exception handler (T-008 maps to 404)",
+        "session.commit() failure: if commit raises (e.g. DB connection lost), exception propagates to FastAPI's get_db generator which rolls back (T-002 verified)"
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "checks": [
+        "Input validated upstream by Pydantic SupplierCreate / SupplierUpdate (T-007 critique verified min_length=1 enforcement)",
+        "All DB access via repo + parameterised SQLAlchemy expressions — no injection surface",
+        "exclude_none=True on patch.model_dump() prevents accidental nulling of fields not present in the request",
+        "No raw SQL, shell, FS, or credentials",
+        "Read method (list_suppliers) does not commit — protects against accidental data mutations on read paths"
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "PASS",
+      "checks": [
+        "Single class, 1 ctor + 4 public methods; no orphans, no helpers",
+        "Inbound deps satisfied: T-006 (SupplierRepository ✓), T-007 (3 schemas ✓), T-003 (NotFoundError available for repo-raised path, although not imported here directly since it propagates from repo)",
+        "Outbound: T-016 dependencies.py + T-017 router will form the inbound edges"
+      ]
+    }
+  },
+  "is_adr_tradeoff": false,
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+  "soft_notes": [],
+  "summary": {
+    "verdict": "CLEAN",
+    "rationale": "Implementation matches plan + LLD files[7] verbatim. 4 methods with correct signatures, service-owned commit pattern, repo-mediated DS-008 soft delete, Pydantic v2 model_validate ORM mapping. All 4 test cases (TC-001/004/005/006) supported by the chain of validated upstream components (T-005 BaseRepository + T-006 SupplierRepository + T-007 SupplierCreate/Update/Read). Sets the canonical pattern T-011..T-014 will mirror.",
+    "iteration_cap_state": "1/3 — well clear of escalation."
+  },
+  "next": "Mark T-010 status=complete and proceed to /ases-validate T-011 S1 (StaffService — same pattern, depends on the same complete set)."
+}
