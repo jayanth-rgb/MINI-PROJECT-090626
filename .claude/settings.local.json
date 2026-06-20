@@ -36,7 +36,11 @@
       "Skill(ases-system-test:*)",
       "Bash(.venv/Scripts/python.exe -m pytest tests/system/ -v --tb=short)",
       "Skill(ases-uat)",
-      "Skill(ases-uat:*)"
+      "Skill(ases-uat:*)",
+      "Skill(ases-final-audit)",
+      "Skill(ases-final-audit:*)",
+      "Skill(ases-release)",
+      "Skill(ases-release:*)"
     ]
   }
 }

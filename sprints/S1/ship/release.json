@@ -1,0 +1,45 @@
+{
+  "sprint_id": "S1",
+  "released_at": "2026-06-20T00:00:00Z",
+  "verdict": "SHIP",
+  "sprint_goal": "Data Foundation — all 6 master tables (Supplier, Staff, Dealer, Grade, Trading Size-Design, Design-Grade map), CRUD admin screens, soft-delete, seed data per sample PRD, PostgreSQL schema, Alembic baseline migration.",
+  "features_shipped": ["F-001", "F-002", "F-003", "F-004", "F-005", "F-006"],
+  "modules_delivered": ["M-001", "M-007"],
+  "stats": {
+    "total_tasks": 40,
+    "completed": 40,
+    "deferred": 0,
+    "escalated": 0,
+    "tcs_total": 46,
+    "tcs_passed": 46,
+    "integration_scenarios_total": 4,
+    "integration_scenarios_passed": 4,
+    "system_test_scenarios_executed": 3,
+    "system_test_scenarios_deferred_to_s3": 2,
+    "uat_accepted": 19,
+    "uat_conditional": 0,
+    "uat_rejected": 0,
+    "final_audit_findings": {
+      "critical": 0,
+      "major": 0,
+      "minor": 3,
+      "warning": 1
+    }
+  },
+  "commit_hash": "571c601a0dd0acdee0c1ac27abf6f0f71884d85b",
+  "tech_debt": [
+    {"id": "TD-005", "severity": "minor", "target_sprint": "S1", "closes_on": "W5"},
+    {"id": "TD-006", "severity": "minor", "target_sprint": "S1", "closes_on": "W5"},
+    {"id": "TD-007", "severity": "minor", "target_sprint": "S2"}
+  ],
+  "carry_forward": [
+    {"id": "CF-001", "title": "W5 — PO completes PG bring-up + alembic upgrade head + seed", "target_sprint": "S1 follow-up"}
+  ],
+  "new_risks_logged": [
+    {"id": "RI-001", "title": "R-S1-01 TIMESTAMP vs TIMESTAMPTZ drift", "severity": "low"},
+    {"id": "RI-002", "title": "R-S1-02 long-lived PG dev env not yet bootstrapped", "severity": "low"}
+  ],
+  "next_sprint": "S2",
+  "next_phase": "SPRINT_DESIGN",
+  "next_step": "/ases-lld S2 (optional /ases-prd-update S2 first)"
+}
