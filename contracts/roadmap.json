@@ -12,7 +12,11 @@
       "modules": ["M-001", "M-007"],
       "scope_notes": "Establishes the relational backbone before any transactional work. Includes the FastAPI + Next.js skeleton, Docker compose for Postgres, and the admin CRUD pages that prove the full stack works end-to-end. No transaction forms, no stock ledger logic yet.",
       "dependencies_on": [],
-      "status": "planned"
+      "status": "shipped",
+      "shipped_at": "2026-06-20",
+      "final_audit_verdict": "SHIP",
+      "commit": "571c601a0dd0acdee0c1ac27abf6f0f71884d85b",
+      "summary_ref": "sprints/S1/ship/sprint_summary.json"
     },
     {
       "id": "S2",

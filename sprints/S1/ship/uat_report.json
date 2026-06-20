@@ -1,0 +1,30 @@
+{
+  "$schema": "ases/v3.0/uat_report",
+  "sprint_id": "S1",
+  "reviewed_by": "Jayanth (PO) — sitesrinivasa@gmail.com",
+  "reviewed_at": "2026-06-20T00:00:00Z",
+  "items": [
+    {"ac_ref": "AC-001", "feature_ref": "F-001", "description": "Admin can create a supplier with name and place; both required.", "verdict": "accepted"},
+    {"ac_ref": "AC-002", "feature_ref": "F-001", "description": "Admin can edit + soft-delete supplier; hidden from default list.", "verdict": "accepted"},
+    {"ac_ref": "AC-003", "feature_ref": "F-001", "description": "Seed: Manjunatha/Mallur, Dinnesh Reddy/Mallur, Antony Tiles/Kerala.", "verdict": "accepted"},
+    {"ac_ref": "AC-004", "feature_ref": "F-002", "description": "Admin can create staff with name (required).", "verdict": "accepted"},
+    {"ac_ref": "AC-005", "feature_ref": "F-002", "description": "Soft-deleted staff hidden from transaction form dropdowns.", "verdict": "accepted"},
+    {"ac_ref": "AC-006", "feature_ref": "F-002", "description": "Seed: 9 named staff.", "verdict": "accepted"},
+    {"ac_ref": "AC-007", "feature_ref": "F-003", "description": "Admin can create dealer with name+place (both required).", "verdict": "accepted"},
+    {"ac_ref": "AC-008", "feature_ref": "F-003", "description": "Soft-deleted dealer hidden from Sales form/report filter.", "verdict": "accepted"},
+    {"ac_ref": "AC-009", "feature_ref": "F-003", "description": "Seed: 3 dealers (Raj Hardwares/Tiles Mart/Shanmugam & Co).", "verdict": "accepted"},
+    {"ac_ref": "AC-010", "feature_ref": "F-004", "description": "Seed: 9 grade codes (1, 2, 2A, 4, 5, 6, 1OB, OB, DIM).", "verdict": "accepted"},
+    {"ac_ref": "AC-011", "feature_ref": "F-004", "description": "grade_code is UNIQUE at DB level.", "verdict": "accepted"},
+    {"ac_ref": "AC-012", "feature_ref": "F-004", "description": "Deactivated grade disappears from design-grade combinations (JOIN cascade).", "verdict": "accepted"},
+    {"ac_ref": "AC-013", "feature_ref": "F-005", "description": "Admin can create design with size+design_name (both required).", "verdict": "accepted"},
+    {"ac_ref": "AC-014", "feature_ref": "F-005", "description": "Seed: 3 design/size pairs (16X10, 12X8, 11X7 Ridges).", "verdict": "accepted"},
+    {"ac_ref": "AC-015", "feature_ref": "F-005", "description": "Soft-deleted designs hidden from form dropdowns.", "verdict": "accepted"},
+    {"ac_ref": "AC-016", "feature_ref": "F-006", "description": "UNIQUE(design_id, grade_id) prevents duplicate mappings.", "verdict": "accepted"},
+    {"ac_ref": "AC-017", "feature_ref": "F-006", "description": "Soft-delete a mapping; existing transactions unaffected.", "verdict": "accepted"},
+    {"ac_ref": "AC-018", "feature_ref": "F-006", "description": "Seed: 6 sample (design, grade) combinations.", "verdict": "accepted"},
+    {"ac_ref": "AC-019", "feature_ref": "F-006", "description": "GET /designs/{id}/grades returns only active mappings (DF-006).", "verdict": "accepted"}
+  ],
+  "rejected_items": [],
+  "conditional_notes": [],
+  "verdict": "APPROVED"
+}

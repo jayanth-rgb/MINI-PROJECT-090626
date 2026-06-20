@@ -1,0 +1,130 @@
+{
+  "$schema": "ases/v3.0/integration_scenarios",
+  "sprint_id": "S1",
+  "design_notes": "S1 modules in scope: M-001 (master CRUD) and M-007 (DB infrastructure). HLD data flows DF-001..DF-005 involve S2+ modules (M-002..M-005) — not yet delivered. S1 cross-module integration is bounded by DF-006 (M-006→M-001 designs/grades contract) and DF-007 (M-007→PostgreSQL alembic+seed). Two additional vertical scenarios exercise the full router→DI→service→repo→DB chain that the per-task tests covered only in isolation.",
+  "execution_summary": {
+    "executed_at": "2026-06-20T00:00:00Z",
+    "total_scenarios": 4,
+    "passed": 4,
+    "failed": 0,
+    "errored": 0,
+    "duration_seconds": 43.53,
+    "run_cmd": "cd backend && .venv/Scripts/python.exe -m pytest tests/integration/ -v",
+    "fix_attempts": [
+      {
+        "scenario_id": "IS-002",
+        "issue": "First run errored: alembic env.py line 19 overrides Config.sqlalchemy.url with get_settings().database_url, which is lru_cache'd to the conftest placeholder URL. Container connection refused with `password authentication failed for user 'test'` because the alembic invocation hit the placeholder URL, not the testcontainer's URL.",
+        "fix": "Test fixture now monkey-patches DATABASE_URL env var + clears get_settings.cache_clear() before invoking command.upgrade(). Documented inline in the fixture.",
+        "iteration": 1,
+        "result": "resolved on iteration 1"
+      }
+    ],
+    "regression_check": "All 8 pre-existing per-task integration tests (TC-018, TC-026, TC-033..TC-038) re-ran and still pass alongside the 4 new IS scenarios. 12/12 integration tests green."
+  },
+  "scenarios": [
+    {
+      "id": "IS-001",
+      "name": "DF-006: designs API → active grades projection",
+      "description": "End-to-end DF-006 contract that S2 transaction forms depend on. Seeds design + 2 grades + 2 mappings via the HTTP API; deactivates one mapping; GET /designs/{id}/grades returns only the active projection [{grade_id, grade_code}]. Exercises: M-001 schemas, design_service, grade_service, design_grade_map_service, dependencies, all 3 relevant routers, error handlers, M-007 session + repos + ORM. Same chain S2 will consume on every transaction form load.",
+      "modules_involved": ["M-001", "M-007", "M-006"],
+      "data_flow_ref": "DF-006",
+      "flow": [
+        "Caller POSTs design (16X10 / 16X10 Ridges) → 201",
+        "Caller POSTs two grades ('1' and 'OB') → both 201",
+        "Caller POSTs two mappings (design_id, 1) and (design_id, 2) → both 201",
+        "Caller DELETEs the second mapping → 200, is_active=false",
+        "Caller GETs /api/v1/designs/{design_id}/grades → 200 with [{grade_id, grade_code}] for the active mapping only"
+      ],
+      "entry_point": "FastAPI TestClient — POST /api/v1/designs, POST /api/v1/grades, POST /api/v1/design-grade-map, DELETE /api/v1/design-grade-map/{id}, GET /api/v1/designs/{id}/grades",
+      "exit_assertion": "GET response is exactly [{grade_id: <active>, grade_code: '1'}] — no extra fields, only the still-active mapping projected.",
+      "test_data": {
+        "design": {"size": "16X10", "design_name": "16X10 Ridges"},
+        "grades": [{"grade_code": "1"}, {"grade_code": "OB"}],
+        "mappings": ["(design, grade1)", "(design, grade2)"],
+        "deactivated_mapping_index": 1
+      },
+      "test_file": "backend/tests/integration/test_integration_is001_designs_to_grades_projection.py",
+      "priority": "critical",
+      "result": "pass"
+    },
+    {
+      "id": "IS-002",
+      "name": "DF-007: alembic migration + seed script → PostgreSQL with 33 master rows",
+      "description": "End-to-end DF-007: brings up a clean PostgreSQL container, applies alembic migration 0002_master_tables (T-024), then runs scripts.seed_master_data.main against it. Verifies that (a) the hand-authored migration applies cleanly to a real PG (closes the W5 verification gap), (b) the migration's schema matches what seed_master_data expects, (c) 33 rows are inserted (3+9+3+9+3+6) matching the PRD samples, (d) re-running the seed inserts 0 new rows (idempotency). This is the only integration scenario that exercises alembic; the per-task tests use Base.metadata.create_all.",
+      "modules_involved": ["M-007", "M-001"],
+      "data_flow_ref": "DF-007",
+      "flow": [
+        "Spin up an isolated PostgreSQL 16 testcontainer (separate from the conftest's shared one)",
+        "Run `alembic upgrade head` against it — applies migration 0002",
+        "Verify all 6 master tables exist with the expected constraint names (uq_grade_master_grade_code, uq_design_grade_map_design_grade)",
+        "Invoke scripts.seed_master_data.main() pointed at the container's URL",
+        "Assert 3 suppliers + 9 staff + 3 dealers + 9 grades + 3 designs + 6 mappings = 33 rows total",
+        "Invoke seed again → 0 new rows (idempotency)"
+      ],
+      "entry_point": "subprocess: `alembic upgrade head`  →  python: `scripts.seed_master_data.main()`",
+      "exit_assertion": "After two seed runs, exactly 33 rows exist across the 6 master tables with the PRD-sample content; both UNIQUE constraints are present in the schema.",
+      "test_data": {
+        "expected_counts": {
+          "tbl_supplier_master": 3,
+          "tbl_staff_master": 9,
+          "tbl_dealer_master": 3,
+          "tbl_grade_master": 9,
+          "tbl_trading_design_master": 3,
+          "tbl_design_grade_map": 6
+        }
+      },
+      "test_file": "backend/tests/integration/test_integration_is002_alembic_seed_to_postgres.py",
+      "priority": "critical",
+      "result": "pass"
+    },
+    {
+      "id": "IS-003",
+      "name": "Supplier CRUD lifecycle: router → DI → service → repo → DB → response shape",
+      "description": "Exercises the full M-001 vertical for the supplier entity end-to-end via the HTTP API. Per-task tests (TC-001..TC-006, TC-033..TC-034) cover each layer in isolation; this scenario chains them: POST → GET (default) → PATCH → DELETE → GET (default) → GET (include_inactive=true). Confirms the chain integrates correctly: schemas validate at the boundary, service commits, repo flushes, soft-delete preserves the row, list filters honor include_inactive. Same pattern S2 will follow for transactions.",
+      "modules_involved": ["M-001", "M-007"],
+      "data_flow_ref": null,
+      "flow": [
+        "POST /api/v1/suppliers (Antony Tiles / Kerala) → 201, capture supplier_id",
+        "GET /api/v1/suppliers → list contains the new row, is_active=true",
+        "PATCH /api/v1/suppliers/{id} (place='Trivandrum') → 200, place updated",
+        "DELETE /api/v1/suppliers/{id} → 200, is_active=false",
+        "GET /api/v1/suppliers (default) → list does NOT contain the row",
+        "GET /api/v1/suppliers?include_inactive=true → list DOES contain the row, is_active=false, place='Trivandrum'"
+      ],
+      "entry_point": "FastAPI TestClient — full /api/v1/suppliers verb set",
+      "exit_assertion": "After the round-trip, the row is physically present with is_active=false and the updated place; default list omits it and admin list includes it.",
+      "test_data": {
+        "create": {"supplier_name": "Antony Tiles", "place": "Kerala"},
+        "patch": {"place": "Trivandrum"}
+      },
+      "test_file": "backend/tests/integration/test_integration_is003_supplier_crud_lifecycle.py",
+      "priority": "high",
+      "result": "pass"
+    },
+    {
+      "id": "IS-004",
+      "name": "Cross-feature AC-012 → AC-019: grade deactivation cascades to designs/{id}/grades projection",
+      "description": "When a Grade is deactivated, the M-001 contract GET /designs/{id}/grades must omit any mapping whose grade is now inactive — even if the mapping row itself is still is_active=true. This is the AC-012 → AC-019 cross-feature requirement that the repo's JOIN filter (T-006 list_active_by_design filters BOTH map.is_active AND grade.is_active) enforces. Per-task TC-019 covers this at the service layer; this scenario verifies it end-to-end through the HTTP API after writes go through services + commit.",
+      "modules_involved": ["M-001", "M-007"],
+      "data_flow_ref": "DF-006",
+      "flow": [
+        "POST design (12X8 / 12X8 Ridges) → 201, capture design_id",
+        "POST grades '1' and '2' → both 201",
+        "POST mapping (design, '1') and (design, '2') → both 201 (both is_active=true)",
+        "GET /api/v1/designs/{design_id}/grades → 200, body has 2 entries",
+        "DELETE /api/v1/grades/{grade_id of '2'} → 200, is_active=false",
+        "GET /api/v1/designs/{design_id}/grades → 200, body has ONLY grade '1' — grade '2's mapping is filtered out by the JOIN even though the map row is still active"
+      ],
+      "entry_point": "FastAPI TestClient — full multi-verb sequence",
+      "exit_assertion": "Final GET body is exactly [{grade_id: <grade1>, grade_code: '1'}]; the (design, grade2) mapping row in tbl_design_grade_map still has is_active=true (only the grade was deactivated, not the mapping).",
+      "test_data": {
+        "design": {"size": "12X8", "design_name": "12X8 Ridges"},
+        "grades": [{"grade_code": "1"}, {"grade_code": "2"}],
+        "deactivated_grade_code": "2"
+      },
+      "test_file": "backend/tests/integration/test_integration_is004_grade_deactivation_cascades_to_projection.py",
+      "priority": "critical",
+      "result": "pass"
+    }
+  ]
+}

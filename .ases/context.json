@@ -4,11 +4,11 @@
   "produced_by": "/ases-init",
   "updated_by": "every_command",
   "project": "Jayanth Trading Tiles System",
-  "sprint": "S1",
-  "phase": "SPRINT_SHIP",
-  "stage": "test_run_pass",
-  "last_completed": "/ases-test-run S1",
-  "next": "/ases-integration-test S1",
+  "sprint": "S2",
+  "phase": "SPRINT_DESIGN",
+  "stage": "s1_released_ready_for_s2_design",
+  "last_completed": "/ases-release S1",
+  "next": "/ases-prd-update S2 (optional) or /ases-lld S2",
   "blockers": [],
   "prd_version": 1,
   "project_id": "jayanth-trading-tiles",
@@ -32,7 +32,13 @@
     "ui_scaffold:S1",
     "sprint_close:S1",
     "test_impl:S1",
-    "test_run:S1:PASS"
+    "test_run:S1:PASS",
+    "integration_test:S1:PASS",
+    "system_test:S1:PASS",
+    "uat:S1:APPROVED",
+    "devops:S1:committed:571c601",
+    "final_audit:S1:SHIP",
+    "release:S1:SHIPPED"
   ],
   "open_issues": [
     "W1: deps_manifest missing jest + @testing-library/* (resolve before /ases-test-impl S1)",
@@ -45,7 +51,7 @@
     "UR-W004: RESOLVED in /ases-ui-scaffold — mocks.ts throwApiError emits {status, detail}",
     "UR-W005: RESOLVED in /ases-ui-scaffold — MasterDataTable accepts per-column render; pages pass statusBadge for is_active",
     "UR-W006: /ases-ui-scaffold also fixed pre-existing sprint-scaffold defects: tailwind.config.js empty extend{}, globals.css using Tailwind v4 imports, jest.config.ts setupFilesAfterEach typo",
-    "W5 (T-024 critique): migration 0002_master_tables.py was hand-authored from ORM (no PG up to run --autogenerate). DDL matches Base.metadata; constraint names align with TC-018/TC-026. PO must run `cd backend && docker-compose up -d db && alembic upgrade head` before /ases-test-run; optionally `alembic check` to confirm no spurious diff. Snapshot logs migration_applied: false."
+    "W5 (T-024 critique): migration 0002_master_tables.py was hand-authored from ORM (no PG up to run --autogenerate). DDL matches Base.metadata; constraint names align with TC-018/TC-026. PO must run `cd backend && docker-compose up -d db && alembic upgrade head` before /ases-test-run; optionally `alembic check` to confirm no spurious diff. Snapshot logs migration_applied: false. — PARTIALLY VERIFIED by IS-002: alembic upgrade head + seed succeed cleanly against an ephemeral testcontainer PG, constraint names confirmed. Long-lived PG bring-up still pending PO."
   ],
   "deferred_items": [
     "User authentication & RBAC (Version 2)",
@@ -69,17 +75,25 @@
     {
       "sprint_id": "S1",
       "closed_on": "2026-06-18",
+      "shipped_on": "2026-06-20",
       "completed_count": 40,
       "deferred_count": 0,
       "escalated_count": 0,
       "new_tech_debt": ["TD-005", "TD-006", "TD-007"],
       "new_decisions": [],
-      "carry_forward": ["W5: PO bring-up of PG + alembic upgrade + seed run"],
+      "carry_forward": ["W5: PO bring-up of PG + alembic upgrade + seed run (CF-001)"],
       "test_cases_to_verify_in_phase_3": 46,
-      "summary_ref": "sprints/S1/ship/sprint_summary.json"
+      "tcs_passed": 46,
+      "integration_scenarios": "4/4 pass",
+      "system_tests": "3/3 executed pass; 2 deferred to S3",
+      "uat_verdict": "APPROVED",
+      "final_audit_verdict": "SHIP",
+      "commit": "571c601a0dd0acdee0c1ac27abf6f0f71884d85b",
+      "summary_ref": "sprints/S1/ship/sprint_summary.json",
+      "release_ref": "sprints/S1/ship/release.json"
     }
   ],
   "decisions_count": 12,
   "last_updated": "2026-06-18",
-  "last_updated_by": "/ases-test-run S1"
+  "last_updated_by": "/ases-release S1"
 }

@@ -5,5 +5,150 @@
   "updated_by": ["/ases-release", "/ases-prd-update", "/ases-sprint-close", "/ases-inject"],
   "consumed_by": ["/ases-inject", "/ases-context", "/ases-gc"],
   "version": 1,
-  "entries": []
+  "entries": [
+    {
+      "id": "SP-001",
+      "type": "sprint_digest",
+      "sprint": "S1",
+      "summary": "Data Foundation shipped: 6 master entities (Supplier/Staff/Dealer/Grade/Design/Design-Grade Map) with CRUD admin + soft-delete + UNIQUE constraints; 40 tasks complete; 46/46 TCs pass; 4/4 IS scenarios; 3/3 STs executed (2 deferred to S3); UAT 19/19 accepted; final audit SHIP.",
+      "verdict": "SHIP",
+      "date": "2026-06-20",
+      "tags": ["S1", "shipped", "M-001", "M-007"],
+      "full_ref": "sprints/S1/ship/sprint_summary.json"
+    },
+    {
+      "id": "FT-001",
+      "type": "feature",
+      "feature_id": "F-001",
+      "name": "Supplier Master",
+      "sprint": "S1",
+      "ac_refs": ["AC-001", "AC-002", "AC-003"],
+      "ac_count": 3,
+      "ac_passed": 3,
+      "date": "2026-06-20",
+      "tags": ["F-001", "S1", "M-001", "supplier"]
+    },
+    {
+      "id": "FT-002",
+      "type": "feature",
+      "feature_id": "F-002",
+      "name": "Staff Master",
+      "sprint": "S1",
+      "ac_refs": ["AC-004", "AC-005", "AC-006"],
+      "ac_count": 3,
+      "ac_passed": 3,
+      "date": "2026-06-20",
+      "tags": ["F-002", "S1", "M-001", "staff"]
+    },
+    {
+      "id": "FT-003",
+      "type": "feature",
+      "feature_id": "F-003",
+      "name": "Dealer Master",
+      "sprint": "S1",
+      "ac_refs": ["AC-007", "AC-008", "AC-009"],
+      "ac_count": 3,
+      "ac_passed": 3,
+      "date": "2026-06-20",
+      "tags": ["F-003", "S1", "M-001", "dealer"]
+    },
+    {
+      "id": "FT-004",
+      "type": "feature",
+      "feature_id": "F-004",
+      "name": "Grade Master (with UNIQUE(grade_code))",
+      "sprint": "S1",
+      "ac_refs": ["AC-010", "AC-011", "AC-012"],
+      "ac_count": 3,
+      "ac_passed": 3,
+      "date": "2026-06-20",
+      "tags": ["F-004", "S1", "M-001", "grade", "unique-constraint"]
+    },
+    {
+      "id": "FT-005",
+      "type": "feature",
+      "feature_id": "F-005",
+      "name": "Trading Design Master",
+      "sprint": "S1",
+      "ac_refs": ["AC-013", "AC-014", "AC-015"],
+      "ac_count": 3,
+      "ac_passed": 3,
+      "date": "2026-06-20",
+      "tags": ["F-005", "S1", "M-001", "design"]
+    },
+    {
+      "id": "FT-006",
+      "type": "feature",
+      "feature_id": "F-006",
+      "name": "Design-Grade Mapping (DF-006 contract delivered)",
+      "sprint": "S1",
+      "ac_refs": ["AC-016", "AC-017", "AC-018", "AC-019"],
+      "ac_count": 4,
+      "ac_passed": 4,
+      "date": "2026-06-20",
+      "tags": ["F-006", "S1", "M-001", "design-grade-map", "DF-006"]
+    },
+    {
+      "id": "TD-005",
+      "type": "tech_debt",
+      "severity": "minor",
+      "description": "Migration 0002_master_tables.py hand-authored from ORM (no PG available at dev time). DDL exactly mirrors Base.metadata; IS-002 verifies alembic+seed succeed against fresh PG. Final `alembic check` deferred until PO closes W5.",
+      "sprint_introduced": "S1",
+      "target_sprint": "S1",
+      "closes_on": "W5",
+      "status": "open",
+      "tags": ["S1", "alembic", "migration", "W5"]
+    },
+    {
+      "id": "TD-006",
+      "type": "tech_debt",
+      "severity": "minor",
+      "description": "T-025 seed runtime verification (`python -m scripts.seed_master_data` → 33 rows + 0-reinsert idempotency) deferred until W5 closes. Static cross-check against TC expected_output is CLEAN; IS-002 covers ephemerally.",
+      "sprint_introduced": "S1",
+      "target_sprint": "S1",
+      "closes_on": "W5",
+      "status": "open",
+      "tags": ["S1", "seed", "W5"]
+    },
+    {
+      "id": "TD-007",
+      "type": "tech_debt",
+      "severity": "minor",
+      "description": "TimestampMixin uses Mapped[datetime] → SQLAlchemy emits plain TIMESTAMP (without timezone). LLD prose mentions TIMESTAMPTZ. Migration mirrors ORM per DS-009. If timezone semantics are needed, edit base.py to `mapped_column(DateTime(timezone=True), ...)` and ship a follow-up migration.",
+      "sprint_introduced": "S1",
+      "target_sprint": "S2",
+      "status": "open",
+      "tags": ["S2", "schema", "timezone", "ORM"]
+    },
+    {
+      "id": "CF-001",
+      "type": "carry_forward",
+      "title": "W5 — PO completes long-lived PG bring-up",
+      "description": "Required steps (sequential): (1) write backend/.env with DATABASE_URL=postgresql+psycopg://trading_app:<pwd>@localhost:5432/jayanth_trading; (2) docker-compose up -d db; (3) cd backend && alembic upgrade head; (4) python -m scripts.seed_master_data; (5) re-run step 4 to confirm 0-insert idempotency. Closes TD-005 + TD-006.",
+      "sprint_introduced": "S1",
+      "blocks": null,
+      "blocks_release": false,
+      "tags": ["S1", "W5", "po-action", "infra"]
+    },
+    {
+      "id": "RI-001",
+      "type": "risk",
+      "severity": "low",
+      "title": "TIMESTAMP vs TIMESTAMPTZ drift between ORM and LLD prose",
+      "description": "ORM TimestampMixin emits plain TIMESTAMP; LLD prose mentions TIMESTAMPTZ. Materializes only if deployment timezone differs from PG container's timezone. Mitigation plan: TIMESTAMPTZ migration in S2 (TD-007).",
+      "sprint_introduced": "S1",
+      "mitigation_ref": "TD-007",
+      "tags": ["S1", "timezone", "schema"]
+    },
+    {
+      "id": "RI-002",
+      "type": "risk",
+      "severity": "low",
+      "title": "Long-lived PG dev environment not yet bootstrapped",
+      "description": "PO has not yet completed W5 (live PG bring-up). Entirely PO-side; documented; does not block release. IS-002's ephemeral PG container covers artifact correctness for the dev cycle.",
+      "sprint_introduced": "S1",
+      "mitigation_ref": "CF-001",
+      "tags": ["S1", "infra", "W5"]
+    }
+  ]
 }
