@@ -2,6 +2,47 @@
 
 All notable changes per sprint will land here, written by `/ases-release`.
 
+## Sprint S2 — 2026-06-23
+**Goal:** Transaction Forms + Stock Ledger — Inward, Sales, and Adjustment forms with grade-row auto-population, atomic header+lines+ledger writes, row-level locking on (design_id, grade_id), and basic ledger read API.
+**Verdict:** SHIP
+
+### Shipped
+- **F-007 Inward Entry** (AC-020..AC-027) — date-bounded form (today−7..today), supplier+staff active checks, place auto-fill (DS-013 snapshot), active-pair grade rows, strip-blank-lines (RULE-017), ≥1 valid line requirement, atomic ledger write per line via `domain.stock.apply_inward`
+- **F-008 Sales Entry** (AC-028..AC-033) — same date window, dealer+place snapshot, **both** loading_staff and verified_by required, mirror line-validation, ledger Δ=−nos via `domain.stock.apply_sale`
+- **F-009 Stock Adjustment** (AC-034..AC-040) — single design per header, `stock_date ≤ entry_date` enforced via Pydantic + DB CHECK, software_cb auto-populated per grade via `GET /designs/{id}/grades-with-cb`, signed difference (no abs), atomic ledger write with zero-diff audit-only optimization, ERR-012 banner on empty active grades
+
+### Verified
+- **112 / 112 backend tests pass** (S1 regression 46 + S2 backend 43 + system 12 + fixtures 11)
+- **4 / 4 integration scenarios pass** (IS-005..IS-008 — incl. back-date forward-recompute)
+- **4 / 4 system tests pass** (perf p95=4.4ms vs 100ms budget; boundary AC-021 exact; security defense-in-depth; concurrency 2-session)
+- **5 / 13 frontend tests pass** + 7 deferred (Radix-Select jsdom — TD-010)
+- **21 / 21 UAT ACs accepted**
+
+### Architectural decisions added
+- **DS-013** — Denormalize `place` onto Inward/Sales transaction headers (snapshot at save; historical immutability)
+- **DS-014** — TIMESTAMPTZ upgrade on TimestampMixin + 4 S1 columns ALTERed in migration 0003 (closes TD-007)
+
+### Tech Debt
+- **TD-007** **closed** by DS-014 (TIMESTAMPTZ uplift)
+- **TD-009** **closed** by /ases-test-impl (6 frontend zod-only TCs implemented)
+- **TD-011** **discovered and closed in-step** during /ases-system-test S2 ST-007: PG `SELECT FOR UPDATE LIMIT 1 ORDER BY ...` doesn't re-resolve LIMIT after waiting on a row lock — broken serialization for the "lock the latest" pattern. Fix: `pg_advisory_xact_lock(design_id, grade_id)` added before `FOR UPDATE` in `domain.stock._apply`. 4-line addition; iteration 2 verified PASS.
+- **TD-008** (open, V2) — First-row insert race (theoretical, once per (design, grade) lifetime). Likely subsumed by TD-011's advisory-lock fix since the lock acquires even when no row exists. Re-verify in S3.
+- **TD-010** (open, S3 or V2) — 7 frontend tests (TC-092/093/095/097/099/101/102) can't exercise Radix UI Select/Popover in jsdom. Backend API tests cover the same ACs. Options: jest mock @radix-ui/react-select with native select shim, or move to Playwright/Cypress E2E.
+
+### Deferred / Carry-Forward
+- **CF-001 (W5)** — still pending from S1; PO bring-up of long-lived PG. Phase 3 verification used ephemeral testcontainers per IS-002 pattern.
+
+### Highlights
+- **16 / 16 backend tasks CLEAN on iteration 1** — first sprint with zero-iteration backend dev
+- **TD-007 closed** + **TD-011 discovered + closed in-step** — DS-002 concurrency invariant now empirically verified, not just spec-text
+- Write-path performance **23× under budget** — ample headroom for S3 dashboard read-path
+- **DS-002 spec text refinement recommended for S3** to mandate advisory-lock-first layered pattern (FA-S2-002/003)
+
+### Commit
+`68a675e` on `develop` (204 files, +15300 / −36).
+
+---
+
 ## Sprint S1 — 2026-06-20
 **Goal:** Data Foundation — 6 master tables, CRUD admin screens, soft-delete, seed data, PostgreSQL schema, Alembic baseline migration.
 **Verdict:** SHIP

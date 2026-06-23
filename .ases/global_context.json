@@ -117,7 +117,8 @@
       "description": "TimestampMixin uses Mapped[datetime] → SQLAlchemy emits plain TIMESTAMP (without timezone). LLD prose mentions TIMESTAMPTZ. Migration mirrors ORM per DS-009. If timezone semantics are needed, edit base.py to `mapped_column(DateTime(timezone=True), ...)` and ship a follow-up migration.",
       "sprint_introduced": "S1",
       "target_sprint": "S2",
-      "status": "open",
+      "status": "closed_in_S2",
+      "closed_by": ["DS-014", "T-041 (ORM)", "T-044 (migration ALTERs 4 S1 columns)"],
       "tags": ["S2", "schema", "timezone", "ORM"]
     },
     {
@@ -149,6 +150,93 @@
       "sprint_introduced": "S1",
       "mitigation_ref": "CF-001",
       "tags": ["S1", "infra", "W5"]
+    },
+    {
+      "id": "SP-002",
+      "type": "sprint_digest",
+      "sprint": "S2",
+      "summary": "Transaction Forms + Stock Ledger shipped: F-007 Inward + F-008 Sales + F-009 Adjustment (21 ACs across 3 features). 16 backend tasks CLEAN on iteration 1; 7 ORM models + 4 repositories + domain.stock arithmetic + Alembic 0003 + 4 services + DI wiring + 4 routers; UI scaffold locked with 6 integration points. 112/112 backend tests pass; 4/4 IS; 4/4 ST (TD-011 discovered + closed in-step via pg_advisory_xact_lock); UAT 21/21; final audit SHIP. TD-007 closed by DS-014.",
+      "verdict": "SHIP",
+      "date": "2026-06-23",
+      "tags": ["S2", "shipped", "M-002", "M-003", "M-007", "stock-ledger"],
+      "full_ref": "sprints/S2/ship/sprint_summary.json"
+    },
+    {
+      "id": "FT-007",
+      "type": "feature",
+      "feature_id": "F-007",
+      "name": "Inward Entry",
+      "sprint": "S2",
+      "ac_refs": ["AC-020", "AC-021", "AC-022", "AC-023", "AC-024", "AC-025", "AC-026", "AC-027"],
+      "ac_count": 8,
+      "ac_passed": 8,
+      "date": "2026-06-23",
+      "tags": ["F-007", "S2", "M-002", "inward", "stock-ledger"]
+    },
+    {
+      "id": "FT-008",
+      "type": "feature",
+      "feature_id": "F-008",
+      "name": "Sales Entry",
+      "sprint": "S2",
+      "ac_refs": ["AC-028", "AC-029", "AC-030", "AC-031", "AC-032", "AC-033"],
+      "ac_count": 6,
+      "ac_passed": 6,
+      "date": "2026-06-23",
+      "tags": ["F-008", "S2", "M-002", "sales", "stock-ledger"]
+    },
+    {
+      "id": "FT-009",
+      "type": "feature",
+      "feature_id": "F-009",
+      "name": "Stock Adjustment (incl. DF-003 contract)",
+      "sprint": "S2",
+      "ac_refs": ["AC-034", "AC-035", "AC-036", "AC-037", "AC-038", "AC-039", "AC-040"],
+      "ac_count": 7,
+      "ac_passed": 7,
+      "date": "2026-06-23",
+      "tags": ["F-009", "S2", "M-002", "adjustment", "stock-ledger", "DF-003"]
+    },
+    {
+      "id": "TD-008",
+      "type": "tech_debt",
+      "severity": "minor",
+      "description": "First-row insert race (theoretical): SELECT FOR UPDATE LIMIT 1 acquires no lock when WHERE matches 0 rows. Two concurrent sessions inserting the FIRST-EVER ledger row for the same (design, grade) can each succeed at running_balance=delta. Once per (design, grade) lifetime. **Likely subsumed by TD-011's advisory-lock fix** since pg_advisory_xact_lock acquires even when no row exists. Re-verify in S3.",
+      "sprint_introduced": "S2",
+      "target_sprint": "V2",
+      "status": "open_likely_subsumed",
+      "tags": ["S2", "concurrency", "DS-002", "V2"]
+    },
+    {
+      "id": "TD-010",
+      "type": "tech_debt",
+      "severity": "minor",
+      "description": "7 frontend tests (TC-092/093/095/097/099/101/102) cannot exercise Radix UI Select / Popover interactions in jsdom — portals + internal state machinery don't fully materialize. Matches S1's TC-045 deferral. 6 zod-direct sibling TCs in the same files pass cleanly. Resolution options: (a) mock @radix-ui/react-select with native <select> shim in jest.setup.ts, (b) move to Playwright/Cypress E2E in S3+, (c) accept as scaffold-level coverage (backend API tests cover the same ACs).",
+      "sprint_introduced": "S2",
+      "target_sprint": "S3 or V2",
+      "status": "open",
+      "tags": ["S2", "frontend", "jsdom", "radix-ui", "test-infra"]
+    },
+    {
+      "id": "TD-011",
+      "type": "tech_debt",
+      "severity": "documented",
+      "description": "PostgreSQL SELECT ... ORDER BY ... LIMIT 1 FOR UPDATE does NOT re-resolve LIMIT after waiting on a row lock — the waiter re-reads the originally-identified (now-stale) row, missing the row just inserted by the holder. Surfaced by ST-007 with 2-session concurrency test. **Closed in-step** by adding pg_advisory_xact_lock(design_id, grade_id) BEFORE the FOR UPDATE in src/domain/stock.py::_apply. DS-002 spec text in decisions.json should be amended in S3 to mandate the advisory-lock-first layered pattern (see FA-S2-002/003).",
+      "sprint_introduced": "S2",
+      "target_sprint": "S2",
+      "status": "closed_in_S2",
+      "closed_by": ["pg_advisory_xact_lock in domain.stock._apply"],
+      "tags": ["S2", "concurrency", "DS-002", "postgresql"]
+    },
+    {
+      "id": "RI-003",
+      "type": "risk",
+      "severity": "low",
+      "title": "DS-002 spec text vs implementation drift",
+      "description": "TD-011 implementation (advisory-lock-first) is correct, but DS-002 spec text still describes only 'SELECT FOR UPDATE on latest row' without mentioning the advisory lock requirement. Risk: future contributor implements a new write path mirroring DS-002 text and re-introduces the LIMIT-1 race. Mitigation: amend DS-002 text in S3 /ases-lld.",
+      "sprint_introduced": "S2",
+      "mitigation_ref": "FA-S2-002",
+      "tags": ["S2", "spec-drift", "concurrency", "DS-002"]
     }
   ]
 }

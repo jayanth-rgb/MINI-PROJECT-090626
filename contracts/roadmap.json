@@ -25,7 +25,13 @@
       "modules": ["M-002", "M-003"],
       "scope_notes": "Delivers all 3 transactional forms end-to-end. Stock ledger writes happen inside the same DB transaction as the form save (DS-002). Includes the GET /designs/{id}/grades-with-cb endpoint that Adjustment needs. F-012 (carry-forward) is implicitly enforced by the ledger logic but is explicitly tested in S3.",
       "dependencies_on": ["S1"],
-      "status": "planned"
+      "status": "shipped",
+      "shipped_at": "2026-06-23",
+      "final_audit_verdict": "SHIP",
+      "commit": "68a675e",
+      "summary_ref": "sprints/S2/ship/sprint_summary.json",
+      "new_decisions": ["DS-013", "DS-014"],
+      "ship_findings": ["FA-S2-001 minor (TD-010)", "FA-S2-002 warning (DS-002 spec refinement S3)", "FA-S2-003 minor (spec amendment)"]
     },
     {
       "id": "S3",

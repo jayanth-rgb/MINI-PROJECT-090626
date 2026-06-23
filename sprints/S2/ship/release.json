@@ -1,0 +1,80 @@
+{
+  "$schema": "ases/v3.0/release",
+  "sprint_id": "S2",
+  "produced_by": "/ases-release",
+  "released_at": "2026-06-23",
+  "verdict_from_final_audit": "SHIP",
+  "commit": "68a675e",
+  "branch": "develop (local; unpushed)",
+
+  "features_shipped": [
+    { "feature_id": "F-007", "name": "Inward Entry", "ac_count": 8, "ac_passed": 8 },
+    { "feature_id": "F-008", "name": "Sales Entry", "ac_count": 6, "ac_passed": 6 },
+    { "feature_id": "F-009", "name": "Stock Adjustment", "ac_count": 7, "ac_passed": 7 }
+  ],
+  "total_acs_accepted": 21,
+
+  "test_summary": {
+    "backend_pytest": "112/112 PASS",
+    "integration_scenarios": "4/4 PASS",
+    "system_tests": "4/4 PASS (after 1 in-step fix iteration that closed TD-011)",
+    "frontend_jest": "5/13 PASS + 7 deferred (TD-010 Radix-jsdom)",
+    "wall_clock_full_backend_seconds": 49
+  },
+
+  "decisions_added": ["DS-013 (denormalize place)", "DS-014 (TIMESTAMPTZ uplift; closes TD-007)"],
+
+  "tech_debt_closed_in_S2": ["TD-007", "TD-009", "TD-011"],
+  "tech_debt_open_after_S2": [
+    "TD-005 (S1, W5-blocked)",
+    "TD-006 (S1, W5-blocked)",
+    "TD-008 (V2, likely subsumed by TD-011 fix; re-verify S3)",
+    "TD-010 (S3/V2, frontend Radix-jsdom)"
+  ],
+
+  "carry_forward_to_S3": ["CF-001 (W5 PG bring-up — still pending)"],
+
+  "phase_transition": {
+    "from_phase": "SPRINT_SHIP",
+    "to_phase": "SPRINT_DESIGN",
+    "current_sprint_updated_to": "S3"
+  },
+
+  "next_sprint_inputs": {
+    "sprint_id": "S3",
+    "scope_hint": "F-010 Stock Dashboard · F-011 Sales Report · F-012 Consolidation Report",
+    "constraints_inherited_from_S2": [
+      "tbl_stock_ledger composite index ix_stock_ledger_dgt is the lookup index — design queries around (design_id, grade_id, txn_date DESC, ledger_id DESC) ordering",
+      "DS-004 carry-forward is per-(design, grade) on-read lookup — opening = closing(month_first − 1 day); no opening-row materialization",
+      "DS-013 denormalized place — Sales Report shows place without dealer master join",
+      "DS-002 implementation now uses advisory-lock-first; S3 read paths don't need to acquire it but writes (if any) must compose it"
+    ],
+    "suggested_prd_updates": [
+      "AC-045 dashboard latency — re-state as numeric (p95 < 500ms) so /ases-system-test S3 can assert",
+      "Optional: PRD decision on TD-008 (first-row race) — accept-as-V1 vs require-V2-mitigation"
+    ],
+    "suggested_decisions_updates": [
+      "Amend DS-002 text to mandate advisory-lock-first layered pattern (closes FA-S2-002/003 + RI-003)"
+    ]
+  },
+
+  "global_context_entries_written": [
+    "SP-002 (S2 sprint digest)",
+    "FT-007, FT-008, FT-009 (3 S2 features)",
+    "TD-008 (open, V2)",
+    "TD-010 (open, S3/V2)",
+    "TD-011 (closed_in_S2 — record for traceability)",
+    "RI-003 (low, DS-002 spec drift mitigation pending)",
+    "TD-007 status updated to closed_in_S2"
+  ],
+
+  "files_updated_by_release": [
+    "CHANGELOG.md (S2 entry prepended)",
+    "contracts/roadmap.json (S2 marked shipped with commit + verdict)",
+    ".ases/global_context.json (4 new entries + TD-007 status)",
+    ".ases/context.json (phase → SPRINT_DESIGN, current_sprint → S3, sprint_history stamped)"
+  ],
+
+  "sprint_cycle_status": "complete",
+  "next_skill": "/ases-prd-update S3 (optional) → /ases-lld S3"
+}

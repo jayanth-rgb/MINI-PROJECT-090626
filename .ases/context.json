@@ -4,11 +4,11 @@
   "produced_by": "/ases-init",
   "updated_by": "every_command",
   "project": "Jayanth Trading Tiles System",
-  "sprint": "S2",
-  "phase": "SPRINT_SHIP",
-  "stage": "uat_S2_approved",
-  "last_completed": "/ases-uat S2",
-  "next": "/ases-devops S2",
+  "sprint": "S3",
+  "phase": "SPRINT_DESIGN",
+  "stage": "release_S2_SHIPPED_ready_for_S3_design",
+  "last_completed": "/ases-release S2",
+  "next": "/ases-prd-update S3 (optional) → /ases-lld S3",
   "blockers": [],
   "prd_version": 1,
   "project_id": "jayanth-trading-tiles",
@@ -54,7 +54,10 @@
     "test_run:S2:PASS",
     "integration_test:S2:PASS",
     "system_test:S2:PASS",
-    "uat:S2:APPROVED"
+    "uat:S2:APPROVED",
+    "devops:S2:committed:68a675e",
+    "final_audit:S2:SHIP",
+    "release:S2:SHIPPED"
   ],
   "open_issues": [
     "W1: deps_manifest missing jest + @testing-library/* (resolve before /ases-test-impl S1)",
@@ -95,18 +98,27 @@
     {
       "sprint_id": "S2",
       "closed_on": "2026-06-23",
+      "shipped_on": "2026-06-23",
       "completed_count": 16,
       "deferred_count": 0,
       "escalated_count": 0,
       "iteration_max": 1,
-      "new_tech_debt": ["TD-008", "TD-009"],
-      "closed_tech_debt": ["TD-007"],
+      "new_tech_debt": ["TD-008", "TD-010", "TD-011"],
+      "closed_tech_debt": ["TD-007", "TD-009", "TD-011"],
       "new_decisions": ["DS-013", "DS-014"],
       "carry_forward": ["CF-001 (W5 PG bring-up — still pending from S1)"],
       "test_cases_to_verify_in_phase_3": 56,
+      "tcs_passed": 106,
+      "tcs_deferred": 8,
+      "integration_scenarios": "4/4 pass",
+      "system_tests": "4/4 pass (TD-011 closed in-step)",
+      "uat_verdict": "APPROVED",
+      "final_audit_verdict": "SHIP",
+      "commit": "68a675e",
       "features_shipped": ["F-007", "F-008", "F-009"],
       "ui_tracks_status": "ui_scaffold LOCKED; 6 integration_points declared at frontend/src/lib/api/transactions.ts",
-      "summary_ref": "sprints/S2/ship/sprint_summary.json"
+      "summary_ref": "sprints/S2/ship/sprint_summary.json",
+      "release_ref": "sprints/S2/ship/release.json"
     },
     {
       "sprint_id": "S1",
@@ -131,5 +143,5 @@
   ],
   "decisions_count": 14,
   "last_updated": "2026-06-23",
-  "last_updated_by": "/ases-uat S2"
+  "last_updated_by": "/ases-release S2"
 }

@@ -1,0 +1,90 @@
+{
+  "$schema": "ases/v3.0/final_audit",
+  "sprint_id": "S2",
+  "audited_by": "/ases-final-audit (Critic Opus)",
+  "audited_at": "2026-06-23",
+  "verdict": "SHIP",
+  "severity_breakdown": {
+    "critical": 0,
+    "major": 0,
+    "minor": 2,
+    "warning": 1
+  },
+  "six_lenses": [
+    {
+      "lens": "test_coverage",
+      "result": "pass_with_minor_finding",
+      "details": "test_suite.json declares 56 TCs in coverage_map. Backend: 43 S2 + 46 S1 regression + 12 system fixtures = 101 critical/high tests all PASS. Frontend: 5/13 PASS + 6 zod-direct passing as added. Every UI-related AC has at least 1 backend test verifying the same invariant. No critical AC lacks coverage. TC-087 concurrency simplified to compile-check at unit level but functionally verified by ST-007 (2-session real-PG test).",
+      "findings": [
+        {
+          "id": "FA-S2-001",
+          "severity": "minor",
+          "summary": "7 frontend tests (TC-092/093/095/097/099/101/102) deferred to TD-010 due to Radix UI Select + Popover incompatibility with jsdom. Backend API tests cover the same ACs via integration tests (IS-005/006/007 + service-level TCs).",
+          "tech_debt_ref": "TD-010",
+          "blocks_ship": false
+        }
+      ]
+    },
+    {
+      "lens": "integration_integrity",
+      "result": "pass",
+      "details": "4/4 IS scenarios pass on first execution: IS-005 inward→ledger, IS-006 sales decrement, IS-007 adjustment full DF-003 flow (incl zero-diff audit), IS-008 back-date forward-recompute. Module contract chain M-002 services → M-007 repositories/models → M-003 domain verified end-to-end. No module boundary violations observed.",
+      "findings": []
+    },
+    {
+      "lens": "system_test",
+      "result": "pass_after_fix",
+      "details": "4/4 ST scenarios pass. Performance ST-004 met with 23× headroom (p95=4.4ms vs 100ms budget) leaving ample latency for S3 read-path. ST-005 boundary parametrized verified AC-021 exact 7-day window. ST-006 security verified Pydantic+DB CHECK defense-in-depth. ST-007 (TC-087 functional concurrency) discovered TD-011 (PG SELECT FOR UPDATE LIMIT 1 race) and fixed in-step with pg_advisory_xact_lock — iteration 2 PASS.",
+      "findings": [
+        {
+          "id": "FA-S2-002",
+          "severity": "warning",
+          "summary": "TD-011 closed at code level (advisory lock added to domain.stock._apply) but DS-002 spec text in .ases/decisions.json still describes the lock pattern as 'SELECT FOR UPDATE on the latest ledger row' without mentioning the advisory-lock-first requirement. Spec text amendment recommended for S3 to prevent future regressions.",
+          "tech_debt_ref": "TD-011 (closed) — spec text addendum suggested",
+          "blocks_ship": false
+        }
+      ]
+    },
+    {
+      "lens": "uat_alignment",
+      "result": "pass",
+      "details": "21/21 ACs accepted. 0 accepted_with_notes (no conditional findings). 0 rejected. 5 cross-cutting verifications (DS-002/003/004/013 + write-path perf) also accepted. No UAT findings to convert to tech debt — the only UAT-noted items (TD-010, TD-011, TD-008) were already logged during prior ship steps.",
+      "findings": []
+    },
+    {
+      "lens": "spec_conformance",
+      "result": "pass_with_minor_finding",
+      "details": "16 backend tasks all CLEAN on iteration 1, meaning critique verified every method signature against LLD. LLD files[0..15] interfaces all implemented correctly. New decisions (DS-013 + DS-014) properly added to .ases/decisions.json with full rationale + tradeoffs. TD-011 surfaced an implicit DS-002 weakness (covered by FA-S2-002 above).",
+      "findings": [
+        {
+          "id": "FA-S2-003",
+          "severity": "minor",
+          "summary": "DS-002 spec text in decisions.json describes only 'SELECT FOR UPDATE on latest ledger row' but the verified safe implementation also requires pg_advisory_xact_lock to handle PG's LIMIT-1 race documented behavior. Suggest updating DS-002 text in S3 design phase to mandate the layered pattern.",
+          "blocks_ship": false
+        }
+      ]
+    },
+    {
+      "lens": "risk_review",
+      "result": "pass",
+      "details": "HLD critical/medium risks for S2: R-001 (concurrent-entry race) — mitigation verified end-to-end via ST-007 2-session test after TD-011 fix; R-003 (back-dated transactions) — verified via IS-008 + TC-086 (forward-recompute correctness). R-002 (oversell) is V1 documented-acceptable per LLD note (no AC). No new risks surfaced during ship.",
+      "findings": []
+    }
+  ],
+  "tech_debt_summary": {
+    "opened_in_S2": ["TD-008 (V2 first-row race)", "TD-009 (closed at /ases-test-impl)", "TD-010 (Radix-jsdom)", "TD-011 (closed at /ases-system-test)"],
+    "closed_in_S2": ["TD-007 (by DS-014)", "TD-009", "TD-011"],
+    "carried_to_S3_or_V2": ["TD-010 (S3 or V2)", "TD-008 (V2 — likely subsumed by TD-011 fix; re-verify in S3)"],
+    "net_open_after_S2": 2
+  },
+  "block_findings": [],
+  "conditional_ship_findings": [],
+  "ship_findings": [
+    "FA-S2-001 (minor) — TD-010 7 frontend tests deferred",
+    "FA-S2-002 (warning) — TD-011 closed but DS-002 spec text could be tightened in S3",
+    "FA-S2-003 (minor) — DS-002 spec amendment recommendation for S3"
+  ],
+  "commit_ref": "68a675e",
+  "ready_for_po_approval": true,
+  "next": "/ases-release S2"
+}

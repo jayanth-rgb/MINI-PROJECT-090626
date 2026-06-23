@@ -65,7 +65,8 @@
       "Bash(.venv/Scripts/python -m pytest tests/unit/scripts/test_seed_master_data.py -v --tb=short)",
       "Bash(.venv/Scripts/python -m pytest tests/ --tb=no -q)",
       "Bash(.venv/Scripts/python -m pytest tests/ --tb=no)",
-      "Bash(grep -E \"^={5,}|passed|failed|error\")"
+      "Bash(grep -E \"^={5,}|passed|failed|error\")",
+      "Bash(git diff-tree *)"
     ],
     "deny": [
       "Write(./.env)",

@@ -1,0 +1,79 @@
+{
+  "$schema": "ases/v3.0/devops_log",
+  "sprint_id": "S2",
+  "produced_by": "/ases-devops S2",
+  "executed_at": "2026-06-23",
+  "pre_check": {
+    "uat_verdict": "APPROVED",
+    "current_phase": "SPRINT_SHIP",
+    "hook_guard": "passed"
+  },
+  "commit": {
+    "hash": "68a675e",
+    "branch": "develop",
+    "remote_status": "unpushed (local commit only — no push per ASES rule)",
+    "files_changed": 204,
+    "insertions": 15300,
+    "deletions": 36,
+    "commit_message_first_line": "feat(S2): Inward + Sales + Adjustment forms with materialized stock ledger",
+    "co_authored_by": "Claude Opus 4.7 <noreply@anthropic.com>"
+  },
+  "staged_groups": {
+    "backend_src": [
+      "backend/src/infrastructure/db/base.py (modified — DS-014 TIMESTAMPTZ)",
+      "backend/src/infrastructure/db/models/transactions.py (new — 7 ORM models)",
+      "backend/src/infrastructure/db/repositories/transactions.py (new — 4 repos)",
+      "backend/src/domain/stock.py (new — domain arithmetic + pg_advisory_xact_lock fix from TD-011)",
+      "backend/src/application/services/{inward,sales,adjustment,design_grade_cb}_service.py (new — 4 services)",
+      "backend/src/presentation/api/dependencies.py (modified — 4 new DI factories)",
+      "backend/src/presentation/api/routers/{inward,sales,adjustments}.py (new — 3 routers)",
+      "backend/src/presentation/api/routers/designs.py (modified — +grades-with-cb route)",
+      "backend/src/presentation/schemas/transactions.py (new — 13 Pydantic schemas)",
+      "backend/src/main.py (modified — mount 3 new routers)"
+    ],
+    "backend_db": [
+      "backend/db/migrations/versions/0003_transaction_and_ledger_tables.py (new — Alembic 0003 with revision_id='0003_tx_ledger')"
+    ],
+    "backend_tests": [
+      "backend/tests/conftest.py (modified — import transactions model module)",
+      "backend/tests/unit/domain/ (new dir — test_stock.py 9 TCs)",
+      "backend/tests/unit/application/services/test_{inward,sales,adjustment,design_grade_cb}_service.py (new — 17 TCs)",
+      "backend/tests/unit/presentation/schemas/test_schemas_transactions.py (new — 6 TCs)",
+      "backend/tests/integration/db/test_transaction_constraints.py (new — 5 TCs)",
+      "backend/tests/integration/api/test_{inward,sales,adjustments,designs_grades_with_cb}_api.py (new — 6 TCs)",
+      "backend/tests/integration/test_integration_is{005,006,007,008}_*.py (new — 4 IS scenarios)",
+      "backend/tests/system/test_{perf_apply_inward,boundary_backdate_window,security_malformed_payloads,load_concurrent_select_for_update}.py (new — 4 ST scenarios)"
+    ],
+    "frontend": [
+      "frontend/src/types/transactions.ts (new)",
+      "frontend/src/lib/validation/transaction-schemas.ts (new)",
+      "frontend/src/lib/api/transactions.ts (new — INTEGRATION BOUNDARY)",
+      "frontend/src/lib/mocks.ts (modified — appended transaction mocks + helpers)",
+      "frontend/src/components/ui/date-picker.tsx (new)",
+      "frontend/src/components/transactions/ (new dir — InwardForm, SalesForm, AdjustmentForm, TransactionLineRow, AdjustmentLineRow, Err012Banner + 3 __tests__)",
+      "frontend/src/app/admin/{inward,sales,adjustments}/new/page.tsx (new pages)",
+      "frontend/src/app/admin/layout.tsx (modified — Transactions nav section)"
+    ],
+    "ases_state_and_contracts": [
+      ".ases/context.json (modified — sprint_history S2 + phase + tech_debt updates)",
+      ".ases/decisions.json (modified — DS-013 + DS-014 entries)",
+      ".claude/settings.json (modified — sprint progress)",
+      "contracts/scaffold.json (modified — sprint_S2 block)"
+    ],
+    "sprint_artifacts": [
+      "sprints/S2/design/ (new — lld, schema, test_cases, sprint_gate, scaffold_spec, deps_manifest)",
+      "sprints/S2/execution/ (new — analysis, tasks + 16 per-task plan/tests files, 16 validation_*, 16 critique_*, ui_spec, ui_review, ui_scaffold_manifest, snapshots/)",
+      "sprints/S2/ship/ (new — sprint_summary, test_suite, test_run_report, integration_scenarios, system_test_scenarios, system_test_report, uat_checklist, uat_report, devops_log)"
+    ]
+  },
+  "excluded": {
+    ".env": "excluded (gitignored)",
+    "graphify-out/": "excluded (gitignored per .gitignore)",
+    ".claude/settings.local.json": "not modified in this sprint",
+    "backend/.venv/": "excluded (gitignored)",
+    "frontend/node_modules/": "excluded (gitignored)"
+  },
+  "previous_commit": "91d3942 docs(S1): finalize Sprint S1 release artifacts",
+  "push_status": "not pushed — per ASES rule, push is a separate explicit action by PO",
+  "next": "/ases-final-audit S2"
+}
