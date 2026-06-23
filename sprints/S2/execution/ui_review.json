@@ -1,0 +1,81 @@
+{
+  "$schema": "ases/v3.0/ui_review",
+  "document": "ui_review",
+  "produced_by": "/ases-ui-review",
+  "consumed_by": ["/ases-ui-scaffold"],
+  "sprint_id": "S2",
+  "verdict": "APPROVED",
+  "checks": [
+    {
+      "check": "ac_coverage",
+      "result": "pass",
+      "ac_count_in_scope": 20,
+      "ac_count_addressed": 20,
+      "details": "Every UI-relevant AC for F-007 (AC-020..027), F-008 (AC-028..033), F-009 (AC-034..040) has at least one component or validation rule addressing it. AC-027 (Inward atomicity), AC-033 (Sales Δ=-nos at ledger), and AC-039 (Adjustment ledger apply) are backend invariants — the UI's responsibility is correctly limited to forming a valid payload + reporting success/failure as a unit via the mutation, which the spec captures.",
+      "ac_map": {
+        "AC-020": "InwardForm zod refine (purchase_date <= today, ERR-001)",
+        "AC-021": "InwardForm zod refine (purchase_date >= today - 7d, ERR-002)",
+        "AC-022": "InwardForm supplier select → place ReadOnlyField (DS-013 client-side mirror)",
+        "AC-023": "InwardForm useGradesForDesign(design_id) → TransactionLineRow[] field-array",
+        "AC-024": "InwardForm zod nos.refine(n => n === null || n >= 0, 'ERR-007') per line",
+        "AC-025": "InwardForm submit handler strips lines where nos == null || nos === 0 before mutation (RULE-017 client-side mirror)",
+        "AC-026": "InwardForm zod lines.refine(arr => arr.some(l => l.nos != null && l.nos > 0), 'AC-026')",
+        "AC-027": "Backend invariant; UI presents the save as a single mutation with toast on success/failure",
+        "AC-028": "SalesForm zod date refinements (ERR-001/ERR-002)",
+        "AC-029": "SalesForm dealer select → place ReadOnlyField (DS-013)",
+        "AC-030": "SalesForm zod loading_staff_id + verified_by_id both .int().positive() — TC-097",
+        "AC-031": "SalesForm useGradesForDesign(design_id) → line rows",
+        "AC-032": "SalesForm zod nos refinements (mirror of AC-024)",
+        "AC-033": "Backend invariant (stock.apply_sale Δ=-nos); UI just submits payload",
+        "AC-034": "AdjustmentCreate type has design_id ONLY on header; AdjustmentLineCreate excludes design_id — structurally enforced (mirrors T-046)",
+        "AC-035": "AdjustmentForm cross-field zod .refine(d => d.stock_date <= d.entry_date, 'ERR-010') — TC-098",
+        "AC-036": "AdjustmentForm useGradesWithCb(design_id, stock_date) → AdjustmentLineRow[] with software_cb pre-filled read-only — TC-099",
+        "AC-037": "AdjustmentForm zod physical_cb.nonnegative('ERR-009') per line — TC-100",
+        "AC-038": "AdjustmentLineRow live-computed difference via react-hook-form watch() with aria-live='polite' — TC-101",
+        "AC-039": "Backend invariant (stock.apply_adjustment Δ=difference); UI just submits payload",
+        "AC-040": "AdjustmentForm Err012Banner shown when getGradesWithCb returns []; line entry hidden + submit disabled — TC-102"
+      }
+    },
+    {
+      "check": "module_boundary",
+      "result": "pass",
+      "details": "All UI components live within M-006 (Frontend) per HLD. The 3 form pages (app/inward/new, app/sales/new, app/adjustments/new), shared components (components/ui, components/transactions), api.ts, mocks.ts, schemas.ts, types/transactions.ts, hooks/transactions all reside in frontend/src/. No component reaches into M-002 (backend application layer) or M-003 (backend domain) directly — UI consumes M-002 HTTP endpoints which compose M-003 server-side. The Transactions nav-sidebar addition modifies one existing S1 file in M-006 — within boundary. DS-006 (frontend/backend as separate Docker images, HTTP-only coupling) honored.",
+      "modules_touched": ["M-006 (Frontend)"]
+    },
+    {
+      "check": "api_contract",
+      "result": "pass",
+      "details": "8 endpoints referenced; all map to actual LLD interfaces. POST /api/v1/inward (T-052+T-047) accepts InwardCreate {purchase_date, supplier_id, entered_by_id, lines[]} — matches T-046 schema. POST /api/v1/sales (T-053+T-048) accepts SalesCreate {sales_date, dealer_id, loading_staff_id, verified_by_id, lines[]} — matches. POST /api/v1/adjustments (T-054+T-049) accepts AdjustmentCreate {stock_date, entry_date, design_id, entered_by_id, lines[]} — matches (note: AdjustmentLineCreate has grade_id + physical_cb only; software_cb intentionally omitted per AC-036, server-snapshotted). GET /api/v1/designs/{id}/grades-with-cb?stock_date= (T-055+T-050) returns list[DesignGradeReadWithCb {grade_id, grade_code, software_cb}] — matches. S1 reused endpoints (suppliers/dealers/staff/designs/designs.grades) — all match S1 contracts. Place field correctly absent from all *Create payloads (DS-013) and server-derived; present on *Read responses for display.",
+      "endpoint_map": {
+        "POST /api/v1/inward": "T-052 router + T-047 service + T-046 InwardCreate/Read",
+        "GET /api/v1/inward": "T-052 + T-047 list_inwards(date_from, date_to)",
+        "POST /api/v1/sales": "T-053 + T-048 + T-046 SalesCreate/Read",
+        "GET /api/v1/sales": "T-053 + T-048 list_sales(date_from, date_to, dealer_ids?, design_ids?)",
+        "POST /api/v1/adjustments": "T-054 + T-049 + T-046 AdjustmentCreate/Read",
+        "GET /api/v1/designs/{id}/grades-with-cb": "T-055 + T-050 + T-046 DesignGradeReadWithCb",
+        "GET /api/v1/designs/{id}/grades": "S1 T-022 + T-006 (existing — DesignGradeReadMin)",
+        "GET /api/v1/{suppliers|dealers|staff|designs}": "S1 list endpoints"
+      }
+    }
+  ],
+  "warnings": [
+    {
+      "id": "UR-W007",
+      "severity": "minor",
+      "component_ref": "InwardForm + SalesForm useGradesForDesign hook + mocks_layer",
+      "description": "ui_spec uses the placeholder name 'GradeReadMin' for the S1 GET /designs/{id}/grades response item; the actual S1 schema is 'DesignGradeReadMin' (verified in S1 designs.py imports). Functionally equivalent shape ({grade_id, grade_code}), but the TS type alias and import should use the canonical name to align with the backend Pydantic class and avoid two-name drift.",
+      "fix_at_scaffold": "When generating types/transactions.ts (or hooks/transactions), import or re-export DesignGradeReadMin from the S1 master schemas mirror, NOT define a parallel 'GradeReadMin' type. Update mocks.ts to use the same name."
+    },
+    {
+      "id": "UR-W008",
+      "severity": "advisory",
+      "component_ref": "AdjustmentForm useGradesWithCb integration",
+      "description": "The spec correctly notes that useGradesWithCb is gated on (design_id && stock_date). However, if the user changes stock_date AFTER selecting a design (and the query re-runs returning [] because the date moved to a window with no closing balances), the form should re-show Err012Banner. Make sure the AdjustmentLineRow field-array is reactive to query refetch, not just a one-shot populate on first response.",
+      "fix_at_scaffold": "Use useEffect on data change to reset(form.values.lines, newLines) whenever getGradesWithCb data updates, not just on initial load. The Err012Banner visibility binds to data.length === 0, which is naturally reactive — no extra work needed there."
+    }
+  ],
+  "approved_for_scaffold": true,
+  "next": "/ases-ui-scaffold S2",
+  "reviewed_at": "2026-06-22",
+  "reviewed_by": "/ases-ui-review S2"
+}

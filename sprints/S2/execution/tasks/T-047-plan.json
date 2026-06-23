@@ -1,0 +1,17 @@
+{
+  "task_id": "T-047",
+  "title": "InwardService (F-007)",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/application/services/inward_service.py"],
+  "scope": "InwardService.save_inward: validate purchase_date bounds (AC-020/AC-021), supplier exists+active+snapshot place (AC-022 / DS-013), staff exists+active, design+grade exist+active, (design, grade) pair in active map (AC-023), strip lines with nos<=0/None (AC-025), reject zero valid lines (AC-026), write header+lines, apply_inward per line, commit. Also list_inwards(date_from, date_to).",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-043", "T-045", "T-046"],
+  "test_case_refs": ["TC-047", "TC-049", "TC-050", "TC-051", "TC-054", "TC-055", "TC-056"],
+  "decisions_referenced": ["DS-002", "DS-007", "DS-013"],
+  "success_criteria": {
+    "manual": "Save valid InwardCreate; header+lines persisted; ledger rows created.",
+    "automated": "TC-047..TC-051, TC-054..TC-056 pass.",
+    "definition_of_done": "save_inward writes atomically; list_inwards filters by date range."
+  },
+  "checkout_prompt": "'InwardService created; atomic save with ledger updates per line.'"
+}

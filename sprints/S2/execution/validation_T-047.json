@@ -1,0 +1,33 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "task_id": "T-047",
+  "sprint_id": "S2",
+  "verdict": "PROCEED",
+  "checks": [
+    {
+      "check": "input_files_exist",
+      "result": "pass",
+      "details": "All 5 reads_from inputs verified: backend/src/infrastructure/db/repositories/transactions.py (T-043, 4 repos including InwardHeaderRepository); backend/src/infrastructure/db/repositories/master.py (S1, 6 master repos); backend/src/domain/stock.py (T-045, apply_inward + closing_balance + opening_balance); backend/src/presentation/schemas/transactions.py (T-046, InwardCreate/Read + Line variants); backend/src/domain/exceptions.py (S1, NotFoundError + ValidationError types)."
+    },
+    {
+      "check": "interface_contract_intact",
+      "result": "pass",
+      "details": "LLD files[5] declares 2 public methods: InwardService.save_inward(payload: InwardCreate) → InwardRead; InwardService.list_inwards(date_from, date_to) → list[InwardRead]. Raises: ValidationError (date bounds), NotFoundError (missing supplier/staff/design/grade), ValidationError (no valid lines). Expects = [InwardHeaderRepository, SupplierRepository, StaffRepository, DesignGradeMapRepository (validate_pair_active), domain.stock.apply_inward, Pydantic schemas]. Target file does not yet exist (consistent with type=create)."
+    },
+    {
+      "check": "scope_boundary_clear",
+      "result": "pass",
+      "details": "T-047 writes exactly one file (backend/src/application/services/inward_service.py). No other task in tasks.json writes to or modifies this file. S1 master services live in backend/src/application/services/ (supplier_service.py, staff_service.py, etc.) — disjoint. No tasks currently in_progress (T-046 just transitioned to complete)."
+    },
+    {
+      "check": "no_circular_dependency",
+      "result": "pass",
+      "details": "T-047.depends_on = ['T-043', 'T-045', 'T-046']. All 3 are status='complete': T-043 (4 transaction repos including StockLedgerRepository with SELECT FOR UPDATE), T-045 (5 public domain stock functions + _recompute_forward), T-046 (13 Pydantic schemas including InwardCreate/InwardRead). No back-edges. T-047 is one of 4 parallel-group-B entries (T-047/048/049/050) — all unblocked by T-045+T-046 completion."
+    }
+  ],
+  "decisions_in_scope": ["DS-002", "DS-007", "DS-013"],
+  "test_case_refs": ["TC-047", "TC-049", "TC-050", "TC-051", "TC-054", "TC-055", "TC-056"],
+  "next": "/ases-dev T-047 S2",
+  "validated_at": "2026-06-22",
+  "validated_by": "/ases-validate T-047 S2"
+}

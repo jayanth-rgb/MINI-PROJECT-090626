@@ -1,0 +1,17 @@
+{
+  "task_id": "T-044",
+  "title": "Alembic migration 0003 — transactions + stock ledger + S1 TIMESTAMPTZ uplift",
+  "module_ref": "M-007",
+  "output_files": ["backend/db/migrations/versions/0003_transaction_and_ledger_tables.py"],
+  "scope": "Alembic revision 0003. revision='0003_transaction_and_ledger_tables', down_revision='0002_master_tables'. upgrade(): (1) ALTER 4 S1 created_at columns to TIMESTAMPTZ (DS-014); (2) CREATE 3 header tables (parents); (3) CREATE 3 line tables (FK children, CASCADE on header delete); (4) CREATE tbl_stock_ledger with ix_stock_ledger_dgt composite index. downgrade(): drop indexes → drop tables → revert TIMESTAMPTZ.",
+  "do_not_touch": ["any other file (including 0002_master_tables.py)"],
+  "depends_on": ["T-041", "T-042"],
+  "test_case_refs": ["TC-053", "TC-064", "TC-069", "TC-088", "TC-089"],
+  "decisions_referenced": ["DS-009", "DS-014"],
+  "success_criteria": {
+    "manual": "alembic upgrade head succeeds against fresh PG (testcontainer or IS-002-style PG); \\d on each new table shows the expected CHECK constraints and FK ON DELETE RESTRICT / CASCADE.",
+    "automated": "TC-053 (inward_line nos>0), TC-064 (sales_line nos>0), TC-069 (adjustment_header dates), TC-088 (stock_ledger source_type), TC-089 (FK RESTRICT) all fire IntegrityError as expected.",
+    "definition_of_done": "Revision id stable ('0003_transaction_and_ledger_tables'); down_revision='0002_master_tables'; upgrade + downgrade run cleanly; ix_stock_ledger_dgt index visible in pg_indexes."
+  },
+  "checkout_prompt": "'Migration 0003 — 4 ALTERs + 7 new tables + composite index. alembic upgrade head clean.'"
+}

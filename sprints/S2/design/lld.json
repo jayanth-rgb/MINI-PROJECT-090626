@@ -1,0 +1,707 @@
+{
+  "$schema": "ases/v3.0/lld",
+  "document": "lld",
+  "produced_by": "/ases-lld",
+  "consumed_by": ["/ases-schema", "/ases-test-spec", "/ases-tasks", "/ases-validate", "/ases-dev"],
+  "sprint_id": "S2",
+  "scope_modules": ["M-002", "M-003", "M-007"],
+  "scope_features": ["F-007", "F-008", "F-009"],
+  "api_base_path": "/api/v1",
+  "scope_notes": "M-007 is touched (extends base.py TimestampMixin per DS-014; adds 7 ORM models + the alembic migration 0003) even though the roadmap nominally lists S2 as M-002 + M-003 — the new transaction tables must land somewhere and DS-009 says ORM is source-of-truth, so the schema additions live in infrastructure under M-007 while the business logic above is M-002 / M-003.",
+  "files": [
+    {
+      "path": "backend/src/infrastructure/db/base.py",
+      "purpose": "MODIFY (S1 carry-over). Upgrade TimestampMixin to emit TIMESTAMPTZ (closes TD-007 per DS-014). One-line ORM change; the matching DB ALTERs ship in migration 0003.",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "modification": "modify",
+      "functions": [
+        {
+          "name": "TimestampMixin",
+          "inputs": [],
+          "outputs": [{ "name": "mixin", "type": "Mixin" }],
+          "description": "created_at column type becomes DateTime(timezone=True) — was plain DateTime in S1. server_default=func.now() retained; ORM behavior of returning timezone-aware datetimes becomes consistent."
+        }
+      ],
+      "interfaces": {
+        "exports": ["Base", "TimestampMixin"],
+        "expects": []
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+    {
+      "path": "backend/src/infrastructure/db/models/transactions.py",
+      "purpose": "SQLAlchemy 2.x ORM models for the 7 new transaction + ledger tables. All headers inherit (Base, TimestampMixin) so created_at is TIMESTAMPTZ after DS-014. Place is denormalized on Inward/Sales headers per DS-013.",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "InwardHeaderModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_inward_header'. Columns: header_id BIGSERIAL PK, purchase_date DATE NOT NULL, supplier_id BIGINT FK→tbl_supplier_master.supplier_id NOT NULL (ondelete RESTRICT), place TEXT NOT NULL (denormalized snapshot of supplier.place at save — DS-013), entered_by_id BIGINT FK→tbl_staff_master.staff_id NOT NULL (RESTRICT), created_at TIMESTAMPTZ. Relationship: lines (one-to-many → InwardLineModel, cascade='all, delete-orphan' at ORM level — no DB CASCADE; AC-027 requires atomicity via service-level transaction). (F-007)"
+        },
+        {
+          "name": "InwardLineModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_inward_line'. Columns: line_id BIGSERIAL PK, header_id BIGINT FK→tbl_inward_header.header_id NOT NULL (ondelete CASCADE — DB-level safety for ORM cascade), design_id BIGINT FK→tbl_trading_design_master.design_id NOT NULL (RESTRICT), grade_id BIGINT FK→tbl_grade_master.grade_id NOT NULL (RESTRICT), nos INTEGER NOT NULL CHECK(nos > 0) per AC-024. (F-007)"
+        },
+        {
+          "name": "SalesHeaderModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_sales_header'. Columns: header_id BIGSERIAL PK, sales_date DATE NOT NULL, dealer_id BIGINT FK→tbl_dealer_master (RESTRICT), place TEXT NOT NULL (denormalized DS-013), loading_staff_id BIGINT FK→tbl_staff_master (RESTRICT) NOT NULL, verified_by_id BIGINT FK→tbl_staff_master (RESTRICT) NOT NULL, created_at TIMESTAMPTZ. (F-008)"
+        },
+        {
+          "name": "SalesLineModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_sales_line'. Same shape as InwardLineModel with FK back to sales_header. CHECK(nos > 0). (F-008)"
+        },
+        {
+          "name": "AdjustmentHeaderModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_adjustment_header'. Columns: header_id BIGSERIAL PK, stock_date DATE NOT NULL, entry_date DATE NOT NULL, design_id BIGINT FK→tbl_trading_design_master (RESTRICT) NOT NULL (single-design per AC-034), entered_by_id BIGINT FK→tbl_staff_master (RESTRICT) NOT NULL, created_at TIMESTAMPTZ. CHECK(stock_date <= entry_date) per AC-035 (ERR-010). (F-009)"
+        },
+        {
+          "name": "AdjustmentLineModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_adjustment_line'. Columns: line_id BIGSERIAL PK, header_id BIGINT FK→tbl_adjustment_header.header_id NOT NULL (ondelete CASCADE), grade_id BIGINT FK→tbl_grade_master (RESTRICT) NOT NULL, software_cb INTEGER NOT NULL (snapshot from ledger at form-load time per AC-036), physical_cb INTEGER NOT NULL CHECK(physical_cb >= 0) per AC-037, difference INTEGER NOT NULL (computed = physical_cb - software_cb per AC-038; persisted, not GENERATED, so it survives ledger recompute). (F-009)"
+        },
+        {
+          "name": "StockLedgerModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "class[Base]" }],
+          "description": "__tablename__='tbl_stock_ledger'. Columns: ledger_id BIGSERIAL PK, design_id BIGINT FK→tbl_trading_design_master (RESTRICT) NOT NULL, grade_id BIGINT FK→tbl_grade_master (RESTRICT) NOT NULL, txn_date DATE NOT NULL, source_type TEXT NOT NULL CHECK IN ('inward', 'sale', 'adjustment'), source_header_id BIGINT NULL, source_line_id BIGINT NULL, delta INTEGER NOT NULL (signed: positive for inward, negative for sale, ±difference for adjust), running_balance INTEGER NOT NULL (DS-003 materialized), created_at TIMESTAMPTZ. Indexes: (design_id, grade_id, txn_date DESC, ledger_id DESC) for the latest-as-of-date lookup that closing_balance + opening_balance both need. (M-003)"
+        }
+      ],
+      "interfaces": {
+        "exports": ["InwardHeaderModel", "InwardLineModel", "SalesHeaderModel", "SalesLineModel", "AdjustmentHeaderModel", "AdjustmentLineModel", "StockLedgerModel"],
+        "expects": ["Base", "TimestampMixin (with TIMESTAMPTZ per DS-014)"]
+      },
+      "depends_on": ["backend/src/infrastructure/db/base.py"],
+      "test_required": true
+    },
+    {
+      "path": "backend/db/migrations/versions/0003_transaction_and_ledger_tables.py",
+      "purpose": "Alembic revision 0003. (a) ALTERs the 4 existing created_at columns from TIMESTAMP to TIMESTAMPTZ — closes TD-007. (b) Creates the 7 new transaction + ledger tables. (c) Creates indexes including the composite (design_id, grade_id, txn_date DESC, ledger_id DESC) on tbl_stock_ledger.",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "upgrade",
+          "inputs": [],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "1. op.alter_column to TIMESTAMP WITH TIME ZONE on created_at of: tbl_supplier_master, tbl_staff_master, tbl_dealer_master, tbl_trading_design_master. (PostgreSQL preserves data; rewrites column type.) 2. op.create_table for the 6 transaction tables in dependency order (3 headers first, then 3 line tables). 3. op.create_table for tbl_stock_ledger. 4. op.create_index 'ix_stock_ledger_dgt' on (design_id, grade_id, txn_date DESC, ledger_id DESC). 5. CHECK constraints: nos > 0 on the 3 line tables; physical_cb >= 0 on adjustment_line; stock_date <= entry_date on adjustment_header; source_type IN list on stock_ledger."
+        },
+        {
+          "name": "downgrade",
+          "inputs": [],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Drop tbl_stock_ledger and the 6 transaction tables in reverse FK dependency order (lines first, then headers). Revert the 4 TIMESTAMPTZ columns back to TIMESTAMP."
+        }
+      ],
+      "interfaces": {
+        "exports": ["revision identifiers", "upgrade", "downgrade"],
+        "expects": ["alembic.op", "sqlalchemy.sa", "down_revision = '0002_master_tables'"]
+      },
+      "depends_on": [
+        "backend/db/migrations/env.py",
+        "backend/src/infrastructure/db/models/transactions.py",
+        "backend/src/infrastructure/db/base.py"
+      ],
+      "test_required": false
+    },
+    {
+      "path": "backend/src/infrastructure/db/repositories/transactions.py",
+      "purpose": "Per-entity repositories for the 7 new tables. Each header repo persists header + lines as a unit (caller is responsible for the surrounding service transaction). StockLedgerRepository encapsulates the SELECT FOR UPDATE + latest-row-by-(design,grade,date) lookup that DS-002 + DS-003 require.",
+      "layer": "infrastructure",
+      "module_ref": "M-007",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "InwardHeaderRepository",
+          "inputs": [],
+          "outputs": [{ "name": "repo", "type": "BaseRepository[InwardHeaderModel]" }],
+          "description": "Subclass of BaseRepository[InwardHeaderModel] + create_with_lines(header_payload, line_payloads) → InwardHeaderModel that inserts header + lines in one session.add_all + flush. Caller commits."
+        },
+        {
+          "name": "SalesHeaderRepository",
+          "inputs": [],
+          "outputs": [{ "name": "repo", "type": "BaseRepository[SalesHeaderModel]" }],
+          "description": "Mirror of InwardHeaderRepository for sales."
+        },
+        {
+          "name": "AdjustmentHeaderRepository",
+          "inputs": [],
+          "outputs": [{ "name": "repo", "type": "BaseRepository[AdjustmentHeaderModel]" }],
+          "description": "Mirror with create_with_lines for adjustment + lines."
+        },
+        {
+          "name": "StockLedgerRepository.latest_for_design_grade",
+          "inputs": [
+            { "name": "design_id", "type": "int" },
+            { "name": "grade_id", "type": "int" },
+            { "name": "for_update", "type": "bool", "required": false }
+          ],
+          "outputs": [{ "name": "row", "type": "StockLedgerModel | None" }],
+          "description": "SELECT FROM tbl_stock_ledger WHERE (design_id, grade_id) ORDER BY txn_date DESC, ledger_id DESC LIMIT 1. If for_update=True, appends FOR UPDATE (DS-002 lock acquisition before write)."
+        },
+        {
+          "name": "StockLedgerRepository.latest_as_of",
+          "inputs": [
+            { "name": "design_id", "type": "int" },
+            { "name": "grade_id", "type": "int" },
+            { "name": "as_of_date", "type": "date" }
+          ],
+          "outputs": [{ "name": "row", "type": "StockLedgerModel | None" }],
+          "description": "SELECT … WHERE (design_id, grade_id) AND txn_date <= as_of_date ORDER BY txn_date DESC, ledger_id DESC LIMIT 1. Drives closing_balance(as_of_date) and opening_balance(month_first_day - 1) lookups per DS-004."
+        },
+        {
+          "name": "StockLedgerRepository.rows_after",
+          "inputs": [
+            { "name": "design_id", "type": "int" },
+            { "name": "grade_id", "type": "int" },
+            { "name": "after_date_inclusive", "type": "date" }
+          ],
+          "outputs": [{ "name": "rows", "type": "list[StockLedgerModel]" }],
+          "description": "SELECT … WHERE (design_id, grade_id) AND txn_date >= after_date_inclusive ORDER BY txn_date ASC, ledger_id ASC. Drives the back-dated-transaction forward-recompute loop. Bounded by AC-021's 7-day window so this list is small (≤ ~30 rows at realistic throughput per DS-003)."
+        },
+        {
+          "name": "StockLedgerRepository.insert",
+          "inputs": [
+            { "name": "data", "type": "dict[str, Any]" }
+          ],
+          "outputs": [{ "name": "row", "type": "StockLedgerModel" }],
+          "description": "Construct + add + flush. Caller commits. Used by domain.stock.apply_* functions."
+        }
+      ],
+      "interfaces": {
+        "exports": ["InwardHeaderRepository", "SalesHeaderRepository", "AdjustmentHeaderRepository", "StockLedgerRepository"],
+        "expects": ["BaseRepository", "7 ORM models from models/transactions.py"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/base.py",
+        "backend/src/infrastructure/db/models/transactions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/domain/stock.py",
+      "purpose": "M-003 core. Pure functions over the stock ledger that handle: SELECT FOR UPDATE serialization, materialized running_balance write, back-dated-transaction forward-recompute (DS-003), and on-read carry-forward lookup (DS-004). No HTTP, no Pydantic — application services compose these primitives inside their own transaction.",
+      "layer": "domain",
+      "module_ref": "M-003",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "apply_inward",
+          "inputs": [
+            { "name": "session", "type": "Session" },
+            { "name": "design_id", "type": "int" },
+            { "name": "grade_id", "type": "int" },
+            { "name": "date", "type": "date" },
+            { "name": "nos", "type": "int" },
+            { "name": "source_header_id", "type": "int" },
+            { "name": "source_line_id", "type": "int" }
+          ],
+          "outputs": [{ "name": "ledger_row", "type": "StockLedgerModel" }],
+          "description": "delta = +nos. (1) Acquires SELECT FOR UPDATE on the latest row for (design_id, grade_id) via repo.latest_for_design_grade(for_update=True). (2) Computes new running_balance = prior_balance + delta. (3) Inserts the new ledger row with source_type='inward'. (4) If date < prior_row.txn_date (back-dated), invokes _recompute_forward to update running_balance on every later row for the same (design, grade)."
+        },
+        {
+          "name": "apply_sale",
+          "inputs": [
+            { "name": "session", "type": "Session" },
+            { "name": "design_id", "type": "int" },
+            { "name": "grade_id", "type": "int" },
+            { "name": "date", "type": "date" },
+            { "name": "nos", "type": "int" },
+            { "name": "source_header_id", "type": "int" },
+            { "name": "source_line_id", "type": "int" }
+          ],
+          "outputs": [{ "name": "ledger_row", "type": "StockLedgerModel" }],
+          "description": "Same shape as apply_inward with delta = -nos, source_type='sale'. NOTE: V1 does NOT block negative running_balance — PRD has no oversell-prevention AC; the ledger faithfully records reality. Document as DS-013-adjacent note."
+        },
+        {
+          "name": "apply_adjustment",
+          "inputs": [
+            { "name": "session", "type": "Session" },
+            { "name": "design_id", "type": "int" },
+            { "name": "grade_id", "type": "int" },
+            { "name": "date", "type": "date" },
+            { "name": "difference", "type": "int" },
+            { "name": "source_header_id", "type": "int" },
+            { "name": "source_line_id", "type": "int" }
+          ],
+          "outputs": [{ "name": "ledger_row", "type": "StockLedgerModel" }],
+          "description": "delta = difference (can be negative or positive per AC-038), source_type='adjustment'. Same locking + forward-recompute shape as apply_inward."
+        },
+        {
+          "name": "closing_balance",
+          "inputs": [
+            { "name": "session", "type": "Session" },
+            { "name": "design_id", "type": "int" },
+            { "name": "grade_id", "type": "int" },
+            { "name": "as_of_date", "type": "date" }
+          ],
+          "outputs": [{ "name": "balance", "type": "int" }],
+          "description": "Returns repo.latest_as_of(design_id, grade_id, as_of_date).running_balance if a row exists, else 0. O(1) lookup thanks to ix_stock_ledger_dgt + DS-003 materialization. This is the function the Adjustment form's GET /designs/{id}/grades-with-cb endpoint calls per AC-036."
+        },
+        {
+          "name": "opening_balance",
+          "inputs": [
+            { "name": "session", "type": "Session" },
+            { "name": "design_id", "type": "int" },
+            { "name": "grade_id", "type": "int" },
+            { "name": "month_first_day", "type": "date" }
+          ],
+          "outputs": [{ "name": "balance", "type": "int" }],
+          "description": "Returns closing_balance(design_id, grade_id, month_first_day - 1 day) per DS-004 / FORMULA-002. AC-042 first-month case is naturally satisfied because there are no prior ledger rows."
+        },
+        {
+          "name": "_recompute_forward",
+          "inputs": [
+            { "name": "session", "type": "Session" },
+            { "name": "design_id", "type": "int" },
+            { "name": "grade_id", "type": "int" },
+            { "name": "from_date_inclusive", "type": "date" }
+          ],
+          "outputs": [{ "name": "_", "type": "None" }],
+          "description": "Private. Loads rows_after for (design, grade, from_date_inclusive) ordered ascending; replays delta on each in order, updating running_balance. Bounded by the 7-day backdate window per AC-021. Mutates rows in-session; caller commits."
+        }
+      ],
+      "interfaces": {
+        "exports": ["apply_inward", "apply_sale", "apply_adjustment", "closing_balance", "opening_balance"],
+        "expects": ["StockLedgerRepository", "StockLedgerModel"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/transactions.py",
+        "backend/src/infrastructure/db/models/transactions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/application/services/inward_service.py",
+      "purpose": "F-007 use case. Validates date bounds + minimum-line-RULE then writes header + lines + per-line ledger rows in one SQLAlchemy transaction.",
+      "layer": "application",
+      "module_ref": "M-002",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "InwardService.save_inward",
+          "inputs": [{ "name": "payload", "type": "InwardCreate" }],
+          "outputs": [{ "name": "result", "type": "InwardRead" }],
+          "description": "(1) Validate purchase_date: today() - 7 ≤ purchase_date ≤ today() per AC-020/AC-021 (ERR-001/ERR-002). (2) Fetch supplier + assert is_active; auto-populate place from supplier.place per AC-022. (3) Filter line list: drop rows where nos is None or 0 per AC-025. Reject if zero lines remain per AC-026. (4) For each remaining line, assert design+grade are active AND (design_id, grade_id) ∈ active design_grade_map (AC-023 contract). (5) Persist header + filtered lines via InwardHeaderRepository.create_with_lines. (6) For each persisted line, invoke domain.stock.apply_inward inside the SAME session — the SELECT FOR UPDATE serializes per (design, grade). (7) session.commit. (8) Return hydrated InwardRead.",
+          "raises": ["ValidationError (date bounds)", "NotFoundError (missing supplier/staff/design/grade)", "ValidationError (no valid lines)"]
+        },
+        {
+          "name": "InwardService.list_inwards",
+          "inputs": [
+            { "name": "date_from", "type": "date | None", "required": false },
+            { "name": "date_to", "type": "date | None", "required": false }
+          ],
+          "outputs": [{ "name": "items", "type": "list[InwardRead]" }],
+          "description": "Admin read — not strictly required by S2 ACs but needed for the basic ledger read API. Returns headers + nested lines."
+        }
+      ],
+      "interfaces": {
+        "exports": ["InwardService"],
+        "expects": ["InwardHeaderRepository", "SupplierRepository", "StaffRepository", "DesignGradeMapRepository (validate_pair_active)", "domain.stock.apply_inward", "Pydantic schemas (InwardCreate/Read)"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/transactions.py",
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/domain/stock.py",
+        "backend/src/presentation/schemas/transactions.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/application/services/sales_service.py",
+      "purpose": "F-008 use case. Same shape as inward_service with sales-specific fields (dealer, loading_staff, verified_by) and delta = -nos.",
+      "layer": "application",
+      "module_ref": "M-002",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "SalesService.save_sale",
+          "inputs": [{ "name": "payload", "type": "SalesCreate" }],
+          "outputs": [{ "name": "result", "type": "SalesRead" }],
+          "description": "Mirror of save_inward with: AC-028 date bounds (sales_date) per ERR-001/ERR-002; AC-029 dealer→place denormalize; AC-030 both loading_staff_id and verified_by_id required AND active; AC-031/AC-032 line validations identical to inward; delegates to domain.stock.apply_sale (delta = -nos).",
+          "raises": ["ValidationError", "NotFoundError"]
+        },
+        {
+          "name": "SalesService.list_sales",
+          "inputs": [
+            { "name": "date_from", "type": "date | None", "required": false },
+            { "name": "date_to", "type": "date | None", "required": false },
+            { "name": "dealer_ids", "type": "list[int] | None", "required": false },
+            { "name": "design_ids", "type": "list[int] | None", "required": false }
+          ],
+          "outputs": [{ "name": "items", "type": "list[SalesRead]" }],
+          "description": "Filtered list — S3's Sales Report (M-005) will reuse this query backbone. Filters all optional per RULE-018 (S3) but exposed here for the admin read path."
+        }
+      ],
+      "interfaces": {
+        "exports": ["SalesService"],
+        "expects": ["SalesHeaderRepository", "DealerRepository", "StaffRepository", "DesignGradeMapRepository", "domain.stock.apply_sale", "Pydantic schemas"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/transactions.py",
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/domain/stock.py",
+        "backend/src/presentation/schemas/transactions.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/application/services/adjustment_service.py",
+      "purpose": "F-009 use case. Differs from inward/sales: single-design per AC-034, software_cb pre-populated at form-load, difference applied to ledger.",
+      "layer": "application",
+      "module_ref": "M-002",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "AdjustmentService.save_adjustment",
+          "inputs": [{ "name": "payload", "type": "AdjustmentCreate" }],
+          "outputs": [{ "name": "result", "type": "AdjustmentRead" }],
+          "description": "(1) Validate stock_date <= entry_date per AC-035 (ERR-010). (2) Assert design exists + is_active. (3) Resolve active (design, grade) pairs via DesignGradeMapRepository.list_active_by_design; reject (ERR-012) per AC-040 if none. (4) For each submitted line: snapshot the *current* software_cb from domain.stock.closing_balance(design, grade, stock_date); compute difference = physical_cb - software_cb per AC-038; persist the adjustment line with both values; invoke domain.stock.apply_adjustment with delta=difference. Skipping logic mirrors inward (RULE-017 — though for Adjustment the user explicitly enters physical_cb=0; only 'blank' is skipped, NOT zero per AC-037). (5) session.commit; return hydrated AdjustmentRead.",
+          "raises": ["ValidationError (stock_date > entry_date)", "NotFoundError (design)", "ValidationError (no active grade combinations — ERR-012)"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["AdjustmentService"],
+        "expects": ["AdjustmentHeaderRepository", "DesignGradeMapRepository.list_active_by_design", "domain.stock.{closing_balance, apply_adjustment}", "Pydantic schemas"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/transactions.py",
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/domain/stock.py",
+        "backend/src/presentation/schemas/transactions.py",
+        "backend/src/domain/exceptions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/application/services/design_grade_cb_service.py",
+      "purpose": "Service for GET /designs/{id}/grades-with-cb — Adjustment form's grade-row pre-populator (AC-036 + HLD DF-003). Returns active mappings projected as {grade_id, grade_code, software_cb} where software_cb = closing_balance(design, grade, stock_date).",
+      "layer": "application",
+      "module_ref": "M-002",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "DesignGradeCbService.list_active_grades_with_cb",
+          "inputs": [
+            { "name": "design_id", "type": "int" },
+            { "name": "stock_date", "type": "date" }
+          ],
+          "outputs": [{ "name": "items", "type": "list[DesignGradeReadWithCb]" }],
+          "description": "(1) Asserts design exists and is_active (NotFoundError otherwise). (2) Calls DesignGradeMapRepository.list_active_by_design (T-006 — also filters grade.is_active, AC-012 cascade still holds for S2). (3) Projects each row + domain.stock.closing_balance(design_id, row.grade_id, stock_date) → DesignGradeReadWithCb. (4) Returns []. ERR-012 (no active grades) is the empty-list path; the router converts to 422 per HLD."
+        }
+      ],
+      "interfaces": {
+        "exports": ["DesignGradeCbService"],
+        "expects": ["DesignGradeMapRepository.list_active_by_design", "TradingDesignRepository", "domain.stock.closing_balance", "DesignGradeReadWithCb schema"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/domain/stock.py",
+        "backend/src/presentation/schemas/transactions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/schemas/transactions.py",
+      "purpose": "Pydantic v2 schemas for the 3 transaction forms and the GET /designs/{id}/grades-with-cb response.",
+      "layer": "presentation",
+      "module_ref": "M-002",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "InwardLineCreate",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: design_id (gt=0), grade_id (gt=0), nos (Field default=None, ge=0 — None and 0 are 'skip' per RULE-017). Service strips skipped rows before validating nos > 0 (AC-024)."
+        },
+        {
+          "name": "InwardCreate",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: purchase_date (date), supplier_id (gt=0), entered_by_id (gt=0), lines (list[InwardLineCreate], min_length=1 per RULE-015). place is NOT in the request — derived from supplier on server (AC-022 — read-only / not user-editable)."
+        },
+        {
+          "name": "InwardLineRead / InwardRead",
+          "inputs": [],
+          "outputs": [{ "name": "schemas", "type": "BaseModel" }],
+          "description": "Response shapes. InwardRead embeds list[InwardLineRead]. ConfigDict from_attributes=True."
+        },
+        {
+          "name": "SalesLineCreate / SalesCreate / SalesLineRead / SalesRead",
+          "inputs": [],
+          "outputs": [{ "name": "schemas", "type": "BaseModel" }],
+          "description": "Same shape as inward family with dealer_id, loading_staff_id, verified_by_id additions. place derived server-side from dealer."
+        },
+        {
+          "name": "AdjustmentLineCreate",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: grade_id (gt=0), physical_cb (int, ge=0). software_cb is NOT in the request — service snapshots at save time per AC-036 narrative ('the system pulls software CB as of stock_date')."
+        },
+        {
+          "name": "AdjustmentCreate",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: stock_date (date), entry_date (date), design_id (gt=0), entered_by_id (gt=0), lines (list[AdjustmentLineCreate], min_length=1). Cross-field validator: stock_date <= entry_date (AC-035)."
+        },
+        {
+          "name": "AdjustmentLineRead / AdjustmentRead",
+          "inputs": [],
+          "outputs": [{ "name": "schemas", "type": "BaseModel" }],
+          "description": "Response shapes including software_cb + difference fields."
+        },
+        {
+          "name": "DesignGradeReadWithCb",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "{grade_id: int, grade_code: str, software_cb: int} — Adjustment form's grade-row pre-populator. DF-003 contract."
+        }
+      ],
+      "interfaces": {
+        "exports": [
+          "InwardLineCreate", "InwardCreate", "InwardLineRead", "InwardRead",
+          "SalesLineCreate", "SalesCreate", "SalesLineRead", "SalesRead",
+          "AdjustmentLineCreate", "AdjustmentCreate", "AdjustmentLineRead", "AdjustmentRead",
+          "DesignGradeReadWithCb"
+        ],
+        "expects": ["pydantic.BaseModel", "pydantic.ConfigDict", "pydantic.Field", "pydantic.model_validator"]
+      },
+      "depends_on": [],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/inward.py",
+      "purpose": "FastAPI router for /api/v1/inward — POST + GET (admin list).",
+      "layer": "presentation",
+      "module_ref": "M-002",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "create_inward",
+          "inputs": [
+            { "name": "payload", "type": "InwardCreate" },
+            { "name": "service", "type": "InwardService = Depends(get_inward_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "InwardRead" }],
+          "description": "POST /inward → 201. ValidationError → 422 + ERR-001/ERR-002 detail string; NotFoundError → 404; otherwise return InwardRead."
+        },
+        {
+          "name": "list_inwards",
+          "inputs": [
+            { "name": "date_from", "type": "date | None = Query(None)" },
+            { "name": "date_to", "type": "date | None = Query(None)" },
+            { "name": "service", "type": "InwardService = Depends(get_inward_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "list[InwardRead]" }],
+          "description": "GET /inward — admin read."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/inward', tags=['inward'])"],
+        "expects": ["InwardService via Depends", "InwardCreate/Read"]
+      },
+      "depends_on": [
+        "backend/src/application/services/inward_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/transactions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/sales.py",
+      "purpose": "FastAPI router for /api/v1/sales — POST + GET (admin list, also exercised by S3's Sales Report).",
+      "layer": "presentation",
+      "module_ref": "M-002",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "create_sale / list_sales",
+          "inputs": [],
+          "outputs": [{ "name": "router", "type": "APIRouter" }],
+          "description": "Same shape as inward router with SalesService + Sales schemas. list_sales accepts dealer_ids and design_ids query params (Query(default=None) + List[int])."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/sales', tags=['sales'])"],
+        "expects": ["SalesService via Depends", "Sales schemas"]
+      },
+      "depends_on": [
+        "backend/src/application/services/sales_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/transactions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/adjustments.py",
+      "purpose": "FastAPI router for /api/v1/adjustments — POST.",
+      "layer": "presentation",
+      "module_ref": "M-002",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "create_adjustment",
+          "inputs": [],
+          "outputs": [{ "name": "router", "type": "APIRouter" }],
+          "description": "POST /adjustments with AdjustmentCreate body. Same shape as inward/sales. ValidationError for ERR-010 (stock_date > entry_date), ERR-012 (no active grades) surface as 422."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/adjustments', tags=['adjustments'])"],
+        "expects": ["AdjustmentService via Depends", "Adjustment schemas"]
+      },
+      "depends_on": [
+        "backend/src/application/services/adjustment_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/transactions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/designs.py",
+      "purpose": "MODIFY (S1 router). Add GET /designs/{design_id}/grades-with-cb endpoint for the Adjustment form's pre-population. Existing /designs CRUD + /designs/{id}/grades endpoints untouched.",
+      "layer": "presentation",
+      "module_ref": "M-002",
+      "modification": "modify",
+      "functions": [
+        {
+          "name": "list_grades_with_cb_for_design",
+          "inputs": [
+            { "name": "design_id", "type": "int (path)" },
+            { "name": "stock_date", "type": "date = Query(...)" },
+            { "name": "service", "type": "DesignGradeCbService = Depends(get_design_grade_cb_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "list[DesignGradeReadWithCb]" }],
+          "description": "GET /designs/{design_id}/grades-with-cb?stock_date=YYYY-MM-DD → 200 [{grade_id, grade_code, software_cb}, …] using DesignGradeCbService. Returns [] when no active grade combinations — the router does NOT convert to 422 because per AC-040 the FORM blocks save with ERR-012, not the endpoint; an empty response is the contract."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/designs', tags=['designs']) — existing + new route"],
+        "expects": ["DesignGradeCbService", "DesignGradeReadWithCb schema"]
+      },
+      "depends_on": [
+        "backend/src/application/services/design_grade_cb_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/transactions.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/dependencies.py",
+      "purpose": "MODIFY (S1 wiring). Add 4 new factories: get_inward_service, get_sales_service, get_adjustment_service, get_design_grade_cb_service. Existing 6 master factories untouched.",
+      "layer": "presentation",
+      "module_ref": "M-002",
+      "modification": "modify",
+      "functions": [
+        {
+          "name": "get_inward_service / get_sales_service / get_adjustment_service / get_design_grade_cb_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "InwardService | SalesService | AdjustmentService | DesignGradeCbService" }],
+          "description": "Pure DI wiring — each factory constructs its service with the injected Session. No business logic."
+        }
+      ],
+      "interfaces": {
+        "exports": [
+          "get_supplier_service", "get_staff_service", "get_dealer_service",
+          "get_grade_service", "get_design_service", "get_design_grade_map_service",
+          "get_inward_service", "get_sales_service", "get_adjustment_service", "get_design_grade_cb_service"
+        ],
+        "expects": ["get_db", "all 10 services"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/session.py",
+        "backend/src/application/services/inward_service.py",
+        "backend/src/application/services/sales_service.py",
+        "backend/src/application/services/adjustment_service.py",
+        "backend/src/application/services/design_grade_cb_service.py"
+      ],
+      "test_required": false
+    },
+    {
+      "path": "backend/src/main.py",
+      "purpose": "MODIFY (S1 app factory). Mount the 3 new routers under /api/v1.",
+      "layer": "presentation",
+      "module_ref": "M-002",
+      "modification": "modify",
+      "functions": [
+        {
+          "name": "create_app",
+          "inputs": [],
+          "outputs": [{ "name": "app", "type": "FastAPI" }],
+          "description": "Add: include_router(inward.router, prefix='/api/v1'); include_router(sales.router, prefix='/api/v1'); include_router(adjustments.router, prefix='/api/v1'). The DESIGNs router is the same object as S1; the new /designs/{id}/grades-with-cb endpoint is added INSIDE designs.py so include_router itself doesn't need changing for that route."
+        }
+      ],
+      "interfaces": {
+        "exports": ["create_app", "app"],
+        "expects": ["all 9 routers (6 master + 3 transaction)"]
+      },
+      "depends_on": [
+        "backend/src/presentation/api/routers/inward.py",
+        "backend/src/presentation/api/routers/sales.py",
+        "backend/src/presentation/api/routers/adjustments.py"
+      ],
+      "test_required": true
+    }
+  ],
+  "module_summary": {
+    "M-002": {
+      "files": [
+        "backend/src/application/services/inward_service.py",
+        "backend/src/application/services/sales_service.py",
+        "backend/src/application/services/adjustment_service.py",
+        "backend/src/application/services/design_grade_cb_service.py",
+        "backend/src/presentation/schemas/transactions.py",
+        "backend/src/presentation/api/routers/inward.py",
+        "backend/src/presentation/api/routers/sales.py",
+        "backend/src/presentation/api/routers/adjustments.py",
+        "backend/src/presentation/api/routers/designs.py (modify)",
+        "backend/src/presentation/api/dependencies.py (modify)",
+        "backend/src/main.py (modify)"
+      ],
+      "covers": ["F-007", "F-008", "F-009"]
+    },
+    "M-003": {
+      "files": ["backend/src/domain/stock.py"],
+      "covers": ["FORMULA-001", "FORMULA-002 (carry-forward)", "DS-002 SELECT FOR UPDATE", "DS-003 materialized ledger", "DS-004 on-read carry-forward"]
+    },
+    "M-007": {
+      "files": [
+        "backend/src/infrastructure/db/base.py (modify — DS-014)",
+        "backend/src/infrastructure/db/models/transactions.py",
+        "backend/src/infrastructure/db/repositories/transactions.py",
+        "backend/db/migrations/versions/0003_transaction_and_ledger_tables.py"
+      ],
+      "covers": ["7 new tables", "TIMESTAMPTZ upgrade closing TD-007"]
+    }
+  },
+  "frontend_ui_track_note": "The 3 transaction form UIs (Inward, Sales, Adjustment) and their dependencies (transaction TypeScript types, axios wrappers, react-hook-form + zod schemas, design+grade dropdowns, datepicker) are NOT enumerated in this LLD — they ship via the UI track (/ases-ui-design S2 → /ases-ui-review S2 → /ases-ui-scaffold S2) which reads this LLD's API contracts and produces a standalone frontend scaffold. The integration_points the UI track will need: POST /api/v1/inward, POST /api/v1/sales, POST /api/v1/adjustments, GET /api/v1/designs/{id}/grades-with-cb, plus the existing S1 GET /api/v1/designs/{id}/grades for grade-row auto-population (AC-023 / AC-031).",
+  "new_decisions": ["DS-013 (denormalize place on tx headers)", "DS-014 (close TD-007 via TIMESTAMPTZ upgrade)"],
+  "rules_referenced": [
+    "RULE-015: form save requires ≥1 valid line",
+    "RULE-017: blank/zero NOS rows silently skipped",
+    "RULE-018: optional multi-select filters (S3 context but design here)",
+    "FORMULA-002: carry-forward via prior-month last-row lookup",
+    "ERR-001: future date rejection",
+    "ERR-002: > 7-day-prior date rejection",
+    "ERR-006/007/008: NOS validation paths",
+    "ERR-010: stock_date > entry_date rejection",
+    "ERR-012: no active grade combinations for design"
+  ],
+  "next": "/ases-schema S2"
+}

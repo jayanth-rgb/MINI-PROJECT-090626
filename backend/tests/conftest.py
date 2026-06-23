@@ -40,10 +40,12 @@ from testcontainers.postgres import PostgresContainer
 
 from src.infrastructure.db.base import Base
 
-# Importing the model module materialises all 6 tables on Base.metadata so
-# create_all sees them. The F401 noqa keeps linters quiet about the "unused"
-# import — it is used for its side effect (mapper configuration).
+# Importing the model modules materialises all S1 (6 master) + S2 (7 transaction
+# + ledger) tables on Base.metadata so create_all sees them. The F401 noqa
+# keeps linters quiet about the "unused" imports — they are used for their
+# side effect (mapper configuration).
 import src.infrastructure.db.models.master  # noqa: F401
+import src.infrastructure.db.models.transactions  # noqa: F401
 
 
 @pytest.fixture(scope="session")

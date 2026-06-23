@@ -1,0 +1,138 @@
+{
+  "$schema": "ases/v3.0/integration_scenarios",
+  "sprint_id": "S2",
+  "produced_by": "/ases-integration-test S2 Step A",
+  "designed_at": "2026-06-23",
+  "scope_modules": ["M-002", "M-003", "M-007"],
+  "scope_features": ["F-007", "F-008", "F-009"],
+  "scenarios": [
+    {
+      "id": "IS-005",
+      "title": "POST /inward → service validates → repo persists header+lines → domain.apply_inward writes ledger rows",
+      "modules": ["M-002", "M-003", "M-007"],
+      "priority": "critical",
+      "entry_point": "POST /api/v1/inward",
+      "flow": [
+        "Router (T-052) receives InwardCreate",
+        "InwardService.save_inward (T-047) validates date bounds + supplier/staff active + active grade-pair",
+        "InwardHeaderRepository.create_with_lines (T-043) persists header + lines",
+        "domain.stock.apply_inward (T-045) per line: SELECT FOR UPDATE → insert ledger row with delta=+nos",
+        "session.commit (atomic AC-027)"
+      ],
+      "test_data": {
+        "supplier": {"name": "Manjunatha", "place": "Mallur"},
+        "staff": {"name": "Chandran"},
+        "design": {"size": "16X10", "design_name": "16X10 Ridges"},
+        "grades": [{"code": "1"}, {"code": "OB"}],
+        "request": {
+          "purchase_date": "<today>",
+          "lines": [{"grade_code": "1", "nos": 10}, {"grade_code": "OB", "nos": 5}]
+        }
+      },
+      "exit_assertion": "POST returns 201; 1 InwardHeader + 2 InwardLine + 2 StockLedger rows exist; place='Mallur'; running_balance per (design, grade): grade 1 = 10, grade OB = 5"
+    },
+    {
+      "id": "IS-006",
+      "title": "POST /sales after inward → ledger decreases by nos with Δ=-nos",
+      "modules": ["M-002", "M-003", "M-007"],
+      "priority": "critical",
+      "entry_point": "POST /api/v1/sales",
+      "flow": [
+        "Seed: POST /inward establishes running_balance (design=D, grade=G) = 50",
+        "POST /api/v1/sales with nos=12 for same (D, G)",
+        "SalesService.save_sale (T-048) validates dealer + 2 staff + active pair",
+        "SalesHeaderRepository.create_with_lines (T-043) persists header + lines",
+        "domain.stock.apply_sale (T-045) writes ledger row with delta=-12",
+        "Final running_balance = 38; source_type='sale'"
+      ],
+      "test_data": {
+        "inward_nos": 50,
+        "sale_nos": 12
+      },
+      "exit_assertion": "POST /sales returns 201; latest ledger row for (D, G) has delta=-12, running_balance=38, source_type='sale'; 2 ledger rows total (1 inward + 1 sale)"
+    },
+    {
+      "id": "IS-007",
+      "title": "GET /designs/{id}/grades-with-cb → POST /adjustments → ledger reflects signed difference",
+      "modules": ["M-002", "M-003", "M-007"],
+      "priority": "critical",
+      "entry_point": "GET /api/v1/designs/{design_id}/grades-with-cb?stock_date=...",
+      "flow": [
+        "Seed: inward establishes balance (D, G1)=100, (D, G2)=50",
+        "GET /designs/{D}/grades-with-cb?stock_date=today returns [{G1, code='1', software_cb=100}, {G2, code='OB', software_cb=50}]",
+        "AdjustmentService.save_adjustment (T-049) snapshots software_cb at save and computes difference",
+        "POST /adjustments with physical_cb={G1: 95, G2: 50} → difference={G1: -5, G2: 0}",
+        "domain.stock.apply_adjustment (T-045) writes ledger row with delta=-5 for G1 (zero-difference for G2 skipped per T-049 design)",
+        "adjustment_line audit rows persist for BOTH grades regardless of zero-difference"
+      ],
+      "test_data": {
+        "design_grades": [{"code": "1"}, {"code": "OB"}],
+        "inward_seeds": {"1": 100, "OB": 50},
+        "physical_cb": {"1": 95, "OB": 50}
+      },
+      "exit_assertion": "GET returns 200 with 2 rows + correct software_cb; POST /adjustments returns 201; 2 adjustment_line rows persisted (audit); ledger has 3 rows: 2 inward + 1 adjustment (delta=-5 for G1 only; G2 zero-diff skipped); final running_balance (D, G1)=95, (D, G2)=50"
+    },
+    {
+      "id": "IS-008",
+      "title": "Back-dated inward triggers domain._recompute_forward across all later ledger rows (DS-003 R-003)",
+      "modules": ["M-003", "M-007"],
+      "priority": "critical",
+      "entry_point": "domain.stock.apply_inward (called via service)",
+      "flow": [
+        "Seed forward: apply_inward(date=2026-06-22, nos=30) → ledger row A (running=30)",
+        "         apply_inward(date=2026-06-25, nos=20) → ledger row B (running=50)",
+        "Back-date: apply_inward(date=2026-06-20, nos=5) → ledger row C inserted at txn_date=Jun 20",
+        "domain.stock._recompute_forward(from=Jun 20) re-reads rows_after(Jun 20) ASC and rewrites running_balance",
+        "Final balances (cumulative replay from prior_balance=0): C=5, A=35, B=55"
+      ],
+      "test_data": {
+        "forward_inwards": [
+          {"date": "2026-06-22", "nos": 30},
+          {"date": "2026-06-25", "nos": 20}
+        ],
+        "back_dated_inward": {"date": "2026-06-20", "nos": 5}
+      },
+      "exit_assertion": "3 ledger rows for (D, G) ordered ASC by (txn_date, ledger_id) have running_balance=[5, 35, 55]"
+    }
+  ],
+  "execution_results": [
+    {
+      "scenario_id": "IS-005",
+      "test_file": "backend/tests/integration/test_integration_is005_inward_to_ledger.py",
+      "result": "pass",
+      "executed_at": "2026-06-23",
+      "output": "POST /api/v1/inward returned 201; place='Mallur' (DS-013 snapshot verified); 1 InwardHeader + 2 InwardLine + 2 StockLedger rows; running_balance grade 1 = 10, grade OB = 5"
+    },
+    {
+      "scenario_id": "IS-006",
+      "test_file": "backend/tests/integration/test_integration_is006_sales_decrements_ledger.py",
+      "result": "pass",
+      "executed_at": "2026-06-23",
+      "output": "Inward POST +50 then Sales POST 12 returned 201/201; latest ledger row delta=-12, running_balance=38, source_type='sale'; 2 ledger rows total"
+    },
+    {
+      "scenario_id": "IS-007",
+      "test_file": "backend/tests/integration/test_integration_is007_adjustment_full_flow.py",
+      "result": "pass",
+      "executed_at": "2026-06-23",
+      "output": "GET /grades-with-cb returned 200 with [{1:100},{OB:50}]; POST /adjustments returned 201; 2 adjustment_line audit rows persisted; ledger has 3 rows (2 inward + 1 adjustment Δ=-5 for G1; G2 zero-diff skipped); final balances G1=95, G2=50"
+    },
+    {
+      "scenario_id": "IS-008",
+      "test_file": "backend/tests/integration/test_integration_is008_back_dated_recompute_forward.py",
+      "result": "pass",
+      "executed_at": "2026-06-23",
+      "output": "Forward [+30 Jun22, +20 Jun25] then back-date [+5 Jun20] triggered _recompute_forward; final balances ASC by (txn_date, ledger_id) = [5, 35, 55]; deltas preserved [5, 30, 20]; HLD R-003 mitigation verified end-to-end"
+    }
+  ],
+  "execution_summary": {
+    "total": 4,
+    "passed": 4,
+    "failed": 0,
+    "errors": 0,
+    "wall_clock_seconds": 42,
+    "fix_iterations_required": 0,
+    "verdict": "PASS"
+  },
+  "next_step": "/ases-system-test S2"
+}

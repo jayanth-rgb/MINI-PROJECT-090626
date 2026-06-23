@@ -1,0 +1,1 @@
+{"task_id": "T-042", "test_case_refs": [], "notes": "ORM models verified via T-044 migration (TC-053, TC-064, TC-069, TC-088, TC-089) and downstream service/domain tests."}

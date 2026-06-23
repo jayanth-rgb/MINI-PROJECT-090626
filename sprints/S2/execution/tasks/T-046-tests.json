@@ -1,0 +1,1 @@
+{"task_id": "T-046", "test_case_refs": ["TC-052", "TC-061", "TC-067", "TC-068", "TC-072", "TC-073"], "notes": "Pydantic boundary tests at the schema layer."}

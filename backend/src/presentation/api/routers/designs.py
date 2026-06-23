@@ -1,8 +1,12 @@
+from datetime import date
+
 from fastapi import APIRouter, Depends, Query, status
 
+from src.application.services.design_grade_cb_service import DesignGradeCbService
 from src.application.services.design_grade_map_service import DesignGradeMapService
 from src.application.services.design_service import DesignService
 from src.presentation.api.dependencies import (
+    get_design_grade_cb_service,
     get_design_grade_map_service,
     get_design_service,
 )
@@ -12,6 +16,7 @@ from src.presentation.schemas.master import (
     DesignRead,
     DesignUpdate,
 )
+from src.presentation.schemas.transactions import DesignGradeReadWithCb
 
 router = APIRouter(prefix="/designs", tags=["designs"])
 
@@ -55,3 +60,12 @@ def list_grades_for_design(
     service: DesignGradeMapService = Depends(get_design_grade_map_service),
 ):
     return service.list_active_grades_for_design(design_id)
+
+
+@router.get("/{design_id}/grades-with-cb", response_model=list[DesignGradeReadWithCb])
+def list_grades_with_cb_for_design(
+    design_id: int,
+    stock_date: date = Query(...),
+    service: DesignGradeCbService = Depends(get_design_grade_cb_service),
+) -> list[DesignGradeReadWithCb]:
+    return service.list_active_grades_with_cb(design_id, stock_date)

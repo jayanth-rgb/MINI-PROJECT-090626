@@ -1,0 +1,1 @@
+{"task_id": "T-048", "test_case_refs": ["TC-058", "TC-059", "TC-060", "TC-062", "TC-063", "TC-065"], "notes": "Service-layer TCs for SalesService. TC-061 is schema-layer (lives in T-046 tests)."}

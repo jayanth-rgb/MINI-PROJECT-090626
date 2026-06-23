@@ -1,0 +1,52 @@
+{
+  "$schema": "ases/v3.0/scaffold_spec",
+  "sprint_id": "S2",
+  "produced_by": "/ases-sprint-scaffold Step A (Opus)",
+  "consumed_by": ["/ases-sprint-scaffold Step B (Sonnet)", "/ases-tasks", "/ases-validate"],
+  "analysis_summary": "S2 LLD declares 12 new backend files and 4 modifications to S1 files. All 12 new files land in directories that already exist from S1's /ases-scaffold (backend/src/{infrastructure/db/models, infrastructure/db/repositories, domain, application/services, presentation/schemas, presentation/api/routers}, backend/db/migrations/versions). The 12 new files themselves are CREATED at /ases-dev time per CLAUDE rule 2 (only output_files[] from task plan written during /ases-dev). The scaffold step therefore identifies ONE genuine structural addition: the test directory backend/tests/unit/domain/ for test_stock.py (TC-079..TC-086), which does NOT exist yet in S1's test tree.",
+  "files_to_create": [
+    {
+      "path": "backend/tests/unit/domain/__init__.py",
+      "type": "init_stub",
+      "purpose": "Package marker for the new domain-layer test directory. Needed so pytest discovers backend/tests/unit/domain/test_stock.py (8 critical TCs covering domain.stock — apply_inward/sale/adjustment, closing_balance, opening_balance, and the high-risk _recompute_forward).",
+      "body_template": "# tests for the domain layer (M-003 stock ledger).\n"
+    }
+  ],
+  "files_not_in_scope": {
+    "explanation": "These are CREATED by /ases-dev tasks (each task plan's output_files[] lists exactly which file the dev step writes). Listing here for transparency only — Step B does NOT create them.",
+    "files": [
+      "backend/src/infrastructure/db/base.py (MODIFY in S2 via DS-014)",
+      "backend/src/infrastructure/db/models/transactions.py",
+      "backend/src/infrastructure/db/repositories/transactions.py",
+      "backend/db/migrations/versions/0003_transaction_and_ledger_tables.py",
+      "backend/src/domain/stock.py",
+      "backend/src/application/services/inward_service.py",
+      "backend/src/application/services/sales_service.py",
+      "backend/src/application/services/adjustment_service.py",
+      "backend/src/application/services/design_grade_cb_service.py",
+      "backend/src/presentation/schemas/transactions.py",
+      "backend/src/presentation/api/routers/inward.py",
+      "backend/src/presentation/api/routers/sales.py",
+      "backend/src/presentation/api/routers/adjustments.py",
+      "backend/src/presentation/api/routers/designs.py (MODIFY)",
+      "backend/src/presentation/api/dependencies.py (MODIFY)",
+      "backend/src/main.py (MODIFY)"
+    ]
+  },
+  "dependency_changes": {
+    "backend": {
+      "add": [],
+      "remove": [],
+      "bump": []
+    },
+    "frontend": {
+      "add": [],
+      "remove": [],
+      "bump": []
+    },
+    "rationale": "S2 deps_manifest.packages = []. Every Python import in S2 LLD is from S1's installed dependency set (sqlalchemy 2.0.36, alembic 1.14.0, fastapi 0.115.6, pydantic 2.10.4, psycopg 3.2.3, testcontainers 4.9.0, pytest 8.3.4). Frontend forms ship via UI track; if that step adds dependencies, they land in its own scaffold spec, not this one. Sprint-gate verified deps_manifest_complete=pass at the design stage."
+  },
+  "frontend_ui_track_note": "Frontend directories for transaction forms (frontend/src/components/transactions/{inward,sales,adjustment}/__tests__/) are NOT created here. They are materialized by /ases-ui-scaffold S2, which is its own pipeline step downstream of /ases-tasks S2.",
+  "ready_for_step_b": true,
+  "next": "Step B (Sonnet): create the 1 init stub; update contracts/scaffold.json with the new path + sprint_S2 block; refresh graphify."
+}

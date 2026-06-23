@@ -1,0 +1,205 @@
+{
+  "$schema": "ases/v3.0/ui_scaffold_manifest",
+  "document": "ui_scaffold_manifest",
+  "produced_by": "/ases-ui-scaffold",
+  "consumed_by": ["/ases-dev (integration pass)", "/ases-test-impl"],
+  "sprint_id": "S2",
+  "scaffold_date": "2026-06-23",
+  "framework_versions": {
+    "next": "15.1.x (existing S1)",
+    "react": "19.x",
+    "tanstack_query": "5.x (existing S1)",
+    "react_hook_form": "7.x (DS-011)",
+    "zod": "3.x",
+    "shadcn": "radix-nova (existing S1)"
+  },
+  "files_created": [
+    "frontend/src/types/transactions.ts",
+    "frontend/src/lib/validation/transaction-schemas.ts",
+    "frontend/src/lib/api/transactions.ts",
+    "frontend/src/components/ui/date-picker.tsx",
+    "frontend/src/components/transactions/shared/TransactionLineRow.tsx",
+    "frontend/src/components/transactions/inward/InwardForm.tsx",
+    "frontend/src/components/transactions/sales/SalesForm.tsx",
+    "frontend/src/components/transactions/adjustment/AdjustmentForm.tsx",
+    "frontend/src/components/transactions/adjustment/AdjustmentLineRow.tsx",
+    "frontend/src/components/transactions/adjustment/Err012Banner.tsx",
+    "frontend/src/app/admin/inward/new/page.tsx",
+    "frontend/src/app/admin/sales/new/page.tsx",
+    "frontend/src/app/admin/adjustments/new/page.tsx",
+    "frontend/src/components/transactions/inward/__tests__/InwardForm.test.tsx",
+    "frontend/src/components/transactions/sales/__tests__/SalesForm.test.tsx",
+    "frontend/src/components/transactions/adjustment/__tests__/AdjustmentForm.test.tsx"
+  ],
+  "files_modified": [
+    "frontend/src/lib/mocks.ts (extended with MOCK_INWARDS, MOCK_SALES, MOCK_ADJUSTMENTS, MOCK_RUNNING_BALANCE + helpers bumpBalance/getBalance/projectGradesWithCb)",
+    "frontend/src/app/admin/layout.tsx (added Transactions nav group with 3 links + 3 icon imports; refactored NAV array into NAV_GROUPS for sectioning)"
+  ],
+  "integration_points": [
+    {
+      "id": "IP-S2-001",
+      "file": "frontend/src/lib/api/transactions.ts",
+      "export": "inwardApi.create",
+      "current_impl": "calls MOCK_INWARDS + bumpBalance",
+      "real_endpoint": "POST /api/v1/inward",
+      "real_impl_hint": "apiClient.post('/inward', payload).then(r => r.data)",
+      "backend_owner": "T-052 router + T-047 InwardService.save_inward"
+    },
+    {
+      "id": "IP-S2-002",
+      "file": "frontend/src/lib/api/transactions.ts",
+      "export": "inwardApi.list",
+      "current_impl": "filters MOCK_INWARDS",
+      "real_endpoint": "GET /api/v1/inward?date_from=&date_to=",
+      "real_impl_hint": "apiClient.get('/inward', { params: filters }).then(r => r.data)",
+      "backend_owner": "T-052 + T-047.list_inwards"
+    },
+    {
+      "id": "IP-S2-003",
+      "file": "frontend/src/lib/api/transactions.ts",
+      "export": "salesApi.create",
+      "current_impl": "calls MOCK_SALES + bumpBalance (Δ=-nos)",
+      "real_endpoint": "POST /api/v1/sales",
+      "real_impl_hint": "apiClient.post('/sales', payload).then(r => r.data)",
+      "backend_owner": "T-053 + T-048.save_sale"
+    },
+    {
+      "id": "IP-S2-004",
+      "file": "frontend/src/lib/api/transactions.ts",
+      "export": "salesApi.list",
+      "current_impl": "filters MOCK_SALES with date+dealer+design predicates",
+      "real_endpoint": "GET /api/v1/sales?date_from=&date_to=&dealer_ids=&design_ids=",
+      "real_impl_hint": "apiClient.get('/sales', { params: filters, paramsSerializer: {indexes: null} }).then(r => r.data) — repeat dealer_ids and design_ids for arrays per FastAPI convention",
+      "backend_owner": "T-053 + T-048.list_sales"
+    },
+    {
+      "id": "IP-S2-005",
+      "file": "frontend/src/lib/api/transactions.ts",
+      "export": "adjustmentsApi.create",
+      "current_impl": "calls MOCK_ADJUSTMENTS + snapshot software_cb via getBalance + bumpBalance(difference)",
+      "real_endpoint": "POST /api/v1/adjustments",
+      "real_impl_hint": "apiClient.post('/adjustments', payload).then(r => r.data)",
+      "backend_owner": "T-054 + T-049.save_adjustment"
+    },
+    {
+      "id": "IP-S2-006",
+      "file": "frontend/src/lib/api/transactions.ts",
+      "export": "designsTxApi.getGradesWithCb",
+      "current_impl": "calls projectGradesWithCb(designId) — uses MOCK_RUNNING_BALANCE state",
+      "real_endpoint": "GET /api/v1/designs/{designId}/grades-with-cb?stock_date=YYYY-MM-DD",
+      "real_impl_hint": "apiClient.get(`/designs/${designId}/grades-with-cb`, { params: { stock_date: stockDate } }).then(r => r.data)",
+      "backend_owner": "T-055 + T-050.list_active_grades_with_cb"
+    }
+  ],
+  "components": [
+    { "name": "InwardForm", "file": "components/transactions/inward/InwardForm.tsx", "tc_refs": ["TC-090", "TC-091", "TC-092", "TC-093", "TC-094", "TC-095"] },
+    { "name": "SalesForm", "file": "components/transactions/sales/SalesForm.tsx", "tc_refs": ["TC-096", "TC-097"] },
+    { "name": "AdjustmentForm", "file": "components/transactions/adjustment/AdjustmentForm.tsx", "tc_refs": ["TC-098", "TC-099", "TC-100", "TC-101", "TC-102"] },
+    { "name": "AdjustmentLineRow", "file": "components/transactions/adjustment/AdjustmentLineRow.tsx", "tc_refs": ["TC-100", "TC-101"] },
+    { "name": "Err012Banner", "file": "components/transactions/adjustment/Err012Banner.tsx", "tc_refs": ["TC-102"] },
+    { "name": "TransactionLineRow", "file": "components/transactions/shared/TransactionLineRow.tsx", "tc_refs": ["TC-094"] },
+    { "name": "DatePicker", "file": "components/ui/date-picker.tsx", "tc_refs": [] }
+  ],
+  "routes": [
+    {
+      "path": "/admin/inward/new",
+      "page": "app/admin/inward/new/page.tsx",
+      "note": "Spec said /inward/new at top-level. Relocated under /admin/* to reuse S1's AdminLayout sidebar (deviation documented). Functionally equivalent."
+    },
+    {
+      "path": "/admin/sales/new",
+      "page": "app/admin/sales/new/page.tsx",
+      "note": "Same relocation as above."
+    },
+    {
+      "path": "/admin/adjustments/new",
+      "page": "app/admin/adjustments/new/page.tsx",
+      "note": "Same relocation as above."
+    }
+  ],
+  "design_choices": [
+    {
+      "id": "SC-S2-001",
+      "topic": "Routes mounted under /admin/* instead of top-level",
+      "rationale": "ui_spec said /inward/new, /sales/new, /adjustments/new at top level. Implementing those would require either duplicating the S1 sidebar layout or restructuring into a (shell) route group — significant churn. /admin/* nesting reuses AdminLayout verbatim; nav grouping handles the user-perceived separation between Masters and Transactions.",
+      "impact_on_tests": "None — tests don't reference URLs. router.refresh() is mocked.",
+      "reversibility": "Trivial — rename folders if a top-level path is later required."
+    },
+    {
+      "id": "SC-S2-002",
+      "topic": "designsApi.getGradesWithCb lives in api/transactions.ts as 'designsTxApi', NOT extended onto S1's designsApi",
+      "rationale": "S1's lib/api/masters.ts is the existing integration boundary for S1. Extending it would mix S1 + S2 concerns. Keeping S2 endpoints in transactions.ts isolates them — integration time, Sonnet rewrites only transactions.ts to swap mocks. S1's masters.ts stays untouched.",
+      "tradeoff": "Components consume the same design through two paths: designsApi.getGrades (S1, master.ts) for Inward/Sales auto-populate, and designsTxApi.getGradesWithCb (S2, transactions.ts) for Adjustment. The naming asymmetry is documented; both file paths are stable."
+    },
+    {
+      "id": "SC-S2-003",
+      "topic": "UR-W008 fix: useEffect on gradesQ.data / gradesWithCbQ.data → replace(lines)",
+      "rationale": "Per the UI review, field-array population must be reactive to React Query refetches, not one-shot. Implemented via useEffect dependency on the query data.",
+      "applied_to": ["InwardForm", "SalesForm", "AdjustmentForm"]
+    },
+    {
+      "id": "SC-S2-004",
+      "topic": "UR-W007 fix: types/transactions.ts uses canonical names",
+      "rationale": "Did NOT introduce a parallel 'GradeReadMin' type. Inward/Sales line auto-populate continues to use S1's DesignGradeMin (re-exported from types/masters.ts). The S2 DF-003 contract type is DesignGradeReadWithCb {grade_id, grade_code, software_cb}, distinct from DesignGradeMin (no software_cb).",
+      "applied_to": ["types/transactions.ts", "api/transactions.ts"]
+    },
+    {
+      "id": "SC-S2-005",
+      "topic": "Zero-difference adjustment lines still persist (server-side); client always sends every line",
+      "rationale": "T-049 service skips the ledger write when difference == 0 but persists the audit row. Client sends all lines unmodified. Mirror of T-049 design."
+    },
+    {
+      "id": "SC-S2-006",
+      "topic": "Validation strategy: zod (client) + Pydantic (server) + DB CHECK",
+      "rationale": "Defense in depth per layer. Client zod is UX-level, not security."
+    }
+  ],
+  "warnings_carried_from_review": [
+    {
+      "id": "UR-W007",
+      "status": "RESOLVED at scaffold time",
+      "resolution": "types/transactions.ts uses canonical names; no parallel GradeReadMin alias introduced. Inward/Sales reuse S1's DesignGradeMin via masters.ts (designsApi.getGrades returns DesignGradeMin[])."
+    },
+    {
+      "id": "UR-W008",
+      "status": "RESOLVED at scaffold time",
+      "resolution": "Each of the 3 forms uses useEffect([query.data, replace]) → replace(lines) to reactively sync field-array with refetched query data."
+    }
+  ],
+  "responsive_implementation": {
+    "mobile_breakpoint": "default (< 640px) — single-column header grid; line rows use 2-col compact layout (label | input)",
+    "tablet_breakpoint": "sm: (>= 640px) — 2-col header grid; line rows expand to multi-col (label | input | extras)",
+    "desktop_breakpoint": "lg: — same as tablet plus generous max-width on outer container (admin layout provides max-w-6xl)",
+    "sticky_submit": "Submit button uses flex justify-end at form-level; admin layout's pt-14 on mobile keeps top bar visible; submit button always reachable via scroll"
+  },
+  "a11y_implementation": [
+    "Every <Label htmlFor=> ↔ <Input id=> pair wired",
+    "Validation <p role='alert'> with aria-describedby on inputs",
+    "Required Select triggers have aria-required='true'",
+    "DatePicker uses shadcn calendar (full keyboard nav + aria-label)",
+    "Submit button uses aria-busy={mutation.isPending}",
+    "Err012Banner uses role='alert' (TC-102 verifies via getByTestId, role also queryable)",
+    "AdjustmentLineRow live difference wraps in aria-live='polite' container",
+    "Validation errors use icon (lucide AlertCircle in banner; text-destructive class for input errors) + text — color is not the only indicator"
+  ],
+  "test_coverage": {
+    "framework": "jest@29 + @testing-library/react + userEvent (carried from S1)",
+    "test_files": [
+      "frontend/src/components/transactions/inward/__tests__/InwardForm.test.tsx — TC-092 (place snapshot), TC-093 (grade rows from getGrades), TC-095 (no valid lines blocks save)",
+      "frontend/src/components/transactions/sales/__tests__/SalesForm.test.tsx — TC-097 (verified_by_id required)",
+      "frontend/src/components/transactions/adjustment/__tests__/AdjustmentForm.test.tsx — TC-099 (software_cb pre-fill), TC-101 (live difference), TC-102 (Err012Banner + disabled submit)"
+    ],
+    "tcs_implemented_directly": ["TC-092", "TC-093", "TC-095", "TC-097", "TC-099", "TC-101", "TC-102"],
+    "tcs_deferred_to_test_impl": ["TC-090", "TC-091", "TC-094", "TC-096", "TC-098", "TC-100"],
+    "deferral_reason": "TC-090/091/094/096/098/100 are pure zod-validator assertions. Adding 6 more cases per form test file would inflate scaffold scope; /ases-test-impl S2 phase produces these via the existing test fixtures."
+  },
+  "lock_status": "LOCKED",
+  "lock_policy": "Per ASES rule 6 (execution agent never touches UI scaffold — only integration_points), after this scaffold lands Sonnet may ONLY edit function bodies in integration_points[].file (currently only frontend/src/lib/api/transactions.ts). Deleting mocks.ts is permitted once all 6 integration_points are swapped to apiClient calls. Any structural change (new component, new route, layout change) requires a new ui-design → ui-review → ui-scaffold cycle.",
+  "verification_commands": {
+    "type_check": "cd frontend && npx tsc --noEmit",
+    "lint": "cd frontend && npm run lint",
+    "test": "cd frontend && npm test -- --testPathPattern='transactions'",
+    "dev_server": "cd frontend && npm run dev (open http://localhost:3000/admin/inward/new)"
+  },
+  "next": "/ases-sprint-close S2"
+}

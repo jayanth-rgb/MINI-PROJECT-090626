@@ -1,0 +1,46 @@
+{
+  "$schema": "ases/v3.0/sprint_gate",
+  "sprint_id": "S2",
+  "timestamp": "2026-06-22T00:00:00Z",
+  "schema_validation": {
+    "lld.json": "pass",
+    "schema.json": "pass",
+    "test_cases.json": "pass",
+    "deps_manifest.json": "pass (after one-iteration fix — env_vars items needed required:bool field per schema)"
+  },
+  "checks": [
+    {
+      "check": "lld_files_cover_roadmap_scope",
+      "status": "pass",
+      "details": "Roadmap S2 features {F-007, F-008, F-009} are each covered. F-007 → inward_service.py + InwardHeader/Line models + InwardHeaderRepository + inward router + Inward* schemas. F-008 → sales_service.py + Sales models/repo/router/schemas. F-009 → adjustment_service.py + design_grade_cb_service.py + adjustment models/repo/router/schemas + the designs.py modification (GET /grades-with-cb). Frontend forms scoped explicitly to the UI track per LLD frontend_ui_track_note."
+    },
+    {
+      "check": "schema_entities_match_lld_models",
+      "status": "pass",
+      "details": "7 LLD ORM models ↔ 7 schema entities, exact 1:1. InwardHeaderModel ↔ tbl_inward_header; InwardLineModel ↔ tbl_inward_line; SalesHeaderModel ↔ tbl_sales_header; SalesLineModel ↔ tbl_sales_line; AdjustmentHeaderModel ↔ tbl_adjustment_header; AdjustmentLineModel ↔ tbl_adjustment_line; StockLedgerModel ↔ tbl_stock_ledger. completeness_check in schema.json explicitly asserts every_lld_model_in_schema=true + every_schema_entity_in_lld=true."
+    },
+    {
+      "check": "test_cases_cover_all_ac",
+      "status": "pass",
+      "details": "21 ACs (AC-020..AC-040) all have ≥1 test case. 56 TCs total (TC-047..TC-102). coverage_matrix entries: AC-020(3), AC-021(2), AC-022(2), AC-023(2), AC-024(3), AC-025(1), AC-026(2), AC-027(8 — atomic save is the most heavily tested), AC-028(3), AC-029(1), AC-030(3), AC-031(1), AC-032(1), AC-033(3), AC-034(1), AC-035(3), AC-036(3), AC-037(3), AC-038(2), AC-039(3), AC-040(3). completeness_check in test_cases.json asserts every_ac_has_at_least_one_test=true."
+    },
+    {
+      "check": "deps_manifest_complete",
+      "status": "pass",
+      "details": "deps_manifest declares 'No new dependencies' — verified. Every Python import in lld.json files is from S1's installed set: sqlalchemy (2.x), alembic, fastapi, pydantic v2, datetime stdlib. Migration 0003 added to manifest.migrations[]. Frontend deps deferred to UI track per LLD's frontend_ui_track_note."
+    },
+    {
+      "check": "no_lld_conflicts_with_previous_sprint",
+      "status": "pass",
+      "details": "4 S1 files modified, all explicitly declared with modification:'modify' in LLD: (1) base.py — TimestampMixin column type change per DS-014, server_default unchanged; (2) designs.py router — adds GET /grades-with-cb route; existing routes untouched; (3) dependencies.py — adds 4 new service factories; existing 6 untouched; (4) main.py — adds 3 router.include_router calls; existing wiring untouched. Migration 0003 ALTERs S1 created_at columns (TIMESTAMP → TIMESTAMPTZ) — data-preserving per DS-014; closes TD-007."
+    }
+  ],
+  "verdict": "PASS",
+  "warnings": [
+    "TC-087 (concurrent SELECT FOR UPDATE) requires a custom fixture using threading.Barrier + two independent sessions on the same engine. /ases-test-impl S2 should design this carefully.",
+    "TC-086 (back-dated forward-recompute) is the highest-risk piece of logic in V1 per HLD R-003. Single TC but worth extra critique attention when implemented.",
+    "DS-014 ALTERs 4 S1 created_at columns from TIMESTAMP to TIMESTAMPTZ inside the 0003 migration. PostgreSQL preserves data on this conversion (interprets existing values as the session timezone, typically UTC). At W5 bring-up time the PO should run `alembic upgrade head` on a non-production DB first if any real data exists.",
+    "Frontend forms (InwardForm, SalesForm, AdjustmentForm) — and their TS types, axios wrappers, datepicker integration — are deferred to the UI track (/ases-ui-design S2 → /ases-ui-review S2 → /ases-ui-scaffold S2). TC-090..TC-102 reference frontend file paths that the UI scaffold will materialize.",
+    "W5 (S1 carry-forward — PO long-lived PG bring-up) — still open. IS-002-pattern ephemeral PG used for S1 tests works for S2 too, so this doesn't block /ases-test-run S2 either; only affects live UI walk-through."
+  ]
+}

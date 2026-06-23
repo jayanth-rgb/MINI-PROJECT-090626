@@ -1,0 +1,33 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "task_id": "T-050",
+  "sprint_id": "S2",
+  "verdict": "PROCEED",
+  "checks": [
+    {
+      "check": "input_files_exist",
+      "result": "pass",
+      "details": "All 3 reads_from inputs verified: backend/src/infrastructure/db/repositories/master.py (S1 — provides TradingDesignRepository + DesignGradeMapRepository.list_active_by_design); backend/src/domain/stock.py (T-045, closing_balance); backend/src/presentation/schemas/transactions.py (T-046, DesignGradeReadWithCb). Smaller dependency set than T-047/048/049."
+    },
+    {
+      "check": "interface_contract_intact",
+      "result": "pass",
+      "details": "LLD files[8] declares DesignGradeCbService.list_active_grades_with_cb(design_id: int, stock_date: date) → list[DesignGradeReadWithCb]. Description: (1) asserts design exists+active (NotFoundError or ValidationError if not), (2) calls DesignGradeMapRepository.list_active_by_design (T-006 — JOINs grade.is_active), (3) projects each row + domain.stock.closing_balance(design_id, row.grade_id, stock_date). ERR-012 empty-list path; router converts to 422. Target file does not yet exist (consistent with type=create)."
+    },
+    {
+      "check": "scope_boundary_clear",
+      "result": "pass",
+      "details": "T-050 writes exactly one file (backend/src/application/services/design_grade_cb_service.py). No other task writes here. Sibling to inward/sales/adjustment services. No tasks currently in_progress (T-049 just transitioned to complete)."
+    },
+    {
+      "check": "no_circular_dependency",
+      "result": "pass",
+      "details": "T-050.depends_on = ['T-045', 'T-046'] — both status='complete'. Smaller dependency set than T-047/048/049 (no T-043 needed — service does not write to transaction tables). T-050 is parallel-group-B-4 entry and the last service in the group. After T-050 completes, T-051 (DI wiring of all 4 services) unblocks."
+    }
+  ],
+  "decisions_in_scope": ["DS-007"],
+  "test_case_refs": ["TC-070"],
+  "next": "/ases-dev T-050 S2",
+  "validated_at": "2026-06-22",
+  "validated_by": "/ases-validate T-050 S2"
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "T-051",
+  "title": "Dependencies.py — add 4 new service factories",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/presentation/api/dependencies.py"],
+  "scope": "MODIFY S1 file. Append 4 factories: get_inward_service, get_sales_service, get_adjustment_service, get_design_grade_cb_service. Existing 6 master factories untouched.",
+  "do_not_touch": ["any other file; do not modify the 6 existing factories"],
+  "depends_on": ["T-047", "T-048", "T-049", "T-050"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-012"],
+  "success_criteria": {
+    "manual": "Import all 10 factories; each takes Session = Depends(get_db) and returns the matching service.",
+    "automated": "Indirectly exercised by router-level integration tests TC-048/057/066/071/076/078.",
+    "definition_of_done": "10 factories present; existing 6 unchanged; new 4 follow identical pattern."
+  },
+  "checkout_prompt": "'Dependencies extended — 4 new service factories ready for routers.'"
+}

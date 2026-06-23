@@ -1,0 +1,33 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "task_id": "T-049",
+  "sprint_id": "S2",
+  "verdict": "PROCEED",
+  "checks": [
+    {
+      "check": "input_files_exist",
+      "result": "pass",
+      "details": "All 5 reads_from inputs verified during T-047 validation (same input set): repositories/transactions.py (T-043), repositories/master.py (S1), domain/stock.py (T-045), schemas/transactions.py (T-046), domain/exceptions.py (S1)."
+    },
+    {
+      "check": "interface_contract_intact",
+      "result": "pass",
+      "details": "LLD files[7] declares AdjustmentService.save_adjustment(payload: AdjustmentCreate) → AdjustmentRead with raises [ValidationError (stock_date > entry_date), NotFoundError (design), ValidationError (no active grade combinations — ERR-012)]. Expects = [AdjustmentHeaderRepository, DesignGradeMapRepository.list_active_by_design, domain.stock.{closing_balance, apply_adjustment}, Pydantic schemas]. Target file does not yet exist (consistent with type=create)."
+    },
+    {
+      "check": "scope_boundary_clear",
+      "result": "pass",
+      "details": "T-049 writes exactly one file (backend/src/application/services/adjustment_service.py). No other task writes here. Sibling to inward_service.py (T-047) and sales_service.py (T-048) but different files. No tasks currently in_progress (T-048 just transitioned to complete)."
+    },
+    {
+      "check": "no_circular_dependency",
+      "result": "pass",
+      "details": "T-049.depends_on = ['T-043', 'T-045', 'T-046'] — same upstream as T-047/048. All 3 complete. T-049 is parallel-group-B-3 entry."
+    }
+  ],
+  "decisions_in_scope": ["DS-002", "DS-007"],
+  "test_case_refs": ["TC-074", "TC-075", "TC-077"],
+  "next": "/ases-dev T-049 S2",
+  "validated_at": "2026-06-22",
+  "validated_by": "/ases-validate T-049 S2"
+}

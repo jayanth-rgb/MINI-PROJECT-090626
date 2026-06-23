@@ -1,0 +1,17 @@
+{
+  "task_id": "T-043",
+  "title": "Transaction + StockLedger repositories",
+  "module_ref": "M-007",
+  "output_files": ["backend/src/infrastructure/db/repositories/transactions.py"],
+  "scope": "4 repositories: InwardHeaderRepository, SalesHeaderRepository, AdjustmentHeaderRepository (each adding create_with_lines), StockLedgerRepository (with latest_for_design_grade(for_update), latest_as_of, rows_after, insert).",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-042"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-002", "DS-003", "DS-012"],
+  "success_criteria": {
+    "manual": "Import all 4 repos; StockLedgerRepository.latest_for_design_grade(for_update=True) emits SQL containing 'FOR UPDATE'.",
+    "automated": "Domain tests (T-045 / TC-079..TC-087) exercise the read paths; concurrency test TC-087 verifies the lock.",
+    "definition_of_done": "All 4 repos export expected method signatures; StockLedgerRepository.insert flushes the row and returns it; create_with_lines persists header + lines in one flush."
+  },
+  "checkout_prompt": "'4 transaction repos created. StockLedgerRepository ready for SELECT FOR UPDATE.'"
+}

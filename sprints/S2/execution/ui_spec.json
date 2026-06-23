@@ -1,0 +1,447 @@
+{
+  "$schema": "ases/v3.0/ui_spec",
+  "document": "ui_spec",
+  "produced_by": "/ases-ui-design",
+  "consumed_by": ["/ases-ui-review", "/ases-ui-scaffold"],
+  "sprint_id": "S2",
+  "scope_features": ["F-007", "F-008", "F-009"],
+  "framework": {
+    "next_version": "15.1.x (App Router)",
+    "react_version": "19.x",
+    "ui_kit": "shadcn radix-nova (existing S1)",
+    "css": "Tailwind",
+    "forms": "react-hook-form + @hookform/resolvers/zod (DS-011)",
+    "data_fetching": "@tanstack/react-query (S1)",
+    "http": "axios (existing S1 wrapper)",
+    "validation": "zod",
+    "notifications": "sonner toast (S1)"
+  },
+  "integration_points": [
+    "POST /api/v1/inward",
+    "GET /api/v1/inward (admin list — optional for S2; useful for verification)",
+    "POST /api/v1/sales",
+    "GET /api/v1/sales (with date_from/date_to/dealer_ids/design_ids filters — admin list)",
+    "POST /api/v1/adjustments",
+    "GET /api/v1/designs/{design_id}/grades-with-cb?stock_date= (T-055)",
+    "GET /api/v1/designs/{design_id}/grades (S1, T-006 — Inward+Sales auto-populate)",
+    "GET /api/v1/suppliers, /dealers, /staff, /designs (S1 list endpoints)"
+  ],
+  "routes": [
+    {
+      "path": "/inward/new",
+      "page_component": "InwardFormPage",
+      "feature_ref": "F-007",
+      "task_refs_implied": ["UI-T-001"]
+    },
+    {
+      "path": "/sales/new",
+      "page_component": "SalesFormPage",
+      "feature_ref": "F-008",
+      "task_refs_implied": ["UI-T-002"]
+    },
+    {
+      "path": "/adjustments/new",
+      "page_component": "AdjustmentFormPage",
+      "feature_ref": "F-009",
+      "task_refs_implied": ["UI-T-003"]
+    }
+  ],
+  "components": [
+    {
+      "name": "InwardFormPage",
+      "type": "page",
+      "file": "frontend/src/app/inward/new/page.tsx",
+      "feature_ref": "F-007",
+      "purpose": "Server component wrapper hosting the InwardForm client component. Sets page title + breadcrumb.",
+      "props": [],
+      "state": "stateless (server component)",
+      "interactions": ["renders InwardForm"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "tc_refs": []
+    },
+    {
+      "name": "InwardForm",
+      "type": "client-component",
+      "file": "frontend/src/components/transactions/inward/InwardForm.tsx",
+      "feature_ref": "F-007",
+      "purpose": "Inward entry form — date, supplier (auto-fills place), entered_by, design, line rows per active grade. Submits POST /api/v1/inward; redirects on success.",
+      "props": [],
+      "state": [
+        "react-hook-form: { purchase_date, supplier_id, entered_by_id, design_id (form-local, drives line rows), lines: { design_id, grade_id, nos? }[] }",
+        "useQuery(suppliers), useQuery(staff), useQuery(designs), useQuery(grades-for-design) — TanStack",
+        "useMutation(createInward)"
+      ],
+      "interactions": [
+        "On supplier select → form.setValue('supplier_id', id) + display supplier.place in read-only div (AC-022)",
+        "On design select → useQuery enabled, fetch grades for that design; replace lines field-array with one row per grade",
+        "On line nos change → form.setValue('lines[i].nos', value)",
+        "On submit → zod validation → strip lines where nos == null/0 → if 0 valid lines, surface inline error 'at least one line with nos > 0 required' (AC-026) → mutation.mutateAsync(payload) → toast success → router.push('/inward/new') with reset; on error → toast with detail"
+      ],
+      "api_deps": [
+        "suppliersApi.list()",
+        "staffApi.list()",
+        "designsApi.list()",
+        "designsApi.getGrades(designId)",
+        "inwardApi.create(payload)"
+      ],
+      "mocks_ref": "frontend/src/lib/mocks.ts (suppliers, staff, designs, gradesForDesign, inwardCreate)",
+      "tc_refs": ["TC-090", "TC-091", "TC-092", "TC-093", "TC-094", "TC-095"],
+      "validation": {
+        "zod_schema": "inwardCreateSchema",
+        "rules": [
+          "purchase_date: z.date().refine(d => d <= today, 'cannot be in the future' [ERR-001]).refine(d => d >= subDays(today, 7), 'cannot be older than 7 days' [ERR-002])",
+          "supplier_id: z.number().int().positive()",
+          "entered_by_id: z.number().int().positive()",
+          "lines: z.array(z.object({ design_id, grade_id, nos: z.number().int().nullable().refine(n => n === null || n >= 0, 'nos must be >= 0 [ERR-007]') })).min(1).refine(arr => arr.some(l => l.nos != null && l.nos > 0), 'at least one line with nos > 0 [AC-026]')"
+        ]
+      }
+    },
+    {
+      "name": "SalesFormPage",
+      "type": "page",
+      "file": "frontend/src/app/sales/new/page.tsx",
+      "feature_ref": "F-008",
+      "purpose": "Server component wrapper hosting the SalesForm client component.",
+      "props": [],
+      "state": "stateless",
+      "interactions": ["renders SalesForm"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "tc_refs": []
+    },
+    {
+      "name": "SalesForm",
+      "type": "client-component",
+      "file": "frontend/src/components/transactions/sales/SalesForm.tsx",
+      "feature_ref": "F-008",
+      "purpose": "Sales entry form — mirror of InwardForm with dealer + 2 required staff (loading + verified). Submits POST /api/v1/sales.",
+      "props": [],
+      "state": [
+        "react-hook-form: { sales_date, dealer_id, loading_staff_id, verified_by_id, design_id (form-local), lines: { design_id, grade_id, nos? }[] }",
+        "useQuery(dealers), useQuery(staff), useQuery(designs), useQuery(grades-for-design)",
+        "useMutation(createSale)"
+      ],
+      "interactions": [
+        "On dealer select → display dealer.place read-only (AC-029)",
+        "On design select → fetch grades, populate line rows",
+        "On submit → zod validation (both staff required) → strip blank lines → mutation → toast/redirect"
+      ],
+      "api_deps": [
+        "dealersApi.list()",
+        "staffApi.list()",
+        "designsApi.list()",
+        "designsApi.getGrades(designId)",
+        "salesApi.create(payload)"
+      ],
+      "mocks_ref": "frontend/src/lib/mocks.ts (dealers, staff, designs, gradesForDesign, salesCreate)",
+      "tc_refs": ["TC-096", "TC-097"],
+      "validation": {
+        "zod_schema": "salesCreateSchema",
+        "rules": [
+          "sales_date: date refinements identical to inward (ERR-001/ERR-002)",
+          "dealer_id: z.number().int().positive()",
+          "loading_staff_id: z.number().int().positive()",
+          "verified_by_id: z.number().int().positive()",
+          "lines: same shape as inward; min 1 valid line"
+        ]
+      }
+    },
+    {
+      "name": "AdjustmentFormPage",
+      "type": "page",
+      "file": "frontend/src/app/adjustments/new/page.tsx",
+      "feature_ref": "F-009",
+      "purpose": "Server component wrapper hosting AdjustmentForm.",
+      "props": [],
+      "state": "stateless",
+      "interactions": ["renders AdjustmentForm"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "tc_refs": []
+    },
+    {
+      "name": "AdjustmentForm",
+      "type": "client-component",
+      "file": "frontend/src/components/transactions/adjustment/AdjustmentForm.tsx",
+      "feature_ref": "F-009",
+      "purpose": "Stock-adjustment form — single design header, stock_date + entry_date, software_cb pre-populated per grade via getGradesWithCb. Live difference = physical_cb − software_cb display. ERR-012 banner if design has no active grades.",
+      "props": [],
+      "state": [
+        "react-hook-form: { stock_date, entry_date, design_id, entered_by_id, lines: { grade_id, software_cb (snapshot, hidden), physical_cb }[] }",
+        "useQuery(designs), useQuery(staff)",
+        "useQuery(getGradesWithCb, enabled: design_id && stock_date) — fetches projection [{grade_id, grade_code, software_cb}]",
+        "useMutation(createAdjustment)"
+      ],
+      "interactions": [
+        "On design select + stock_date set → useQuery enabled with both args → on success: if [] → show ERR-012 banner + disable submit (AC-040 / TC-102); if populated → populate lines field-array with one row per response item, pre-fill software_cb as read-only display (TC-099)",
+        "On physical_cb input change → form watches the row → live-compute difference = physical_cb - software_cb and render as adjacent read-only field (TC-101)",
+        "On submit → zod validation (stock_date <= entry_date cross-field; physical_cb >= 0 per row) → omit software_cb from payload (server snapshots fresh) → mutation → toast/redirect"
+      ],
+      "api_deps": [
+        "designsApi.list()",
+        "staffApi.list()",
+        "designsApi.getGradesWithCb(designId, stockDate)",
+        "adjustmentsApi.create(payload)"
+      ],
+      "mocks_ref": "frontend/src/lib/mocks.ts (designs, staff, getGradesWithCb, adjustmentCreate)",
+      "tc_refs": ["TC-098", "TC-099", "TC-100", "TC-101", "TC-102"],
+      "validation": {
+        "zod_schema": "adjustmentCreateSchema",
+        "rules": [
+          "stock_date: z.date()",
+          "entry_date: z.date()",
+          "design_id: z.number().int().positive()",
+          "entered_by_id: z.number().int().positive()",
+          "lines: z.array(z.object({ grade_id: z.number().positive(), physical_cb: z.number().int().nonnegative('physical_cb must be >= 0 [ERR-009]') })).min(1)",
+          "Cross-field: .refine(d => d.stock_date <= d.entry_date, { message: 'stock_date must be on or before entry_date [ERR-010]', path: ['entry_date'] })"
+        ]
+      }
+    },
+    {
+      "name": "DatePicker",
+      "type": "shared-component",
+      "file": "frontend/src/components/ui/date-picker.tsx",
+      "feature_ref": null,
+      "purpose": "Date picker wrapping shadcn Calendar + Popover. Used by all 3 forms. Accepts min/max date for client-side bound enforcement.",
+      "props": [
+        "value: Date | undefined",
+        "onChange: (date: Date | undefined) => void",
+        "minDate?: Date",
+        "maxDate?: Date",
+        "placeholder?: string",
+        "aria-invalid?, aria-describedby?"
+      ],
+      "state": "popover open/close (uncontrolled)",
+      "interactions": ["click to open calendar; pick date closes popover and fires onChange"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "tc_refs": [],
+      "notes": "Built on shadcn calendar.tsx (S1 — TD-001 patched for react-day-picker v10)."
+    },
+    {
+      "name": "MasterSelect",
+      "type": "shared-component",
+      "file": "frontend/src/components/ui/master-select.tsx",
+      "feature_ref": null,
+      "purpose": "Generic async Select dropdown for picking a single master row (supplier, dealer, staff, design). Shows display name; binds id to form state.",
+      "props": [
+        "value: number | undefined",
+        "onChange: (id: number | undefined) => void",
+        "options: { id: number; label: string; sublabel?: string }[]",
+        "isLoading?: boolean",
+        "placeholder?: string",
+        "aria-required?, aria-invalid?, aria-describedby?"
+      ],
+      "state": "controlled by react-hook-form",
+      "interactions": ["click trigger → list opens → click option → onChange(id) + close"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "tc_refs": [],
+      "notes": "Built on shadcn select.tsx (S1)."
+    },
+    {
+      "name": "TransactionLineRow",
+      "type": "shared-component",
+      "file": "frontend/src/components/transactions/shared/TransactionLineRow.tsx",
+      "feature_ref": null,
+      "purpose": "Reusable line row for Inward and Sales — grade_code (read) + nos input (controlled). Maps form.lines[i].nos.",
+      "props": [
+        "index: number",
+        "gradeCode: string",
+        "register: ReturnType<typeof useForm>['register']",
+        "errors: FieldErrors",
+        "control"
+      ],
+      "state": "controlled by parent's react-hook-form field array",
+      "interactions": ["onChange nos → setValue('lines[i].nos', numberOrUndefined)"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "tc_refs": []
+    },
+    {
+      "name": "AdjustmentLineRow",
+      "type": "shared-component",
+      "file": "frontend/src/components/transactions/adjustment/AdjustmentLineRow.tsx",
+      "feature_ref": "F-009",
+      "purpose": "Per-grade row for Adjustment form. Displays grade_code + software_cb (read-only) + physical_cb (input) + difference (live-computed read-only).",
+      "props": [
+        "index: number",
+        "gradeCode: string",
+        "softwareCb: number",
+        "register, control, watch"
+      ],
+      "state": "uses watch() on lines[i].physical_cb to compute difference live",
+      "interactions": ["physical_cb onChange → difference re-renders inline (TC-101)"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "tc_refs": ["TC-099", "TC-100", "TC-101"]
+    },
+    {
+      "name": "Err012Banner",
+      "type": "shared-component",
+      "file": "frontend/src/components/transactions/adjustment/Err012Banner.tsx",
+      "feature_ref": "F-009",
+      "purpose": "Inline alert shown above the AdjustmentForm body when getGradesWithCb returns []. Blocks submit. Visible to screen readers via role='alert'.",
+      "props": ["designName: string"],
+      "state": "stateless",
+      "interactions": [],
+      "api_deps": [],
+      "mocks_ref": null,
+      "tc_refs": ["TC-102"]
+    }
+  ],
+  "api_layer": {
+    "file": "frontend/src/lib/api.ts",
+    "purpose": "Single integration boundary. Components/hooks import from here only. During /ases-ui-scaffold this is the ONE file Sonnet may rewrite — initially returns mocks, post-integration calls real backend.",
+    "exports": [
+      "inwardApi: { create(payload: InwardCreate): Promise<InwardRead>; list(filters?: { date_from?, date_to? }): Promise<InwardRead[]> }",
+      "salesApi: { create(payload: SalesCreate): Promise<SalesRead>; list(filters?: { date_from?, date_to?, dealer_ids?, design_ids? }): Promise<SalesRead[]> }",
+      "adjustmentsApi: { create(payload: AdjustmentCreate): Promise<AdjustmentRead> }",
+      "designsApi.getGradesWithCb(designId: number, stockDate: string): Promise<DesignGradeReadWithCb[]>  // ADD to existing S1 designsApi",
+      "// S1 reused: suppliersApi.list(), dealersApi.list(), staffApi.list(), designsApi.list(), designsApi.getGrades()"
+    ]
+  },
+  "mocks_layer": {
+    "file": "frontend/src/lib/mocks.ts",
+    "purpose": "Seed data driving UI-only unit tests + scaffold preview. Replaced/deleted at integration time. Components NEVER import from mocks.ts directly — only api.ts.",
+    "exports": [
+      "mockSuppliers: SupplierRead[] (3 rows — Manjunatha/Mallur, Ramesh/Belgaum, Inactive Co./Hubli)",
+      "mockDealers: DealerRead[] (3 rows)",
+      "mockStaff: StaffRead[] (3 rows)",
+      "mockDesigns: DesignRead[] (5 rows; 3 active)",
+      "mockGradesForDesign: Record<number, GradeReadMin[]>  // S1 contract: {grade_id, grade_code}",
+      "mockGetGradesWithCb: Record<number, DesignGradeReadWithCb[]>  // {grade_id, grade_code, software_cb}",
+      "mockInwardCreateResponse, mockSalesCreateResponse, mockAdjustmentCreateResponse",
+      "throwApiError(status, detail) — helper used in TC tests to assert 422/404 paths"
+    ]
+  },
+  "types_layer": {
+    "file": "frontend/src/types/transactions.ts",
+    "purpose": "TypeScript types mirroring backend Pydantic schemas (T-046). Single source of truth for frontend.",
+    "exports": [
+      "InwardLineCreate, InwardCreate, InwardLineRead, InwardRead",
+      "SalesLineCreate, SalesCreate, SalesLineRead, SalesRead",
+      "AdjustmentLineCreate, AdjustmentCreate, AdjustmentLineRead, AdjustmentRead",
+      "DesignGradeReadWithCb"
+    ]
+  },
+  "schemas_layer": {
+    "file": "frontend/src/lib/schemas.ts (or per-feature files)",
+    "purpose": "Zod schemas for client-side validation. Resolve via @hookform/resolvers/zod into react-hook-form. Backend re-validates in T-046 — these are UX-level not security-level.",
+    "exports": [
+      "inwardCreateSchema, salesCreateSchema, adjustmentCreateSchema",
+      "Re-exported types via z.infer<typeof xxxSchema>"
+    ]
+  },
+  "hooks_layer": {
+    "file": "frontend/src/hooks/transactions/",
+    "purpose": "TanStack Query wrappers for transaction-specific calls. Master hooks (useSuppliers, useDealers, useStaff, useDesigns) reused from S1.",
+    "exports": [
+      "useGradesForDesign(designId: number | undefined) — wraps designsApi.getGrades; enabled: !!designId",
+      "useGradesWithCb(designId: number | undefined, stockDate: string | undefined) — wraps designsApi.getGradesWithCb; enabled: !!(designId && stockDate)",
+      "useCreateInward() → useMutation<InwardRead, ApiError, InwardCreate>",
+      "useCreateSale() → useMutation<SalesRead, ApiError, SalesCreate>",
+      "useCreateAdjustment() → useMutation<AdjustmentRead, ApiError, AdjustmentCreate>"
+    ]
+  },
+  "navigation": {
+    "additions_to_s1_nav": [
+      "'New Inward' link → /inward/new",
+      "'New Sale' link → /sales/new",
+      "'New Adjustment' link → /adjustments/new"
+    ],
+    "placement": "Nav sidebar's Transactions section (created in this sprint). Master CRUD pages from S1 remain in Masters section."
+  },
+  "responsive": {
+    "breakpoints": {
+      "mobile": "< 640px (Tailwind sm:)",
+      "tablet": "640-1024px (Tailwind md:/lg:)",
+      "desktop": "> 1024px (Tailwind lg:+)"
+    },
+    "layout_rules": [
+      "Mobile: single-column form; line table collapses into stacked cards (one card per grade row showing label + input pair)",
+      "Tablet: 2-column header grid (e.g., date + supplier on top, place + staff below); line table as horizontal table",
+      "Desktop: 2-column header grid expanded; line table is a wide 4-column table (grade | nos input | ... ); submit button right-aligned",
+      "Sticky submit-bar at bottom on mobile to keep CTA visible while scrolling line rows"
+    ]
+  },
+  "a11y": {
+    "rules": [
+      "Every <Label htmlFor=> ↔ <Input id=> pair correctly wired (shadcn primitives already follow this)",
+      "Validation errors surface via <p role='alert'> adjacent to the input, with aria-describedby on the input pointing to the error id",
+      "Required fields use aria-required='true'",
+      "DatePicker exposes the calendar via aria-label and supports keyboard navigation (shadcn calendar already supports this)",
+      "Submit button announces busy state via aria-busy when mutation is pending",
+      "ERR-012 banner uses role='alert' so screen readers announce it on appearance",
+      "Live-computed 'difference' in AdjustmentLineRow uses aria-live='polite' so screen readers announce updates without interrupting typing",
+      "Color is NOT the only indicator of validation state — use icon (lucide AlertCircle) + text label"
+    ]
+  },
+  "test_strategy": {
+    "framework": "jest 29.7 + @testing-library/react + msw (S1 — UR-W004 RESOLVED)",
+    "patterns": [
+      "Per-component .test.tsx adjacent to source (frontend/src/components/transactions/<x>/__tests__/<X>.test.tsx)",
+      "Mock api.ts via jest.mock('@/lib/api', () => ({ ... }))",
+      "Reuse S1's jest.setup.ts for jsdom polyfills (scrollIntoView etc. — UR-W004/005)",
+      "Form submission tests use userEvent (await) to simulate typing + selecting; assert on toast / redirect / disabled-submit state"
+    ],
+    "tc_coverage": {
+      "TC-090": "InwardForm — purchase_date = tomorrow → form.formState.errors.purchase_date set, submit blocked",
+      "TC-091": "InwardForm — purchase_date = today - 8 days → similar",
+      "TC-092": "InwardForm — supplier selection populates read-only place div with 'Mallur'",
+      "TC-093": "InwardForm — design selection triggers useGradesForDesign → field-array repopulates with 2 grade rows",
+      "TC-094": "InwardForm — typing -1 in nos shows inline error, submit blocked",
+      "TC-095": "InwardForm — all blank nos → AC-026 inline error, submit blocked",
+      "TC-096": "SalesForm — sales_date = tomorrow → submit blocked",
+      "TC-097": "SalesForm — verified_by_id missing → submit blocked",
+      "TC-098": "AdjustmentForm — stock_date > entry_date → cross-field error on entry_date",
+      "TC-099": "AdjustmentForm — getGradesWithCb returns 2 rows → 2 AdjustmentLineRow components with software_cb pre-filled read-only",
+      "TC-100": "AdjustmentForm — physical_cb = -1 → inline error",
+      "TC-101": "AdjustmentForm — software_cb=50, type 48 in physical_cb → difference shows -2 live",
+      "TC-102": "AdjustmentForm — getGradesWithCb returns [] → Err012Banner visible, line entry area hidden, submit disabled"
+    }
+  },
+  "ui_tasks_to_define": [
+    {
+      "id": "UI-T-001",
+      "name": "Inward form scaffold (page + form + line rows)",
+      "scope": "InwardFormPage + InwardForm + reuse TransactionLineRow; wire useSuppliers/useStaff/useDesigns/useGradesForDesign + useCreateInward; zod schema + react-hook-form binding; toast on success",
+      "tc_refs": ["TC-090..TC-095"]
+    },
+    {
+      "id": "UI-T-002",
+      "name": "Sales form scaffold",
+      "scope": "Mirror of UI-T-001 with dealer + 2 staff; reuse TransactionLineRow; useCreateSale mutation",
+      "tc_refs": ["TC-096", "TC-097"]
+    },
+    {
+      "id": "UI-T-003",
+      "name": "Adjustment form scaffold",
+      "scope": "AdjustmentFormPage + AdjustmentForm + AdjustmentLineRow + Err012Banner; useGradesWithCb-gated render; live-computed difference; cross-field zod validator; useCreateAdjustment mutation",
+      "tc_refs": ["TC-098..TC-102"]
+    },
+    {
+      "id": "UI-T-004",
+      "name": "Shared infra: DatePicker, MasterSelect, api.ts, mocks.ts, types/transactions.ts, schemas.ts, hooks",
+      "scope": "All shared components + the integration boundary file + 3 zod schemas + 5 hooks. Single mocks module.",
+      "tc_refs": []
+    },
+    {
+      "id": "UI-T-005",
+      "name": "Navigation — add Transactions section + 3 links",
+      "scope": "Modify S1 nav sidebar to add 'Transactions' section with 3 entries. Single-file modify.",
+      "tc_refs": []
+    }
+  ],
+  "out_of_scope": [
+    "Admin list pages for /inward and /sales (LLD list_inwards/list_sales endpoints exist but ACs don't require list UIs in S2 — S3 Sales Report will consume the list endpoints)",
+    "Edit/delete transaction flows (PRD V1 treats transactions as immutable; only Adjustment can correct stock)",
+    "Pagination on master lists (S1 lists are short — adequate without pagination)",
+    "Export to PDF/CSV (PRD deferred to V2)"
+  ],
+  "open_questions": [],
+  "ready_for_review": true,
+  "produced_at": "2026-06-22",
+  "next": "/ases-ui-review S2"
+}

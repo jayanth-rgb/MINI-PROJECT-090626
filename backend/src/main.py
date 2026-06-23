@@ -4,10 +4,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.config import get_settings
 from src.presentation.api.errors import register_error_handlers
 from src.presentation.api.routers import (
+    adjustments,
     dealers,
     design_grade_map,
     designs,
     grades,
+    inward,
+    sales,
     staff,
     suppliers,
 )
@@ -33,6 +36,9 @@ def create_app() -> FastAPI:
     app.include_router(grades.router, prefix="/api/v1")
     app.include_router(designs.router, prefix="/api/v1")
     app.include_router(design_grade_map.router, prefix="/api/v1")
+    app.include_router(inward.router, prefix="/api/v1")
+    app.include_router(sales.router, prefix="/api/v1")
+    app.include_router(adjustments.router, prefix="/api/v1")
 
     @app.get("/health")
     def health():

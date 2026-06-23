@@ -1,0 +1,42 @@
+{
+  "$schema": "ases/v3.0/analysis",
+  "sprint_id": "S2",
+  "analyzed_at": "2026-06-22T00:00:00Z",
+  "graph_assisted": true,
+  "graph_note": "graphify-out/ exists from S1 sprint-close (7613 nodes / 7917 edges / 777 communities). The 12 new S2 files do not yet exist so no new edges; the 4 modify targets are in the graph and have stable depends_on aligned with LLD.depends_on[].",
+  "checks_run": {
+    "deps_packages_vs_installed": "pass — 0 new packages declared; all 7 listed dependencies (sqlalchemy 2.0.36, alembic 1.14.0, fastapi 0.115.6, pydantic 2.10.4, psycopg 3.2.3, testcontainers 4.9.0, pytest 8.3.4) present in backend/.venv",
+    "lld_files_vs_codebase": "pass — 4/4 modify targets exist; 12/12 new files correctly absent (no conflicts)",
+    "env_vars_vs_env_example": "pass with note — API_CORS_ORIGINS and API_ENV are in .env.example; DATABASE_URL is constructed from DB_NAME/DB_USER/DB_PASSWORD in docker-compose or set directly in backend/.env at W5 bring-up (S1 carry-forward CF-001)",
+    "previous_sprint_drift": "pass — S1 was just released; no drift since the 571c601 ship commit",
+    "schema_validation": "pass (verified at /ases-sprint-gate S2)"
+  },
+  "blocking_gaps": [],
+  "non_blocking_gaps": [
+    {
+      "id": "NB-S2-01",
+      "description": "DATABASE_URL is not a literal entry in root .env.example; instead, root .env.example provides DB_NAME/DB_USER/DB_PASSWORD that docker-compose composes into the URL. backend's own backend/.env is what carries DATABASE_URL for application use. This is unchanged from S1 and is the W5 carry-forward responsibility. No action required for S2 dev (testcontainers fixture seeds DATABASE_URL inside conftest).",
+      "impact": "negligible",
+      "resolution": "No action. W5 still tracks this; ephemeral test PG covers dev cycle."
+    },
+    {
+      "id": "NB-S2-02",
+      "description": "IS-002 from S1 left a side-effect-free pattern for verifying alembic + seed against an ephemeral container; S2's TC-087 concurrency test will need a similar custom fixture (two parallel sessions on the same engine). /ases-test-impl will design.",
+      "impact": "low",
+      "resolution": "Document the fixture pattern when /ases-test-impl S2 lands."
+    },
+    {
+      "id": "NB-S2-03",
+      "description": "DS-014 migration 0003 ALTERs 4 S1 created_at columns from TIMESTAMP to TIMESTAMPTZ. testcontainers PG fixtures use Base.metadata.create_all (not alembic upgrade head), so the S1 column-type change is naturally applied via the upgraded TimestampMixin. The ALTER path itself is verified end-to-end when migration 0003 runs against a live PG (IS-002-pattern test in S2).",
+      "impact": "low",
+      "resolution": "Implementation note for /ases-tasks: the S2 equivalent of IS-002 must verify both the ALTERs and the new-table creates."
+    }
+  ],
+  "codebase_drift": [],
+  "carry_forward_acknowledged": {
+    "CF-001 / W5": "Still open (PO action). Does not block S2 dev.",
+    "TD-005, TD-006": "Closure tied to W5. Independent of S2.",
+    "TD-007": "Being closed IN S2 via DS-014 (this sprint's migration 0003)."
+  },
+  "verdict": "READY"
+}

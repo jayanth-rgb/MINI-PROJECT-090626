@@ -1,0 +1,17 @@
+{
+  "task_id": "T-042",
+  "title": "7 transaction + ledger ORM models",
+  "module_ref": "M-007",
+  "output_files": ["backend/src/infrastructure/db/models/transactions.py"],
+  "scope": "7 SQLAlchemy 2.x ORM models: InwardHeaderModel + InwardLineModel; SalesHeaderModel + SalesLineModel; AdjustmentHeaderModel + AdjustmentLineModel; StockLedgerModel. Headers inherit (Base, TimestampMixin) so created_at is TIMESTAMPTZ. Lines and stock_ledger inherit Base only (no created_at except stock_ledger).",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-041"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-013", "DS-014", "DS-009"],
+  "success_criteria": {
+    "manual": "Import all 7 models; assert table_args have the expected CHECK constraints + composite index ix_stock_ledger_dgt on stock_ledger.",
+    "automated": "Base.metadata.create_all in testcontainers builds all 7 tables without error; downstream tests TC-053/064/069/088/089 fire the CHECK violations.",
+    "definition_of_done": "7 model classes; all CHECK constraints + FK relationships per schema.json; relationships(lazy='joined') configured for adjustment/inward/sales line→design+grade joins where needed for hydrated reads."
+  },
+  "checkout_prompt": "'7 ORM models created with CHECK constraints + composite stock_ledger index. TIMESTAMPTZ via T-041 mixin.'"
+}

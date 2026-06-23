@@ -1,0 +1,1 @@
+{"task_id": "T-049", "test_case_refs": ["TC-074", "TC-075", "TC-077"], "notes": "Service-layer TCs. TC-068/072/073 cover schema layer (T-046 tests). TC-076/078 cover API layer (T-054)."}

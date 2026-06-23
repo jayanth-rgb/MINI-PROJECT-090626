@@ -1,0 +1,33 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "task_id": "T-051",
+  "sprint_id": "S2",
+  "verdict": "PROCEED",
+  "checks": [
+    {
+      "check": "input_files_exist",
+      "result": "pass",
+      "details": "All 5 reads_from inputs verified: backend/src/infrastructure/db/session.py (S1, provides get_db); 4 application services (inward, sales, adjustment, design_grade_cb) all created in T-047/048/049/050. Target file backend/src/presentation/api/dependencies.py also exists (S1 — this is a MODIFY task)."
+    },
+    {
+      "check": "interface_contract_intact",
+      "result": "pass",
+      "details": "LLD files[14] declares MODIFY semantics: existing 6 master DI factories (get_supplier_service, get_staff_service, get_dealer_service, get_grade_service, get_design_service, get_design_grade_map_service) MUST remain unchanged; ADD 4 new factories (get_inward_service, get_sales_service, get_adjustment_service, get_design_grade_cb_service). Each new factory follows the S1 pattern: takes session = Depends(get_db) and returns the matching service. Net interface gain: 4 new exports; no removals or modifications."
+    },
+    {
+      "check": "scope_boundary_clear",
+      "result": "pass",
+      "details": "T-051 modifies exactly one file (backend/src/presentation/api/dependencies.py). No other task in tasks.json writes to this file. T-052/053/054/055 (routers) import FROM dependencies.py but do not modify it. T-051 is the only path to the new DI factories. No tasks currently in_progress (T-050 just transitioned to complete)."
+    },
+    {
+      "check": "no_circular_dependency",
+      "result": "pass",
+      "details": "T-051.depends_on = ['T-047', 'T-048', 'T-049', 'T-050'] — ALL 4 status='complete' (CLEAN critiques). Parallel-group-B fully closed. T-051 is the gate that unblocks the 4 router tasks (T-052/053/054/055)."
+    }
+  ],
+  "decisions_in_scope": ["DS-007", "DS-012"],
+  "test_case_refs": [],
+  "next": "/ases-dev T-051 S2",
+  "validated_at": "2026-06-22",
+  "validated_by": "/ases-validate T-051 S2"
+}

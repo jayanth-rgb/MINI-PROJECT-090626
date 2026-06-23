@@ -1,0 +1,38 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "task_id": "T-045",
+  "sprint_id": "S2",
+  "verdict": "PROCEED",
+  "checks": [
+    {
+      "check": "input_files_exist",
+      "result": "pass",
+      "details": "Both reads_from inputs verified: backend/src/infrastructure/db/repositories/transactions.py exists (T-043 output, 4 repositories including StockLedgerRepository with latest_for_design_grade(for_update?), latest_as_of, rows_after, insert); backend/src/infrastructure/db/models/transactions.py exists (T-042 output, includes StockLedgerModel)."
+    },
+    {
+      "check": "interface_contract_intact",
+      "result": "pass",
+      "details": "LLD files[4] declares 5 public exports [apply_inward, apply_sale, apply_adjustment, closing_balance, opening_balance] + 1 private helper [_recompute_forward]. All 6 function signatures fully specified in LLD with typed Session/int/date inputs and StockLedgerModel/int/None outputs. Expects = [StockLedgerRepository, StockLedgerModel] — both upstream are present. Target file backend/src/domain/stock.py does not yet exist (consistent with type=create)."
+    },
+    {
+      "check": "scope_boundary_clear",
+      "result": "pass",
+      "details": "T-045 writes exactly one file (backend/src/domain/stock.py). No other task in tasks.json writes to or modifies this file. M-003 module currently has only domain/exceptions.py (S1) — domain/stock.py is the first stock-domain file. No tasks currently in_progress (T-044 just transitioned to complete)."
+    },
+    {
+      "check": "no_circular_dependency",
+      "result": "pass",
+      "details": "T-045.depends_on = ['T-043']. T-043.status = 'complete' (iteration_count=1, critique verdict CLEAN — 4 repos including StockLedgerRepository with all 4 methods specified by LLD files[4]). No back-edges; T-045 does not transitively depend on T-044 (migration is a runtime requirement for tests, not for module-import sanity)."
+    }
+  ],
+  "decisions_in_scope": ["DS-002", "DS-003", "DS-004", "DS-007"],
+  "test_case_refs": ["TC-079", "TC-080", "TC-081", "TC-082", "TC-083", "TC-084", "TC-085", "TC-086", "TC-087"],
+  "risk_notes": [
+    "HIGHEST-RISK file in S2 per HLD R-001 (concurrency, mitigated by DS-002 SELECT FOR UPDATE) and HLD R-003 (back-dated transactions, mitigated by DS-003 forward-recompute).",
+    "TC-087 (concurrent SAVE serialization) is the explicit verification of DS-002 — needs a 2-session testcontainer harness at /ases-test-impl S2 time.",
+    "TC-086 (back-date forward-recompute) exercises _recompute_forward — bounded by AC-021's 7-day window per DS-003."
+  ],
+  "next": "/ases-dev T-045 S2",
+  "validated_at": "2026-06-22",
+  "validated_by": "/ases-validate T-045 S2"
+}

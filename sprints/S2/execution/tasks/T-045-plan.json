@@ -1,0 +1,17 @@
+{
+  "task_id": "T-045",
+  "title": "domain.stock — ledger arithmetic (M-003 core; HIGHEST RISK in S2)",
+  "module_ref": "M-003",
+  "output_files": ["backend/src/domain/stock.py"],
+  "scope": "5 public + 1 private function. apply_inward/apply_sale/apply_adjustment: SELECT FOR UPDATE on latest (design, grade) row, compute new running_balance, insert new ledger row, _recompute_forward if back-dated. closing_balance(as_of_date): O(1) lookup. opening_balance(month_first_day) = closing_balance(month_first_day - 1 day) per DS-004.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-043"],
+  "test_case_refs": ["TC-079", "TC-080", "TC-081", "TC-082", "TC-083", "TC-084", "TC-085", "TC-086", "TC-087"],
+  "decisions_referenced": ["DS-002", "DS-003", "DS-004", "DS-007"],
+  "success_criteria": {
+    "manual": "Apply functions: locks acquired before read; inserted row has correct delta and running_balance. Back-dated insert triggers forward-recompute on later rows. closing_balance with no rows returns 0.",
+    "automated": "TC-079..TC-087 all pass; TC-086 verifies back-date recompute; TC-087 verifies concurrent serialization.",
+    "definition_of_done": "5 public functions match LLD signatures; _recompute_forward is bounded by the (design, grade) window; no global state; pure Session-in, ledger_row-out."
+  },
+  "checkout_prompt": "'domain.stock complete — 5 ledger functions with SELECT FOR UPDATE + back-date recompute. HIGHEST RISK file passed.'"
+}

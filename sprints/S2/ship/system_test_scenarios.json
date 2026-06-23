@@ -1,0 +1,104 @@
+{
+  "$schema": "ases/v3.0/system_test_scenarios",
+  "sprint_id": "S2",
+  "produced_by": "/ases-system-test S2 Step A",
+  "designed_at": "2026-06-23",
+  "scenarios": [
+    {
+      "id": "ST-004",
+      "type": "performance",
+      "nfr_ref": "PRD AC-045 dashboard latency (S2 leg: write-path)",
+      "risk_ref": null,
+      "description": "Single-row apply_inward call latency against testcontainers PG. Sets a sanity threshold for S2 write-path so S3's read-path latency budget isn't already consumed by writes.",
+      "threshold_ms_p95": 100,
+      "samples": 50,
+      "severity_if_failed": "major"
+    },
+    {
+      "id": "ST-005",
+      "type": "boundary",
+      "nfr_ref": null,
+      "ac_ref": "AC-021",
+      "description": "7-day backdate window boundary: purchase_date = today-7 accepted; purchase_date = today-8 rejected with ERR-002.",
+      "boundary_values": ["today-7 (inclusive)", "today-8 (exclusive)"],
+      "severity_if_failed": "critical"
+    },
+    {
+      "id": "ST-006",
+      "type": "security",
+      "nfr_ref": "Defense-in-depth via Pydantic + DB CHECK",
+      "risk_ref": null,
+      "description": "Malformed POST /api/v1/inward payloads rejected at the API boundary with 422; sending a non-int nos string is intercepted by Pydantic before service code runs.",
+      "injections": ["nos as string 'abc'", "missing required field", "nos as negative integer"],
+      "expected": "All three return HTTP 422 with descriptive detail; no rows inserted",
+      "severity_if_failed": "major"
+    },
+    {
+      "id": "ST-007",
+      "type": "load",
+      "nfr_ref": null,
+      "risk_ref": "HLD R-001 — concurrent-entry race",
+      "description": "TC-087 functional verification: two concurrent threads, each holding their own SQLAlchemy session against the SAME testcontainer engine, both invoke apply_inward for the SAME (design, grade) starting from balance > 0. SELECT FOR UPDATE must serialize them. Final ledger has 2 new rows with running_balance increasing monotonically.",
+      "threads": 2,
+      "ops_per_thread": 1,
+      "severity_if_failed": "critical"
+    }
+  ],
+  "execution_results": [
+    {
+      "id": "ST-004",
+      "type": "performance",
+      "result": "pass",
+      "actual_value_p50_ms": 3.6,
+      "actual_value_p95_ms": 4.4,
+      "actual_value_p99_ms": 5.7,
+      "threshold_ms_p95": 100,
+      "details": "50 samples + 3 warmups against testcontainers PG. Way under budget — S3 will have ample latency budget for read-path."
+    },
+    {
+      "id": "ST-005",
+      "type": "boundary",
+      "result": "pass",
+      "details": "parametrized [days_ago=7, accepted] and [days_ago=8, rejected with ValidationError] both verified. AC-021 boundary precisely enforced."
+    },
+    {
+      "id": "ST-006",
+      "type": "security",
+      "result": "pass",
+      "details": "parametrized [nos='abc', missing_field=supplier_id, nos=-1] all returned HTTP 422 with descriptive detail; no InwardHeader rows persisted. Pydantic + DB CHECK defense-in-depth verified."
+    },
+    {
+      "id": "ST-007",
+      "type": "load",
+      "result": "pass",
+      "fix_iterations": 2,
+      "iteration_1_outcome": "FAIL — race condition discovered: both threads got running_balance=15 instead of [15, 20]. Root cause: PostgreSQL SELECT ... LIMIT 1 ORDER BY ... FOR UPDATE doesn't re-resolve LIMIT after waiting on a row lock; the second waiter re-reads the originally-identified row (now-stale prior latest) instead of the row just inserted by the first writer. Documented as TD-011.",
+      "iteration_1_fix": "Added pg_advisory_xact_lock(design_id, grade_id) BEFORE the FOR UPDATE in domain.stock._apply. Advisory lock serializes all writes per (design, grade) and auto-releases at txn commit.",
+      "iteration_2_outcome": "PASS — final balances [10, 15, 20] confirmed; lock now correctly serializes.",
+      "iteration_2_secondary_issue": "ST-007's raw-SessionLocal commits (outside db_session rollback fixture) polluted the shared testcontainer PG with leftover rows, breaking 3 downstream seed tests. Added try/finally cleanup deleting design + grade + map + ledger rows. Full backend suite: 112/112 PASS.",
+      "details": "Two concurrent threads on separate sessions, both calling apply_inward(nos=5) starting from balance=10 → final running_balance must be 20 (not 15). After fix: confirmed correct serialization. HLD R-001 mitigation verified end-to-end with real 2-session concurrency."
+    }
+  ],
+  "execution_summary": {
+    "total_scenarios": 4,
+    "passed": 4,
+    "failed": 0,
+    "fix_iterations_total": 2,
+    "wall_clock_seconds": 25,
+    "verdict": "PASS_AFTER_FIX",
+    "discoveries": [
+      "DS-002 implementation gap: SELECT ... LIMIT 1 FOR UPDATE alone is insufficient for serializing writes against the 'lock the latest row' pattern. Advisory lock added to close the gap. TD-011 logged."
+    ]
+  },
+  "new_tech_debt": [
+    {
+      "id": "TD-011",
+      "description": "DS-002 documented 'SELECT FOR UPDATE on latest row' as the serialization primitive, but PostgreSQL's SELECT ... ORDER BY ... LIMIT 1 FOR UPDATE has a documented gotcha: when the originally-identified row is locked by another txn, the waiter re-reads that ORIGINAL row after the lock releases — NOT the new latest row inserted by the holder. ST-007 surfaced this with a real 2-session test. Fixed in T-045 (_apply) by acquiring pg_advisory_xact_lock(design_id, grade_id) BEFORE the FOR UPDATE row lock. DS-002's intent (serialize writes per (design, grade)) is now satisfied; the FOR UPDATE row lock remains as defense-in-depth.",
+      "severity": "documented",
+      "source": "/ases-system-test S2 ST-007",
+      "target_sprint": "S2 (RESOLVED at system-test time)",
+      "status": "closed_by_advisory_lock_in_T-045"
+    }
+  ],
+  "next_step": "/ases-uat S2"
+}

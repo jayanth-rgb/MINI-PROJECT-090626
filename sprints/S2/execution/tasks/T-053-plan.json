@@ -1,0 +1,17 @@
+{
+  "task_id": "T-053",
+  "title": "Sales router (F-008 API)",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/presentation/api/routers/sales.py"],
+  "scope": "APIRouter(prefix='/sales', tags=['sales']). POST /sales → 201. GET /sales with optional date_from, date_to, dealer_ids (List[int]), design_ids (List[int]) query params. Filters will be reused by S3 Sales Report.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-051"],
+  "test_case_refs": ["TC-066"],
+  "decisions_referenced": ["DS-007", "DS-010"],
+  "success_criteria": {
+    "manual": "POST a sale; GET filters by dealer/design.",
+    "automated": "TC-066 (POST 201 + ledger decreases).",
+    "definition_of_done": "2 endpoints; multi-select query params accept `dealer_ids=1&dealer_ids=2` style."
+  },
+  "checkout_prompt": "'Sales router — POST + GET on /api/v1/sales with multi-select filters.'"
+}

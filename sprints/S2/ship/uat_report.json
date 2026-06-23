@@ -1,0 +1,50 @@
+{
+  "$schema": "ases/v3.0/uat_report",
+  "sprint_id": "S2",
+  "reviewer": "Jayanth (PO)",
+  "reviewed_at": "2026-06-23",
+  "verdict": "APPROVED",
+  "ac_review": {
+    "total_acs": 21,
+    "accepted": 21,
+    "accepted_with_notes": 0,
+    "rejected": 0,
+    "details": [
+      { "ac_id": "AC-020", "feature": "F-007", "status": "accepted", "tests": ["TC-047", "TC-048", "TC-090", "ST-005"] },
+      { "ac_id": "AC-021", "feature": "F-007", "status": "accepted", "tests": ["TC-049", "TC-091", "ST-005"] },
+      { "ac_id": "AC-022", "feature": "F-007", "status": "accepted", "tests": ["TC-050", "TC-092", "IS-005"] },
+      { "ac_id": "AC-023", "feature": "F-007", "status": "accepted", "tests": ["TC-051", "TC-093"] },
+      { "ac_id": "AC-024", "feature": "F-007", "status": "accepted", "tests": ["TC-052", "TC-053", "TC-094"] },
+      { "ac_id": "AC-025", "feature": "F-007", "status": "accepted", "tests": ["TC-054"] },
+      { "ac_id": "AC-026", "feature": "F-007", "status": "accepted", "tests": ["TC-055", "TC-095"] },
+      { "ac_id": "AC-027", "feature": "F-007", "status": "accepted", "tests": ["TC-056", "IS-005"] },
+      { "ac_id": "AC-028", "feature": "F-008", "status": "accepted", "tests": ["TC-058", "TC-059", "TC-096"] },
+      { "ac_id": "AC-029", "feature": "F-008", "status": "accepted", "tests": ["TC-060", "IS-006"] },
+      { "ac_id": "AC-030", "feature": "F-008", "status": "accepted", "tests": ["TC-061", "TC-062", "TC-097"] },
+      { "ac_id": "AC-031", "feature": "F-008", "status": "accepted", "tests": ["TC-063"] },
+      { "ac_id": "AC-032", "feature": "F-008", "status": "accepted", "tests": ["TC-064"] },
+      { "ac_id": "AC-033", "feature": "F-008", "status": "accepted", "tests": ["TC-065", "TC-066", "IS-006"] },
+      { "ac_id": "AC-034", "feature": "F-009", "status": "accepted", "tests": ["TC-067"] },
+      { "ac_id": "AC-035", "feature": "F-009", "status": "accepted", "tests": ["TC-068", "TC-069", "TC-098"] },
+      { "ac_id": "AC-036", "feature": "F-009", "status": "accepted", "tests": ["TC-070", "TC-071", "TC-099", "IS-007"] },
+      { "ac_id": "AC-037", "feature": "F-009", "status": "accepted", "tests": ["TC-072", "TC-073", "TC-100"] },
+      { "ac_id": "AC-038", "feature": "F-009", "status": "accepted", "tests": ["TC-074", "TC-101"] },
+      { "ac_id": "AC-039", "feature": "F-009", "status": "accepted", "tests": ["TC-075", "TC-076", "IS-007"] },
+      { "ac_id": "AC-040", "feature": "F-009", "status": "accepted", "tests": ["TC-077", "TC-078", "TC-102"] }
+    ]
+  },
+  "cross_cutting_review": [
+    { "id": "DS-002", "status": "accepted", "note": "TD-011 closed during system-test by advisory lock — concurrency now correct in 2-session test (ST-007)." },
+    { "id": "DS-003", "status": "accepted", "note": "Back-date forward-recompute verified end-to-end (IS-008)." },
+    { "id": "DS-004", "status": "accepted", "note": "On-read carry-forward via month_first−1 (TC-081)." },
+    { "id": "DS-013", "status": "accepted", "note": "place snapshot historically immutable (TC-050 mutates master after save)." },
+    { "id": "ST-004 perf", "status": "accepted", "note": "p95=4.4ms, 23× under 100ms budget." }
+  ],
+  "tech_debt_observed": [
+    { "id": "TD-010", "status": "open", "severity": "minor", "target": "S3/V2", "note": "Radix-Select jsdom incompatibility; backend API tests cover the same ACs." },
+    { "id": "TD-011", "status": "closed_in_S2", "severity": "documented", "note": "DS-002 advisory-lock fix landed during system-test." },
+    { "id": "TD-008", "status": "effectively_closed_by_TD-011_fix", "severity": "minor", "note": "First-row race likely subsumed by advisory lock which acquires even when no row exists. Worth re-verifying in S3." }
+  ],
+  "notes": "All 21 ACs accepted. 0 rejected. 0 conditional. TD-011's mid-step discovery and closure increases confidence in the concurrency invariant. Ready for /ases-devops S2.",
+  "next": "/ases-devops S2"
+}

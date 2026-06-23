@@ -59,7 +59,13 @@
       "Bash(.venv/Scripts/python.exe -m pytest tests/ -v --tb=short)",
       "Skill(ases-integration-test)",
       "Skill(ases-integration-test:*)",
-      "Bash(.venv/Scripts/python.exe -m pytest tests/integration/test_integration_is00*.py -v --tb=short)"
+      "Bash(.venv/Scripts/python.exe -m pytest tests/integration/test_integration_is00*.py -v --tb=short)",
+      "Bash(.venv/Scripts/python -m pytest tests/system/test_perf_apply_inward.py tests/system/test_boundary_backdate_window.py tests/system/test_security_malformed_payloads.py tests/system/test_load_concurrent_select_for_update.py -v --tb=short -s)",
+      "Bash(.venv/Scripts/python -m pytest tests/system/test_load_concurrent_select_for_update.py -v --tb=short -s)",
+      "Bash(.venv/Scripts/python -m pytest tests/unit/scripts/test_seed_master_data.py -v --tb=short)",
+      "Bash(.venv/Scripts/python -m pytest tests/ --tb=no -q)",
+      "Bash(.venv/Scripts/python -m pytest tests/ --tb=no)",
+      "Bash(grep -E \"^={5,}|passed|failed|error\")"
     ],
     "deny": [
       "Write(./.env)",

@@ -1,0 +1,74 @@
+{
+  "$schema": "ases/v3.0/system_test_report",
+  "sprint_id": "S2",
+  "executed_at": "2026-06-23T00:00:00Z",
+  "scenarios": [
+    {
+      "id": "ST-004",
+      "type": "performance",
+      "nfr_ref": "PRD AC-045 (write-path budget)",
+      "description": "apply_inward p95 latency against testcontainers PG",
+      "threshold": "p95 < 100ms",
+      "result": "pass",
+      "actual_value": "p95=4.4ms (p50=3.6, p99=5.7)",
+      "details": "50 samples after 3 warmups; commit per call. Well under budget.",
+      "severity_if_failed": "major"
+    },
+    {
+      "id": "ST-005",
+      "type": "boundary",
+      "nfr_ref": null,
+      "ac_ref": "AC-021",
+      "description": "7-day backdate window boundary (today-7 accepted, today-8 rejected)",
+      "threshold": "boundary exact",
+      "result": "pass",
+      "actual_value": "both parametrized cases verified",
+      "details": "InwardService.save_inward enforces strict < today-7 cutoff via timedelta(days=7) comparison",
+      "severity_if_failed": "critical"
+    },
+    {
+      "id": "ST-006",
+      "type": "security",
+      "nfr_ref": "Defense in depth",
+      "description": "Malformed POST /inward payloads rejected with 422; no DB writes",
+      "threshold": "all 3 payloads return 422 + 0 InwardHeader rows",
+      "result": "pass",
+      "actual_value": "3/3 returned 422; 0 rows leaked",
+      "details": "Pydantic intercepts (nos='abc', missing supplier_id, nos=-1) before service code runs",
+      "severity_if_failed": "major"
+    },
+    {
+      "id": "ST-007",
+      "type": "load",
+      "nfr_ref": null,
+      "risk_ref": "HLD R-001",
+      "description": "TC-087 functional: 2 concurrent threads apply_inward for same (design, grade) must serialize via SELECT FOR UPDATE",
+      "threshold": "final balances [10, 15, 20] — no race",
+      "result": "pass",
+      "actual_value": "[10, 15, 20] after fix",
+      "details": "Iteration 1 FAILED revealing TD-011 (SELECT FOR UPDATE LIMIT 1 race); iteration 2 PASSED after advisory lock added to T-045 _apply.",
+      "severity_if_failed": "critical",
+      "fix_history": "Added pg_advisory_xact_lock(design_id, grade_id) before FOR UPDATE in domain.stock._apply. Closes the LIMIT-1 ORDER-BY race per PG documented behavior."
+    }
+  ],
+  "verdict": "pass",
+  "critical_failures": [],
+  "fix_iterations_total": 2,
+  "fix_iteration_log": [
+    {
+      "iteration": 1,
+      "target": "ST-007 race condition",
+      "fix": "Added pg_advisory_xact_lock(design_id, grade_id) in src/domain/stock.py::_apply BEFORE the FOR UPDATE row lock.",
+      "result": "ST-007 PASS"
+    },
+    {
+      "iteration": 2,
+      "target": "3 unrelated S1 seed tests failed in full suite after ST-007 ran (state pollution)",
+      "fix": "Added try/finally cleanup block in ST-007 deleting design + grade + map + ledger rows since ST-007 uses raw SessionLocal commits outside the rollback-only db_session fixture.",
+      "result": "Full backend suite 112/112 PASS"
+    }
+  ],
+  "wall_clock_seconds": 49,
+  "discoveries_logged_as_tech_debt": ["TD-011 (RESOLVED in iteration 1)"],
+  "next": "/ases-uat S2"
+}

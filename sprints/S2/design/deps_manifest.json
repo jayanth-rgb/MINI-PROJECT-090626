@@ -1,0 +1,42 @@
+{
+  "$schema": "ases/v3.0/deps_manifest",
+  "sprint_id": "S2",
+  "summary": "No new runtime or dev dependencies for S2 — the entire backend stack delivered in S1 (FastAPI, SQLAlchemy 2.x, Alembic, Pydantic v2, psycopg, pytest, testcontainers[postgres]) covers transaction forms, stock ledger logic, and the new migration. The 7 new ORM models, 4 new repositories, 4 new services, 3 new routers and 1 modified router fit entirely within the existing dependency footprint.",
+  "packages": [],
+  "services": [
+    {
+      "name": "PostgreSQL 16",
+      "purpose": "Adds 7 tables (6 transaction + 1 stock_ledger) via alembic migration 0003. Same instance as S1."
+    },
+    {
+      "name": "Docker (testcontainers)",
+      "purpose": "Test execution dependency only — used by backend/tests/conftest.py for ephemeral PG. Same as S1."
+    }
+  ],
+  "env_vars": [
+    {
+      "name": "DATABASE_URL",
+      "required": true,
+      "description": "Inherits from S1. PostgreSQL DSN. Backend cannot start without it.",
+      "example": "postgresql+psycopg://trading_app:<pwd>@localhost:5432/jayanth_trading"
+    },
+    {
+      "name": "API_CORS_ORIGINS",
+      "required": false,
+      "description": "Inherits from S1. JSON array of allowed origins. Defaults to [] (deny by default).",
+      "example": "[\"http://localhost:3000\"]"
+    },
+    {
+      "name": "API_ENV",
+      "required": false,
+      "description": "Inherits from S1. Environment label. Defaults to 'development'.",
+      "example": "development"
+    }
+  ],
+  "migrations": ["0003_transaction_and_ledger_tables.py"],
+  "frontend_deps_note": "Per LLD's frontend_ui_track_note: frontend deps come via /ases-ui-scaffold S2. Likely no new npm packages beyond S1's set (react-hook-form, zod, axios, tanstack-query, shadcn/radix, sonner). Datepicker uses react-day-picker (already installed in S1 for shadcn calendar). If a numeric input component is needed beyond plain Input, that'll be added by the UI scaffold step.",
+  "carry_forward_from_s1": {
+    "TD-007": "Closing via DS-014 in this sprint (TimestampMixin → TIMESTAMPTZ).",
+    "W5 (CF-001)": "PO action — does not affect S2 design. Becomes relevant for S2 /ases-test-run if W5 still open by then."
+  }
+}

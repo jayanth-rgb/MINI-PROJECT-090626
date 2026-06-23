@@ -1,0 +1,17 @@
+{
+  "task_id": "T-052",
+  "title": "Inward router (F-007 API)",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/presentation/api/routers/inward.py"],
+  "scope": "APIRouter(prefix='/inward', tags=['inward']). POST /inward → 201 InwardRead. GET /inward?date_from&date_to → list[InwardRead].",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-051"],
+  "test_case_refs": ["TC-048", "TC-057"],
+  "decisions_referenced": ["DS-007", "DS-010"],
+  "success_criteria": {
+    "manual": "Router exports `router`; OpenAPI lists POST and GET routes under /api/v1/inward.",
+    "automated": "TC-048 (POST with future date → 422), TC-057 (POST 201 + ledger increases per line).",
+    "definition_of_done": "2 endpoints; ValidationError → 422 via global handler; NotFoundError → 404."
+  },
+  "checkout_prompt": "'Inward router — POST + GET on /api/v1/inward.'"
+}

@@ -5,10 +5,10 @@
   "updated_by": "every_command",
   "project": "Jayanth Trading Tiles System",
   "sprint": "S2",
-  "phase": "SPRINT_DESIGN",
-  "stage": "s1_released_ready_for_s2_design",
-  "last_completed": "/ases-release S1",
-  "next": "/ases-prd-update S2 (optional) or /ases-lld S2",
+  "phase": "SPRINT_SHIP",
+  "stage": "uat_S2_approved",
+  "last_completed": "/ases-uat S2",
+  "next": "/ases-devops S2",
   "blockers": [],
   "prd_version": 1,
   "project_id": "jayanth-trading-tiles",
@@ -38,7 +38,23 @@
     "uat:S1:APPROVED",
     "devops:S1:committed:571c601",
     "final_audit:S1:SHIP",
-    "release:S1:SHIPPED"
+    "release:S1:SHIPPED",
+    "lld:S2",
+    "schema:S2",
+    "test_spec:S2",
+    "sprint_gate:S2:PASS",
+    "analyze:S2:READY",
+    "sprint_scaffold:S2",
+    "tasks:S2",
+    "ui_design:S2",
+    "ui_review:S2:APPROVED",
+    "ui_scaffold:S2",
+    "sprint_close:S2",
+    "test_impl:S2",
+    "test_run:S2:PASS",
+    "integration_test:S2:PASS",
+    "system_test:S2:PASS",
+    "uat:S2:APPROVED"
   ],
   "open_issues": [
     "W1: deps_manifest missing jest + @testing-library/* (resolve before /ases-test-impl S1)",
@@ -69,9 +85,29 @@
     { "id": "TD-004", "description": "jest@29 + jsdom transitive tree carries 5 vulnerabilities (2 low, 1 mod, 1 high, 1 crit) + 5 deprecated transitive packages (whatwg-encoding@2, abab@2, inflight@1, domexception@4, glob@7). Cosmetic at runtime; revisit at sprint-close (likely bump to jest@30).", "severity": "minor", "source": "/ases-sprint-scaffold S1 Step B (npm install warning)", "target_sprint": "S1" },
     { "id": "TD-005", "description": "Migration 0002_master_tables.py hand-authored from ORM (no PG to --autogenerate against). DDL exactly mirrors Base.metadata. Closes when PO runs `alembic upgrade head` + `alembic check` (W5).", "severity": "minor", "source": "/ases-critique T-024 S1", "target_sprint": "S1" },
     { "id": "TD-006", "description": "T-025 seed-script runtime verification (33-insert / 0-reinsert) deferred until W5 closes. Static cross-check against TC expected_output is CLEAN.", "severity": "minor", "source": "/ases-critique T-025 S1", "target_sprint": "S1" },
-    { "id": "TD-007", "description": "TimestampMixin emits plain TIMESTAMP; LLD prose mentions TIMESTAMPTZ. Migration mirrors ORM (DS-009). If TZ semantics needed: edit base.py + follow-up migration in S2.", "severity": "minor", "source": "/ases-critique T-024 S1", "target_sprint": "S2" }
+    { "id": "TD-007", "description": "TimestampMixin emits plain TIMESTAMP; LLD prose mentions TIMESTAMPTZ. Migration mirrors ORM (DS-009). If TZ semantics needed: edit base.py + follow-up migration in S2.", "severity": "minor", "source": "/ases-critique T-024 S1", "target_sprint": "S2", "status": "closed_by_DS-014 (T-041 ORM + T-044 migration ALTER 4 S1 columns to TIMESTAMPTZ)" },
+    { "id": "TD-008", "description": "First-row insert race (theoretical): SELECT FOR UPDATE LIMIT 1 acquires no lock when WHERE matches 0 rows. Two concurrent sessions inserting the FIRST-EVER ledger row for the same (design, grade) can each succeed at running_balance=delta instead of [delta, 2·delta]. Spec-compliant with DS-002 + LLD; PRD silent; TC-087 assumes pre-existing row. V2 mitigation options: lock master row, advisory locks, unique+retry.", "severity": "minor", "source": "/ases-critique T-045 S2 (transparency note 1)", "target_sprint": "V2" },
+    { "id": "TD-009", "description": "Frontend zod-only edge-case TCs (TC-090/091/094/096/098/100) deferred from /ases-ui-scaffold to /ases-test-impl S2. Pure validator assertions following consistent pattern; deferring kept scaffold tight.", "severity": "minor", "source": "/ases-ui-scaffold S2 (test_coverage.tcs_deferred_to_test_impl)", "target_sprint": "S2", "status": "closed_by_test_impl_S2 (6 TCs implemented as schema.safeParse() calls and passing in jest)" },
+    { "id": "TD-010", "description": "Frontend tests TC-092/093/095/097/099/101/102 (7) cannot exercise Radix UI Select / Popover interactions in jsdom — portals + internal state machinery don't fully materialize. Matches the S1 pattern (TC-045 deferred for same root cause). 6 zod-direct sibling TCs in the same files pass cleanly. Resolution options: (a) mock @radix-ui/react-select with native <select> shim, (b) move to Playwright/Cypress E2E in S3+, (c) accept as scaffold-level coverage (backend tests cover the same ACs via API integration).", "severity": "minor", "source": "/ases-test-run S2 frontend", "target_sprint": "S3 or V2" },
+    { "id": "TD-011", "description": "DS-002 race discovered + closed by /ases-system-test S2 ST-007. Root cause: PG SELECT ... LIMIT 1 ORDER BY ... FOR UPDATE does NOT re-resolve LIMIT after waiting on a row lock — the waiter re-reads the originally-identified row, missing the newly-inserted latest row from the holder. Fixed by adding pg_advisory_xact_lock(design_id, grade_id) BEFORE the FOR UPDATE in src/domain/stock.py::_apply. DS-002 spec text could be amended in S3 to mandate the advisory-lock-first pattern.", "severity": "documented", "source": "/ases-system-test S2 ST-007", "target_sprint": "S2", "status": "closed_by_advisory_lock_in_T-045 (one-line addition)" }
   ],
   "sprint_history": [
+    {
+      "sprint_id": "S2",
+      "closed_on": "2026-06-23",
+      "completed_count": 16,
+      "deferred_count": 0,
+      "escalated_count": 0,
+      "iteration_max": 1,
+      "new_tech_debt": ["TD-008", "TD-009"],
+      "closed_tech_debt": ["TD-007"],
+      "new_decisions": ["DS-013", "DS-014"],
+      "carry_forward": ["CF-001 (W5 PG bring-up — still pending from S1)"],
+      "test_cases_to_verify_in_phase_3": 56,
+      "features_shipped": ["F-007", "F-008", "F-009"],
+      "ui_tracks_status": "ui_scaffold LOCKED; 6 integration_points declared at frontend/src/lib/api/transactions.ts",
+      "summary_ref": "sprints/S2/ship/sprint_summary.json"
+    },
     {
       "sprint_id": "S1",
       "closed_on": "2026-06-18",
@@ -93,7 +129,7 @@
       "release_ref": "sprints/S1/ship/release.json"
     }
   ],
-  "decisions_count": 12,
-  "last_updated": "2026-06-18",
-  "last_updated_by": "/ases-release S1"
+  "decisions_count": 14,
+  "last_updated": "2026-06-23",
+  "last_updated_by": "/ases-uat S2"
 }

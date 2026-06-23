@@ -1,0 +1,17 @@
+{
+  "task_id": "T-048",
+  "title": "SalesService (F-008)",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/application/services/sales_service.py"],
+  "scope": "SalesService.save_sale — mirror of InwardService with dealer + 2 staff (loading + verified) + delta = -nos via stock.apply_sale. list_sales(date_from, date_to, dealer_ids?, design_ids?) for admin read.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-043", "T-045", "T-046"],
+  "test_case_refs": ["TC-058", "TC-059", "TC-060", "TC-062", "TC-063", "TC-065"],
+  "decisions_referenced": ["DS-002", "DS-007", "DS-013"],
+  "success_criteria": {
+    "manual": "POST a valid sale; ledger decreases by nos per line.",
+    "automated": "TC-058..TC-063 (minus 061 which is schema-only), TC-065 pass.",
+    "definition_of_done": "save_sale enforces AC-028..AC-033; loading_staff AND verified_by both required + active."
+  },
+  "checkout_prompt": "'SalesService created; ledger decreases per line via apply_sale.'"
+}

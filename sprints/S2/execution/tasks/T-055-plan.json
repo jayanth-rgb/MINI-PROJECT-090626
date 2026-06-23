@@ -1,0 +1,17 @@
+{
+  "task_id": "T-055",
+  "title": "Designs router — add GET /designs/{id}/grades-with-cb",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/presentation/api/routers/designs.py"],
+  "scope": "MODIFY S1 router. Add GET /designs/{design_id}/grades-with-cb?stock_date=YYYY-MM-DD → list[DesignGradeReadWithCb] via DesignGradeCbService. Existing CRUD + /grades endpoints untouched.",
+  "do_not_touch": ["any S1-delivered route in designs.py"],
+  "depends_on": ["T-051", "T-050"],
+  "test_case_refs": ["TC-071"],
+  "decisions_referenced": ["DS-007", "DS-010"],
+  "success_criteria": {
+    "manual": "GET /api/v1/designs/{id}/grades-with-cb?stock_date=2026-06-22 returns [{grade_id, grade_code, software_cb}].",
+    "automated": "TC-071 (200 + projection + body_item_keys_exact).",
+    "definition_of_done": "1 new route added; response_model=list[DesignGradeReadWithCb]; existing routes unchanged."
+  },
+  "checkout_prompt": "'Designs router extended — GET /{id}/grades-with-cb wired.'"
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "T-049",
+  "title": "AdjustmentService (F-009)",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/application/services/adjustment_service.py"],
+  "scope": "AdjustmentService.save_adjustment: validate stock_date<=entry_date (AC-035), assert design exists+active, assert design has active grade mappings else raise ERR-012 (AC-040), per line: snapshot software_cb via stock.closing_balance(stock_date), compute difference, persist line, call stock.apply_adjustment(delta=difference), commit.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-043", "T-045", "T-046"],
+  "test_case_refs": ["TC-074", "TC-075", "TC-077"],
+  "decisions_referenced": ["DS-002", "DS-007"],
+  "success_criteria": {
+    "manual": "Save an adjustment; difference computed correctly per line; ledger delta = difference.",
+    "automated": "TC-074, TC-075, TC-077 pass.",
+    "definition_of_done": "save_adjustment writes software_cb snapshot AND difference; calls apply_adjustment with delta=difference."
+  },
+  "checkout_prompt": "'AdjustmentService created; difference=physical-software; ledger applies delta=difference.'"
+}

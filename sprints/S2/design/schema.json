@@ -1,0 +1,453 @@
+{
+  "$schema": "ases/v3.0/schema",
+  "document": "schema",
+  "produced_by": "/ases-schema",
+  "consumed_by": ["/ases-dev", "/ases-sprint-gate", "/ases-test-spec", "/ases-tasks", "/ases-validate"],
+  "sprint_id": "S2",
+  "scope_modules": ["M-002", "M-003", "M-007"],
+  "scope_features": ["F-007", "F-008", "F-009"],
+  "decisions_referenced": ["DS-002", "DS-003", "DS-004", "DS-007", "DS-008", "DS-009", "DS-012", "DS-013", "DS-014"],
+  "schema_amendments": {
+    "description": "DS-014 closes TD-007. Migration 0003 ALTERs the 4 existing S1 created_at columns from TIMESTAMP (S1 ORM emitted plain TIMESTAMP) to TIMESTAMPTZ. The S1 schema.json prose already documented TIMESTAMPTZ — S2 brings the implementation into alignment with that prose.",
+    "altered_tables": [
+      "tbl_supplier_master.created_at: TIMESTAMP -> TIMESTAMPTZ",
+      "tbl_staff_master.created_at: TIMESTAMP -> TIMESTAMPTZ",
+      "tbl_dealer_master.created_at: TIMESTAMP -> TIMESTAMPTZ",
+      "tbl_trading_design_master.created_at: TIMESTAMP -> TIMESTAMPTZ"
+    ]
+  },
+  "entities": [
+    {
+      "name": "tbl_inward_header",
+      "hld_module": "M-002",
+      "type": "table",
+      "feature_ref": "F-007",
+      "fields": [
+        {
+          "name": "header_id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Surrogate primary key."
+        },
+        {
+          "name": "purchase_date",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Date of the inward purchase. Service-validated: today() - 7 <= purchase_date <= today() per AC-020 (ERR-001) and AC-021 (ERR-002)."
+        },
+        {
+          "name": "supplier_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_supplier_master.supplier_id (ON DELETE RESTRICT)."
+        },
+        {
+          "name": "place",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Snapshot of supplier.place at save time per DS-013. Read-only on the form (AC-022); not propagated retroactively when the master changes."
+        },
+        {
+          "name": "entered_by_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_staff_master.staff_id (ON DELETE RESTRICT). Must reference an active staff at save time (service-level check)."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()",
+          "description": "Server-default insert timestamp via TimestampMixin (with DS-014 TIMESTAMPTZ upgrade)."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (header_id)",
+        "INDEX ix_inward_header_purchase_date ON (purchase_date) — supports S3 Stock Dashboard date filtering."
+      ],
+      "relationships": [
+        {"type": "one_to_many", "target": "tbl_inward_line", "via": "tbl_inward_line.header_id"},
+        {"type": "one_to_many", "target": "tbl_supplier_master", "via": "supplier_id", "direction_note": "Each header references one supplier."},
+        {"type": "one_to_many", "target": "tbl_staff_master", "via": "entered_by_id", "direction_note": "Each header references one staff member."}
+      ],
+      "constraints": [
+        "FOREIGN KEY (supplier_id) REFERENCES tbl_supplier_master(supplier_id) ON DELETE RESTRICT",
+        "FOREIGN KEY (entered_by_id) REFERENCES tbl_staff_master(staff_id) ON DELETE RESTRICT"
+      ],
+      "ac_refs": ["AC-020", "AC-021", "AC-022", "AC-027"]
+    },
+    {
+      "name": "tbl_inward_line",
+      "hld_module": "M-002",
+      "type": "table",
+      "feature_ref": "F-007",
+      "fields": [
+        {
+          "name": "line_id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Surrogate primary key."
+        },
+        {
+          "name": "header_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_inward_header.header_id (ON DELETE CASCADE — DB-level mirror of the ORM cascade for safety)."
+        },
+        {
+          "name": "design_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_trading_design_master.design_id (ON DELETE RESTRICT). Must reference an active design at save time (service-level)."
+        },
+        {
+          "name": "grade_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_grade_master.grade_id (ON DELETE RESTRICT). Service enforces (design_id, grade_id) is in active design_grade_map (AC-023)."
+        },
+        {
+          "name": "nos",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "Quantity inward. CHECK(nos > 0) per AC-024 (ERR-007). Zero / blank rows are stripped by the service before insert per AC-025 (RULE-017)."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (line_id)",
+        "INDEX ix_inward_line_header ON (header_id) — supports header detail fetch.",
+        "INDEX ix_inward_line_dgd ON (design_id, grade_id, header_id) — supports per-(design,grade) backfill / forward-recompute reads."
+      ],
+      "relationships": [
+        {"type": "one_to_many", "target": "tbl_inward_header", "via": "header_id", "direction_note": "Many lines per header."},
+        {"type": "one_to_many", "target": "tbl_trading_design_master", "via": "design_id"},
+        {"type": "one_to_many", "target": "tbl_grade_master", "via": "grade_id"}
+      ],
+      "constraints": [
+        "FOREIGN KEY (header_id) REFERENCES tbl_inward_header(header_id) ON DELETE CASCADE",
+        "FOREIGN KEY (design_id) REFERENCES tbl_trading_design_master(design_id) ON DELETE RESTRICT",
+        "FOREIGN KEY (grade_id) REFERENCES tbl_grade_master(grade_id) ON DELETE RESTRICT",
+        "CHECK (nos > 0) — enforces AC-024 at the DB level (defense-in-depth alongside Pydantic)."
+      ],
+      "ac_refs": ["AC-023", "AC-024", "AC-025", "AC-026", "AC-027"]
+    },
+    {
+      "name": "tbl_sales_header",
+      "hld_module": "M-002",
+      "type": "table",
+      "feature_ref": "F-008",
+      "fields": [
+        {
+          "name": "header_id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Surrogate primary key."
+        },
+        {
+          "name": "sales_date",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Service-validated identically to inward.purchase_date (AC-028 / ERR-001 / ERR-002)."
+        },
+        {
+          "name": "dealer_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_dealer_master.dealer_id (ON DELETE RESTRICT)."
+        },
+        {
+          "name": "place",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Snapshot of dealer.place at save time per DS-013 (AC-029)."
+        },
+        {
+          "name": "loading_staff_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_staff_master.staff_id (RESTRICT). Required, active per AC-030."
+        },
+        {
+          "name": "verified_by_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_staff_master.staff_id (RESTRICT). Required, active per AC-030. Distinct logical role from loading_staff_id but the DB has no rule that they must differ — both can be the same staff member if the business chooses."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()",
+          "description": "TimestampMixin (DS-014)."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (header_id)",
+        "INDEX ix_sales_header_sales_date ON (sales_date) — supports S3 Sales Report date-range filter and Stock Dashboard.",
+        "INDEX ix_sales_header_dealer ON (dealer_id) — supports S3 Sales Report dealer filter (AC-046)."
+      ],
+      "relationships": [
+        {"type": "one_to_many", "target": "tbl_sales_line", "via": "tbl_sales_line.header_id"},
+        {"type": "one_to_many", "target": "tbl_dealer_master", "via": "dealer_id"},
+        {"type": "one_to_many", "target": "tbl_staff_master", "via": "loading_staff_id"},
+        {"type": "one_to_many", "target": "tbl_staff_master", "via": "verified_by_id"}
+      ],
+      "constraints": [
+        "FOREIGN KEY (dealer_id) REFERENCES tbl_dealer_master(dealer_id) ON DELETE RESTRICT",
+        "FOREIGN KEY (loading_staff_id) REFERENCES tbl_staff_master(staff_id) ON DELETE RESTRICT",
+        "FOREIGN KEY (verified_by_id) REFERENCES tbl_staff_master(staff_id) ON DELETE RESTRICT"
+      ],
+      "ac_refs": ["AC-028", "AC-029", "AC-030", "AC-033"]
+    },
+    {
+      "name": "tbl_sales_line",
+      "hld_module": "M-002",
+      "type": "table",
+      "feature_ref": "F-008",
+      "fields": [
+        {"name": "line_id", "type": "BIGSERIAL", "nullable": false, "description": "Surrogate PK."},
+        {"name": "header_id", "type": "BIGINT", "nullable": false, "description": "FK -> tbl_sales_header.header_id (ON DELETE CASCADE)."},
+        {"name": "design_id", "type": "BIGINT", "nullable": false, "description": "FK -> tbl_trading_design_master (RESTRICT)."},
+        {"name": "grade_id", "type": "BIGINT", "nullable": false, "description": "FK -> tbl_grade_master (RESTRICT). (design_id, grade_id) must be in active design_grade_map (AC-031)."},
+        {"name": "nos", "type": "INTEGER", "nullable": false, "description": "Quantity sold. CHECK(nos > 0) per AC-032."}
+      ],
+      "indexes": [
+        "PRIMARY KEY (line_id)",
+        "INDEX ix_sales_line_header ON (header_id)",
+        "INDEX ix_sales_line_dgd ON (design_id, grade_id, header_id) — supports S3 Consolidation Report (GROUP BY design, grade) and Sales Report design filter."
+      ],
+      "relationships": [
+        {"type": "one_to_many", "target": "tbl_sales_header", "via": "header_id"},
+        {"type": "one_to_many", "target": "tbl_trading_design_master", "via": "design_id"},
+        {"type": "one_to_many", "target": "tbl_grade_master", "via": "grade_id"}
+      ],
+      "constraints": [
+        "FOREIGN KEY (header_id) REFERENCES tbl_sales_header(header_id) ON DELETE CASCADE",
+        "FOREIGN KEY (design_id) REFERENCES tbl_trading_design_master(design_id) ON DELETE RESTRICT",
+        "FOREIGN KEY (grade_id) REFERENCES tbl_grade_master(grade_id) ON DELETE RESTRICT",
+        "CHECK (nos > 0)"
+      ],
+      "ac_refs": ["AC-031", "AC-032", "AC-033"]
+    },
+    {
+      "name": "tbl_adjustment_header",
+      "hld_module": "M-002",
+      "type": "table",
+      "feature_ref": "F-009",
+      "fields": [
+        {
+          "name": "header_id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Surrogate PK."
+        },
+        {
+          "name": "stock_date",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Date the physical stock was taken. Per AC-035 must be <= entry_date (ERR-010)."
+        },
+        {
+          "name": "entry_date",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Date the form was submitted. Used as txn_date for the resulting ledger rows (since adjustments represent the value at stock_date applied to the ledger at entry_date)."
+        },
+        {
+          "name": "design_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_trading_design_master (RESTRICT). EXACTLY one design per adjustment per AC-034 — enforced by having the design on the header (not the line). Service blocks save if design has no active grade combinations (ERR-012 / AC-040)."
+        },
+        {
+          "name": "entered_by_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_staff_master.staff_id (RESTRICT). Required."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()",
+          "description": "TimestampMixin (DS-014)."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (header_id)",
+        "INDEX ix_adjustment_header_design_stock_date ON (design_id, stock_date) — supports re-reading the latest adjustment for a (design, stock_date) pair if needed."
+      ],
+      "relationships": [
+        {"type": "one_to_many", "target": "tbl_adjustment_line", "via": "tbl_adjustment_line.header_id"},
+        {"type": "one_to_many", "target": "tbl_trading_design_master", "via": "design_id"},
+        {"type": "one_to_many", "target": "tbl_staff_master", "via": "entered_by_id"}
+      ],
+      "constraints": [
+        "FOREIGN KEY (design_id) REFERENCES tbl_trading_design_master(design_id) ON DELETE RESTRICT",
+        "FOREIGN KEY (entered_by_id) REFERENCES tbl_staff_master(staff_id) ON DELETE RESTRICT",
+        "CHECK (stock_date <= entry_date) — enforces AC-035 (ERR-010) at the DB level."
+      ],
+      "ac_refs": ["AC-034", "AC-035", "AC-039", "AC-040"]
+    },
+    {
+      "name": "tbl_adjustment_line",
+      "hld_module": "M-002",
+      "type": "table",
+      "feature_ref": "F-009",
+      "fields": [
+        {"name": "line_id", "type": "BIGSERIAL", "nullable": false, "description": "Surrogate PK."},
+        {"name": "header_id", "type": "BIGINT", "nullable": false, "description": "FK -> tbl_adjustment_header.header_id (ON DELETE CASCADE)."},
+        {"name": "grade_id", "type": "BIGINT", "nullable": false, "description": "FK -> tbl_grade_master (RESTRICT). The header's design_id pairs with this grade_id to form the (design, grade) key for the ledger write."},
+        {
+          "name": "software_cb",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "Software closing balance as of header.stock_date per AC-036. Snapshotted by the service at save time via domain.stock.closing_balance(design, grade, stock_date). Persisted (not GENERATED) so it survives subsequent ledger recomputes."
+        },
+        {
+          "name": "physical_cb",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "User-entered physical count. CHECK(physical_cb >= 0) per AC-037 — zero is valid."
+        },
+        {
+          "name": "difference",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "Signed delta = physical_cb - software_cb per AC-038. Can be negative. Persisted (not GENERATED) so it remains the historical record of what was applied to the ledger even if software_cb is later re-derived differently."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (line_id)",
+        "INDEX ix_adjustment_line_header ON (header_id)"
+      ],
+      "relationships": [
+        {"type": "one_to_many", "target": "tbl_adjustment_header", "via": "header_id"},
+        {"type": "one_to_many", "target": "tbl_grade_master", "via": "grade_id"}
+      ],
+      "constraints": [
+        "FOREIGN KEY (header_id) REFERENCES tbl_adjustment_header(header_id) ON DELETE CASCADE",
+        "FOREIGN KEY (grade_id) REFERENCES tbl_grade_master(grade_id) ON DELETE RESTRICT",
+        "CHECK (physical_cb >= 0)"
+      ],
+      "ac_refs": ["AC-036", "AC-037", "AC-038", "AC-039"]
+    },
+    {
+      "name": "tbl_stock_ledger",
+      "hld_module": "M-003",
+      "type": "table",
+      "feature_ref": null,
+      "fields": [
+        {
+          "name": "ledger_id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Surrogate PK. Append-only sequence; back-dated transactions still get a new ledger_id but the (txn_date, ledger_id DESC) ordering means later inserts win ties when txn_dates are equal."
+        },
+        {
+          "name": "design_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_trading_design_master (RESTRICT)."
+        },
+        {
+          "name": "grade_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "FK -> tbl_grade_master (RESTRICT)."
+        },
+        {
+          "name": "txn_date",
+          "type": "DATE",
+          "nullable": false,
+          "description": "The business date the row represents — purchase_date / sales_date / adjustment.entry_date depending on source_type."
+        },
+        {
+          "name": "source_type",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "One of: 'inward', 'sale', 'adjustment'. Tracks which form created this ledger row for audit + S3 reporting."
+        },
+        {
+          "name": "source_header_id",
+          "type": "BIGINT",
+          "nullable": true,
+          "description": "FK reference back to the source header (inward/sales/adjustment_header.header_id). Nullable to allow synthetic future entries (none in V1). Per DS-008 the master is soft-deleted not hard-deleted, so this never dangles in V1."
+        },
+        {
+          "name": "source_line_id",
+          "type": "BIGINT",
+          "nullable": true,
+          "description": "FK reference back to the source line. Nullable for same reason as source_header_id."
+        },
+        {
+          "name": "delta",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "Signed quantity change: +nos for inward, -nos for sale, +difference for adjustment (can be negative). Sum of all deltas up to and including a row = running_balance at that row (loop invariant)."
+        },
+        {
+          "name": "running_balance",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "Materialized running balance per DS-003. After a back-dated insert, every later row for (design_id, grade_id) has its running_balance updated by domain.stock._recompute_forward."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "now()",
+          "description": "Insert timestamp via TimestampMixin (DS-014)."
+        }
+      ],
+      "indexes": [
+        "PRIMARY KEY (ledger_id)",
+        "INDEX ix_stock_ledger_dgt ON (design_id, grade_id, txn_date DESC, ledger_id DESC) — single composite index supporting (a) closing_balance lookup as_of_date (LIMIT 1 lookup), (b) latest_for_design_grade for SELECT FOR UPDATE (DS-002), (c) rows_after for _recompute_forward."
+      ],
+      "relationships": [
+        {"type": "one_to_many", "target": "tbl_trading_design_master", "via": "design_id"},
+        {"type": "one_to_many", "target": "tbl_grade_master", "via": "grade_id"}
+      ],
+      "constraints": [
+        "FOREIGN KEY (design_id) REFERENCES tbl_trading_design_master(design_id) ON DELETE RESTRICT",
+        "FOREIGN KEY (grade_id) REFERENCES tbl_grade_master(grade_id) ON DELETE RESTRICT",
+        "CHECK (source_type IN ('inward', 'sale', 'adjustment'))"
+      ],
+      "ac_refs": ["AC-027", "AC-033", "AC-039"],
+      "design_notes": [
+        "Concurrency (DS-002): every insert acquires SELECT … FOR UPDATE on the latest (design_id, grade_id) row first.",
+        "Carry-forward (DS-004): opening_balance(month_first) = running_balance of latest row where txn_date < month_first; 0 if none.",
+        "Back-date support (DS-003): bounded by AC-021 7-day window per (design, grade) — small linear scan."
+      ]
+    }
+  ],
+  "completeness_check": {
+    "every_lld_model_in_schema": true,
+    "every_schema_entity_in_lld": true,
+    "lld_models_audited": [
+      "InwardHeaderModel", "InwardLineModel",
+      "SalesHeaderModel", "SalesLineModel",
+      "AdjustmentHeaderModel", "AdjustmentLineModel",
+      "StockLedgerModel"
+    ],
+    "entity_count": 7,
+    "feature_count": 3,
+    "module_count": 3
+  },
+  "migration_plan": {
+    "revision_id": "0003_transaction_and_ledger_tables",
+    "down_revision": "0002_master_tables",
+    "operations_in_order": [
+      "ALTER TABLE tbl_supplier_master ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC'",
+      "ALTER TABLE tbl_staff_master ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC'",
+      "ALTER TABLE tbl_dealer_master ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC'",
+      "ALTER TABLE tbl_trading_design_master ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at AT TIME ZONE 'UTC'",
+      "CREATE TABLE tbl_inward_header, tbl_sales_header, tbl_adjustment_header (FK parents first)",
+      "CREATE TABLE tbl_inward_line, tbl_sales_line, tbl_adjustment_line (FK children)",
+      "CREATE TABLE tbl_stock_ledger",
+      "CREATE INDEX ix_stock_ledger_dgt + the supporting indexes on all new tables"
+    ],
+    "downgrade_order": "drop indexes -> drop tables in reverse FK dependency -> revert TIMESTAMPTZ back to TIMESTAMP on the 4 S1 tables"
+  },
+  "next": "/ases-test-spec S2"
+}

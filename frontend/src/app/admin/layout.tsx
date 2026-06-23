@@ -14,6 +14,9 @@ import {
   Layers,
   Menu,
   X,
+  PackagePlus,
+  ShoppingCart,
+  Scale,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -25,13 +28,31 @@ interface NavItem {
   icon: typeof Truck;
 }
 
-const NAV: NavItem[] = [
-  { label: "Suppliers", href: "/admin/suppliers", icon: Truck },
-  { label: "Staff", href: "/admin/staff", icon: Users },
-  { label: "Dealers", href: "/admin/dealers", icon: Store },
-  { label: "Grades", href: "/admin/grades", icon: Tags },
-  { label: "Designs", href: "/admin/designs", icon: Palette },
-  { label: "Design-Grade Map", href: "/admin/design-grade-map", icon: GitBranch },
+interface NavGroup {
+  title: string;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    title: "Masters",
+    items: [
+      { label: "Suppliers", href: "/admin/suppliers", icon: Truck },
+      { label: "Staff", href: "/admin/staff", icon: Users },
+      { label: "Dealers", href: "/admin/dealers", icon: Store },
+      { label: "Grades", href: "/admin/grades", icon: Tags },
+      { label: "Designs", href: "/admin/designs", icon: Palette },
+      { label: "Design-Grade Map", href: "/admin/design-grade-map", icon: GitBranch },
+    ],
+  },
+  {
+    title: "Transactions",
+    items: [
+      { label: "New Inward", href: "/admin/inward/new", icon: PackagePlus },
+      { label: "New Sale", href: "/admin/sales/new", icon: ShoppingCart },
+      { label: "New Adjustment", href: "/admin/adjustments/new", icon: Scale },
+    ],
+  },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -55,21 +76,28 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <div className="text-xs text-muted-foreground">Tiles Management</div>
         </div>
       </div>
-      <nav className="flex-1 flex flex-col gap-1 p-3">
-        {NAV.map((item) => {
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMobileOpen(false)}
-              className={linkClass(item.href)}
-            >
-              <Icon className="h-4 w-4" />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+      <nav className="flex-1 flex flex-col gap-4 p-3 overflow-y-auto">
+        {NAV_GROUPS.map((group) => (
+          <div key={group.title} className="flex flex-col gap-1">
+            <div className="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {group.title}
+            </div>
+            {group.items.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className={linkClass(item.href)}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
     </>
   );

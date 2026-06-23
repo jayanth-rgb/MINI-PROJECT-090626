@@ -1,0 +1,1 @@
+{"task_id": "T-052", "test_case_refs": ["TC-048", "TC-057"], "notes": "API contract tests for /api/v1/inward."}

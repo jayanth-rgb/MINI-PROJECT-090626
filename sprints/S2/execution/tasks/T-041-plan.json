@@ -1,0 +1,17 @@
+{
+  "task_id": "T-041",
+  "title": "TimestampMixin → TIMESTAMPTZ (DS-014, closes TD-007)",
+  "module_ref": "M-007",
+  "output_files": ["backend/src/infrastructure/db/base.py"],
+  "scope": "One-line ORM change: TimestampMixin's `created_at: Mapped[datetime]` becomes `created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)`. Adds explicit DateTime(timezone=True) column type. server_default and nullable unchanged. Base class untouched.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-014", "DS-009"],
+  "success_criteria": {
+    "manual": "Import TimestampMixin; assert created_at's column_type is sa.DateTime(timezone=True). No new tables required.",
+    "automated": "S2 ORM tests (T-042 onward) read back created_at with tzinfo populated, not None.",
+    "definition_of_done": "Column type is DateTime(timezone=True); server_default=func.now(); nullable=False. Base class unchanged. No other file touched."
+  },
+  "checkout_prompt": "'TimestampMixin upgraded to TIMESTAMPTZ. TD-007 closed at the ORM level — DB ALTERs follow in T-044.'"
+}

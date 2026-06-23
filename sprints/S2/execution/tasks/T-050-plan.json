@@ -1,0 +1,17 @@
+{
+  "task_id": "T-050",
+  "title": "DesignGradeCbService (DF-003 contract for Adjustment form)",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/application/services/design_grade_cb_service.py"],
+  "scope": "DesignGradeCbService.list_active_grades_with_cb(design_id, stock_date) — returns active (design, grade) mappings projected as DesignGradeReadWithCb with software_cb = stock.closing_balance(design, grade, stock_date).",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-045", "T-046"],
+  "test_case_refs": ["TC-070"],
+  "decisions_referenced": ["DS-007"],
+  "success_criteria": {
+    "manual": "Call with seeded ledger; returns rows with software_cb populated.",
+    "automated": "TC-070 passes.",
+    "definition_of_done": "Asserts design exists+active; calls map_repo.list_active_by_design (T-006); projects each row + closing_balance."
+  },
+  "checkout_prompt": "'DesignGradeCbService created; DF-003 service-layer ready.'"
+}

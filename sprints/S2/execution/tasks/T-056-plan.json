@@ -1,0 +1,17 @@
+{
+  "task_id": "T-056",
+  "title": "main.py — mount 3 new routers",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/main.py"],
+  "scope": "MODIFY S1 main.py. Add include_router for inward, sales, adjustments under /api/v1. designs.py router already mounted from S1 — T-055's new route comes along for free.",
+  "do_not_touch": ["any existing wiring (CORS, error handlers, S1 router mounts, /health)"],
+  "depends_on": ["T-052", "T-053", "T-054", "T-055"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-010"],
+  "success_criteria": {
+    "manual": "uvicorn starts; /docs lists 9 routers under /api/v1 (6 master + inward/sales/adjustments).",
+    "automated": "Integration tests in test_inward_api.py / test_sales_api.py / test_adjustments_api.py / test_designs_grades_with_cb_api.py all collect + run.",
+    "definition_of_done": "3 new include_router calls; existing wiring untouched."
+  },
+  "checkout_prompt": "'main.py — 3 new routers mounted under /api/v1; designs.py route in T-055 comes via existing mount.'"
+}

@@ -1,0 +1,1 @@
+{"task_id": "T-051", "test_case_refs": [], "notes": "Pure DI wiring; exercised transitively by router-level integration tests TC-048/057/066/071/076/078."}

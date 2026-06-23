@@ -1,0 +1,1 @@
+{"task_id": "T-044", "test_case_refs": ["TC-053", "TC-064", "TC-069", "TC-088", "TC-089"], "notes": "DB constraint tests verify the named CHECK constraints + FK RESTRICT delivered by this migration."}

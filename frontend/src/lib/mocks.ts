@@ -14,6 +14,12 @@ import type {
   DesignGradeMap,
   ApiError,
 } from "@/types/masters";
+import type {
+  InwardRead,
+  SalesRead,
+  AdjustmentRead,
+  DesignGradeReadWithCb,
+} from "@/types/transactions";
 
 const ISO_NOW = "2026-06-09T00:00:00Z";
 
@@ -113,4 +119,51 @@ export function hydrateMapRow(row: DesignGradeMap): DesignGradeMap {
     design_name: design?.design_name,
     grade_code: grade?.grade_code,
   };
+}
+
+// ============================================================================
+// S2 — transaction tables (in-memory) for scaffold-phase mocks
+// ============================================================================
+
+export const MOCK_INWARDS: InwardRead[] = [];
+export const MOCK_SALES: SalesRead[] = [];
+export const MOCK_ADJUSTMENTS: AdjustmentRead[] = [];
+
+// Per-(design, grade) running balance (driven by Inward/Sales/Adjustment writes).
+// Used by getGradesWithCb mock to project software_cb at request time.
+export const MOCK_RUNNING_BALANCE: Map<string, number> = new Map();
+
+export function balanceKey(designId: number, gradeId: number): string {
+  return `${designId}:${gradeId}`;
+}
+
+export function bumpBalance(designId: number, gradeId: number, delta: number): number {
+  const key = balanceKey(designId, gradeId);
+  const next = (MOCK_RUNNING_BALANCE.get(key) ?? 0) + delta;
+  MOCK_RUNNING_BALANCE.set(key, next);
+  return next;
+}
+
+export function getBalance(designId: number, gradeId: number): number {
+  return MOCK_RUNNING_BALANCE.get(balanceKey(designId, gradeId)) ?? 0;
+}
+
+// DF-003 projection: returns active (design, grade) mappings + current software_cb.
+// In integrated mode this hits GET /api/v1/designs/{id}/grades-with-cb (T-055).
+export function projectGradesWithCb(designId: number): DesignGradeReadWithCb[] {
+  return MOCK_DESIGN_GRADE_MAP.filter(
+    (m) => m.design_id === designId && m.is_active
+  )
+    .map((m) => {
+      const grade = MOCK_GRADES.find(
+        (g) => g.grade_id === m.grade_id && g.is_active
+      );
+      if (!grade) return null;
+      return {
+        grade_id: grade.grade_id,
+        grade_code: grade.grade_code,
+        software_cb: getBalance(designId, grade.grade_id),
+      };
+    })
+    .filter((r): r is DesignGradeReadWithCb => r !== null);
 }

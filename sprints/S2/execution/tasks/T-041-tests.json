@@ -1,0 +1,1 @@
+{"task_id": "T-041", "test_case_refs": [], "notes": "Foundational ORM change; verified transitively by T-042 ORM tests and T-044 migration tests (TC-053, TC-064, TC-069, TC-088, TC-089)."}

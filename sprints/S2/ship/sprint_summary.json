@@ -1,0 +1,189 @@
+{
+  "$schema": "ases/v3.0/sprint_summary",
+  "document": "sprint_summary",
+  "produced_by": "/ases-sprint-close",
+  "consumed_by": ["/ases-test-impl", "/ases-final-audit", "/ases-release"],
+  "sprint_id": "S2",
+  "closed_on": "2026-06-23",
+  "sprint_goal": "Inward / Sales / Adjustment transaction forms + materialized stock ledger (F-007, F-008, F-009) with backend API + UI scaffold ready for Phase 3 ship.",
+  "scope_features": ["F-007", "F-008", "F-009"],
+  "scope_modules": ["M-002", "M-003", "M-007"],
+
+  "task_summary": {
+    "total_backend_tasks": 16,
+    "completed_count": 16,
+    "deferred_count": 0,
+    "escalated_count": 0,
+    "in_progress_count": 0,
+    "iteration_count_max": 1,
+    "iteration_count_avg": 1.0,
+    "ui_track": "delivered separately via /ases-ui-design → /ases-ui-review APPROVED → /ases-ui-scaffold LOCKED (16 frontend files created, 2 modified, 6 integration_points declared)"
+  },
+
+  "completed_tasks": [
+    { "id": "T-041", "title": "TimestampMixin → TIMESTAMPTZ (DS-014, closes TD-007)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-042", "title": "7 transaction + ledger ORM models", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-043", "title": "Transaction + StockLedger repositories", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-044", "title": "Alembic migration 0003", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-045", "title": "domain.stock (HIGHEST RISK — DS-002/003/004 core)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-046", "title": "13 Pydantic v2 schemas (DS-013)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-047", "title": "InwardService (F-007)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-048", "title": "SalesService (F-008)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-049", "title": "AdjustmentService (F-009)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-050", "title": "DesignGradeCbService (DF-003)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-051", "title": "dependencies.py — 4 new DI factories", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-052", "title": "Inward router", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-053", "title": "Sales router (4-filter list_sales)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-054", "title": "Adjustments router (POST only)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-055", "title": "Designs router MODIFY (+/grades-with-cb)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-056", "title": "main.py MODIFY — mount 3 new routers", "iterations": 1, "verdict": "CLEAN" }
+  ],
+
+  "deferred_tasks": [],
+  "escalated_tasks": [],
+
+  "features_shipped": [
+    {
+      "feature_id": "F-007",
+      "name": "Inward Entry",
+      "ac_count": 8,
+      "ac_refs": ["AC-020", "AC-021", "AC-022", "AC-023", "AC-024", "AC-025", "AC-026", "AC-027"],
+      "backend_tasks": ["T-042", "T-043", "T-045", "T-047", "T-051", "T-052"],
+      "ui_components": ["InwardForm", "InwardFormPage"]
+    },
+    {
+      "feature_id": "F-008",
+      "name": "Sales Entry",
+      "ac_count": 6,
+      "ac_refs": ["AC-028", "AC-029", "AC-030", "AC-031", "AC-032", "AC-033"],
+      "backend_tasks": ["T-042", "T-043", "T-045", "T-048", "T-051", "T-053"],
+      "ui_components": ["SalesForm", "SalesFormPage"]
+    },
+    {
+      "feature_id": "F-009",
+      "name": "Stock Adjustment",
+      "ac_count": 7,
+      "ac_refs": ["AC-034", "AC-035", "AC-036", "AC-037", "AC-038", "AC-039", "AC-040"],
+      "backend_tasks": ["T-042", "T-043", "T-045", "T-049", "T-050", "T-051", "T-054", "T-055"],
+      "ui_components": ["AdjustmentForm", "AdjustmentLineRow", "Err012Banner", "AdjustmentFormPage"]
+    }
+  ],
+
+  "new_decisions": [
+    {
+      "id": "DS-013",
+      "topic": "Denormalize place onto tbl_inward_header.place + tbl_sales_header.place (snapshot at save)",
+      "status_in_decisions_json": "already present from /ases-lld S2"
+    },
+    {
+      "id": "DS-014",
+      "topic": "TIMESTAMPTZ uplift on 4 S1 created_at columns + new tables land with timezone — closes TD-007",
+      "status_in_decisions_json": "already present from /ases-lld S2",
+      "closes_tech_debt": ["TD-007"]
+    }
+  ],
+
+  "new_tech_debt": [
+    {
+      "id": "TD-008",
+      "description": "First-row insert race (theoretical): SELECT FOR UPDATE LIMIT 1 acquires no lock when the WHERE returns 0 rows. Two concurrent sessions inserting the FIRST-EVER ledger row for the same (design, grade) can each succeed with running_balance = delta (instead of [delta, 2·delta]). Likelihood: once per (design, grade) lifetime. Spec-compliant with DS-002 + LLD; PRD has no AC; TC-087 assumes a pre-existing row. V2 mitigation options: (a) lock master row first, (b) advisory locks, (c) unique-constraint + retry.",
+      "severity": "minor",
+      "source": "/ases-critique T-045 S2 (transparency note 1)",
+      "target_sprint": "V2"
+    },
+    {
+      "id": "TD-009",
+      "description": "Frontend zod-only edge-case TCs (TC-090/091/094/096/098/100) — 6 cases — were deferred from /ases-ui-scaffold and tagged for /ases-test-impl S2. They are pure validator assertions that follow a consistent pattern; deferring kept scaffold scope tight.",
+      "severity": "minor",
+      "source": "/ases-ui-scaffold S2 (test_coverage.tcs_deferred_to_test_impl)",
+      "target_sprint": "S2 (resolve at /ases-test-impl S2 — these are not deferred to a future sprint)"
+    }
+  ],
+
+  "closed_tech_debt": [
+    {
+      "id": "TD-007",
+      "description": "TimestampMixin emitted plain TIMESTAMP; LLD prose said TIMESTAMPTZ",
+      "closed_by": ["DS-014", "T-041", "T-044"],
+      "verification": "T-044 ALTERs 4 S1 created_at columns to TIMESTAMP WITH TIME ZONE; new S2 tables land with timezone from the start via TimestampMixin (T-041)"
+    }
+  ],
+
+  "carry_forward": [
+    {
+      "id": "CF-001",
+      "description": "W5: PO bring-up of PostgreSQL container + alembic upgrade head + seed run. Carried from S1; still pending. Phase 3 verification uses testcontainers (IS-002 pattern) so this is not blocking.",
+      "source_sprint": "S1",
+      "still_pending": true,
+      "action_owner": "PO (Jayanth)",
+      "next_due": "Before any S3 work that needs persistent local PG"
+    }
+  ],
+
+  "test_case_refs_to_verify_in_phase_3": {
+    "total": 56,
+    "backend": {
+      "count": 43,
+      "id_range": "TC-047..TC-089",
+      "framework": "pytest",
+      "highlights": [
+        "TC-053/064 (CHECK nos > 0)",
+        "TC-069 (CHECK stock_date <= entry_date)",
+        "TC-079..087 (domain.stock — closing_balance, opening_balance, apply_*, back-date recompute, concurrent serialization)",
+        "TC-087 concurrency — needs custom 2-session testcontainer harness",
+        "TC-088 (CHECK source_type IN list)",
+        "TC-089 (FK RESTRICT)"
+      ]
+    },
+    "frontend": {
+      "count": 13,
+      "id_range": "TC-090..TC-102",
+      "framework": "jest",
+      "implemented_at_scaffold": 7,
+      "deferred_to_test_impl": 6,
+      "deferred_ids": ["TC-090", "TC-091", "TC-094", "TC-096", "TC-098", "TC-100"],
+      "highlights": [
+        "TC-092 (place snapshot UI)",
+        "TC-099 (software_cb pre-fill UI)",
+        "TC-101 (live difference UI)",
+        "TC-102 (ERR-012 banner UI)"
+      ]
+    }
+  },
+
+  "next_sprint_inputs": {
+    "sprint_id": "S3",
+    "scope_hint": "Stock Dashboard (F-010), Sales Report (F-011), Consolidation Report (F-012) per roadmap. Will consume the stock_ledger materialized projection (DS-003) for fast reads; Sales Report reuses T-048's list_sales 4-filter shape.",
+    "constraints_from_S2": [
+      "tbl_stock_ledger composite index ix_stock_ledger_dgt is the lookup index — design queries around (design_id, grade_id, txn_date DESC, ledger_id DESC) ordering",
+      "DS-004 carry-forward is per-(design, grade) on-read lookup — opening_balance = closing_balance(month_first - 1 day); no opening-row materialization",
+      "DS-013 denormalized place — Sales Report can show place without joining the dealer master at read time",
+      "TD-008 first-row race acceptable for V2 only if S3 doesn't add concurrent-first-write paths beyond what S2 already has"
+    ],
+    "suggested_prd_updates": [
+      "PRD AC-045 (dashboard latency target) — re-state as numeric threshold so /ases-system-test S3 can assert. Currently prose 'sub-second' — make it 'p95 < 500ms for any (design, grade, as_of_date) lookup'.",
+      "Consider AC for the FIRST-ROW insert race (TD-008) — either close as 'V1 acceptable' or specify a mitigation requirement. PRD currently silent."
+    ],
+    "carry_forward_from_S2": ["CF-001 (PG bring-up — still pending)"],
+    "decisions_to_revisit": []
+  },
+
+  "phase_transition": {
+    "from": "SPRINT_EXECUTION",
+    "to": "SPRINT_SHIP",
+    "next_skill": "/ases-test-impl S2",
+    "phase_3_sequence": [
+      "/ases-test-impl S2",
+      "/ases-test-run S2",
+      "/ases-integration-test S2",
+      "/ases-system-test S2",
+      "/ases-uat S2 (PO gate)",
+      "/ases-devops S2",
+      "/ases-final-audit S2 (PO gate)",
+      "/ases-release S2"
+    ]
+  },
+
+  "produced_at": "2026-06-23",
+  "produced_by": "/ases-sprint-close S2"
+}

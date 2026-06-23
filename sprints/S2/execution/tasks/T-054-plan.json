@@ -1,0 +1,17 @@
+{
+  "task_id": "T-054",
+  "title": "Adjustments router (F-009 API)",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/presentation/api/routers/adjustments.py"],
+  "scope": "APIRouter(prefix='/adjustments', tags=['adjustments']). POST /adjustments → 201 AdjustmentRead. No GET endpoint required by S2 ACs.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-051"],
+  "test_case_refs": ["TC-076", "TC-078"],
+  "decisions_referenced": ["DS-007", "DS-010"],
+  "success_criteria": {
+    "manual": "POST an adjustment; ledger balance equals physical_cb after save.",
+    "automated": "TC-076 (POST 201 + balance), TC-078 (ERR-012 → 422 when design has no active grades).",
+    "definition_of_done": "1 endpoint; ValidationError → 422."
+  },
+  "checkout_prompt": "'Adjustments router — POST /api/v1/adjustments.'"
+}

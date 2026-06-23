@@ -1,0 +1,1 @@
+{"task_id": "T-045", "test_case_refs": ["TC-079", "TC-080", "TC-081", "TC-082", "TC-083", "TC-084", "TC-085", "TC-086", "TC-087"], "priority": "critical", "notes": "9 critical TCs. TC-086 (back-date recompute) and TC-087 (SELECT FOR UPDATE concurrency) are the highest-risk."}

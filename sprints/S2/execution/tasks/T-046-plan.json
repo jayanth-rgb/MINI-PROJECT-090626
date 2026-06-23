@@ -1,0 +1,17 @@
+{
+  "task_id": "T-046",
+  "title": "Pydantic v2 schemas for the 3 transaction forms + DesignGradeReadWithCb",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/presentation/schemas/transactions.py"],
+  "scope": "13 Pydantic v2 schemas: InwardCreate/LineCreate/Read/LineRead, SalesCreate/LineCreate/Read/LineRead, AdjustmentCreate/LineCreate/Read/LineRead, DesignGradeReadWithCb. Constraints per AC: design_id/grade_id gt=0; nos default None ge=0 (skip 0/None at service); physical_cb ge=0 (zero valid per AC-037); cross-field validator on AdjustmentCreate enforces stock_date <= entry_date (AC-035).",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": ["TC-052", "TC-061", "TC-067", "TC-068", "TC-072", "TC-073"],
+  "decisions_referenced": ["DS-010", "DS-013"],
+  "success_criteria": {
+    "manual": "Import all 13 schemas; validate AdjustmentCreate with stock_date > entry_date raises ValidationError.",
+    "automated": "TC-052 (nos=-1), TC-061 (missing loading_staff), TC-067 (single design), TC-068 (stock>entry), TC-072 (physical=-1), TC-073 (physical=0 accepted) all pass.",
+    "definition_of_done": "13 schemas; model_validator on AdjustmentCreate; Read schemas have ConfigDict(from_attributes=True); place is NOT in any Create schema (derived server-side per DS-013)."
+  },
+  "checkout_prompt": "'13 Pydantic schemas created; stock_date<=entry_date validator enforced.'"
+}

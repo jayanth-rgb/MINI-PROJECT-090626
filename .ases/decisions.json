@@ -209,6 +209,42 @@
       "made_by": "architect",
       "timestamp": "2026-06-09",
       "status": "active"
+    },
+    {
+      "id": "DS-013",
+      "stage": "lld",
+      "sprint_id": "S2",
+      "decision": "Denormalize `place` onto tbl_inward_header.place and tbl_sales_header.place — snapshotted from tbl_supplier_master / tbl_dealer_master at form-save time. Master-place edits do NOT propagate retroactively to historical transactions. The S1 admin route to edit a supplier's or dealer's place remains; it just doesn't backfill.",
+      "rationale": "PRD AC-022 / AC-029 specify place is auto-populated from the master and rendered read-only at form time — but the PRD is silent on whether the form snapshots the value or the saved transaction joins back to the master on read. Snapshotting gives (a) historically stable reads (a transaction from 2026-03-01 keeps the supplier's place as it was on 2026-03-01 even if the master is edited later), and (b) one fewer JOIN on S3's Sales Report (M-005) hot path. Both align with the PRD's framing of transactions as an immutable historical record.",
+      "tradeoffs": "Master-place edits aren't reflected in historical transactions — but this is the desired semantic for an accounting/ledger system, not a bug. Storage cost is a Text column per row; negligible at the project's scale.",
+      "alternatives_considered": [
+        "JOIN at read time: rejected — forfeits historical immutability; if a supplier moves cities post-transaction, last year's purchase records would silently show the new city.",
+        "Snapshot + audit table tracking edits to the master: rejected — overkill for V1; PRD does not require an audit trail."
+      ],
+      "module_refs": ["M-002", "M-007"],
+      "recall_keywords": ["denormalize", "place", "transaction", "snapshot", "historical immutability"],
+      "made_by": "architect",
+      "timestamp": "2026-06-21",
+      "status": "active"
+    },
+    {
+      "id": "DS-014",
+      "stage": "lld",
+      "sprint_id": "S2",
+      "decision": "Close TD-007 in S2 by upgrading TimestampMixin to emit TIMESTAMP WITH TIME ZONE (DateTime(timezone=True)) at the ORM level; the S2 migration 0003 also ALTERs the 4 existing S1 created_at columns (tbl_supplier_master, tbl_staff_master, tbl_dealer_master, tbl_trading_design_master) from TIMESTAMP to TIMESTAMPTZ in one shot. All 7 new S2 tables land with TIMESTAMPTZ from the start.",
+      "rationale": "TD-007 was filed in S1 final-audit when the LLD prose (TIMESTAMPTZ) drifted from the ORM (plain DateTime). S2 introduces 7 new tables — landing them with TIMESTAMPTZ avoids re-spawning the same drift, and altering the S1 columns at the same time keeps the schema uniform. PostgreSQL's ALTER COLUMN TYPE TIMESTAMPTZ from TIMESTAMP is data-preserving and effectively instant at our row counts. The TimestampMixin is the single source of truth, so a one-line ORM change cascades into all 11 tables consistently. Per DS-009 (ORM-first), the ORM change drives the migration.",
+      "tradeoffs": "One-time ALTER on 4 S1 tables. Acceptable because (a) created_at is server-default-only — no application code writes it, (b) ALTER COLUMN TYPE is fast at our row counts (millions or less), (c) the alternative (split-policy ORM with two mixins) creates a maintenance trap where every new table risks regressing.",
+      "alternatives_considered": [
+        "Split policy — new TimestampMixinTZ mixin for S2+ tables only: rejected — schema becomes inconsistent, and developers must remember which mixin to use.",
+        "Defer TD-007 indefinitely: rejected — every new table introduced post-S1 would compound the drift.",
+        "Drop created_at entirely on transaction tables: rejected — accounting/ledger systems need a created_at for audit; PRD AC chain implies it."
+      ],
+      "module_refs": ["M-007"],
+      "recall_keywords": ["timestamptz", "timezone", "timestampmixin", "td-007", "migration"],
+      "made_by": "architect",
+      "timestamp": "2026-06-21",
+      "status": "active",
+      "closes_tech_debt": ["TD-007"]
     }
   ]
 }
