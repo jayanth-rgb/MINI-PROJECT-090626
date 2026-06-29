@@ -1,0 +1,85 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-061",
+  "sprint_id": "S3",
+  "file_under_critique": "backend/src/application/services/dashboard_service.py",
+  "module_ref": "M-004",
+  "critic_model": "Opus 4.7",
+  "timestamp": "2026-06-26",
+  "verdict": "CLEAN",
+  "summary": "DashboardService.list_as_of correctly orchestrates list_active_all + sum_deltas_by_source_type + opening/closing_balance, asserts FORMULA-001, and sorts in Python by (design_name, grade_code). All 7 load-bearing properties verified; no SQL composition, no scope creep, no security issues.",
+  "decisions_consulted": [
+    "DS-002 (advisory-lock-first writes — write-path concern, not relevant to this read-only service)",
+    "DS-003 (running_balance materialization — implementation calls opening/closing primitives which are O(1) latest_as_of lookups)",
+    "DS-004 (opening = closing of prev day — encapsulated in domain.stock.opening_balance; service does NOT re-derive)",
+    "DS-015 (perf target p95 < 500ms — single GROUP BY + O(N) latest_as_of pattern preserves the budget)",
+    "DS-016 (single GROUP BY for dashboard — implementation invokes sum_deltas_by_source_type exactly once)"
+  ],
+  "load_bearing_property_checks": [
+    {
+      "property": "SINGLE round-trip for the aggregate",
+      "status": "pass",
+      "evidence": "Line 57: exactly one call to self._aggregates_repo.sum_deltas_by_source_type(month_first, as_of_date). No call inside the per-pair loop."
+    },
+    {
+      "property": "Per-pair opening/closing are O(1) lookups via existing domain primitives",
+      "status": "pass",
+      "evidence": "Lines 74-75 call opening_balance(...) and closing_balance(...) imported from src.domain.stock; both delegate to StockLedgerRepository.latest_as_of (O(1) via ix_stock_ledger_dgt). No re-derivation of DS-004 lookup logic inside the service."
+    },
+    {
+      "property": "FORMULA-001 invariant assertion present",
+      "status": "pass",
+      "evidence": "Lines 79-83: assert opening + mov['inward'] - mov['outward'] + mov['adjust'] == closing with a diagnostic message including design_id, grade_id and the four contributing values."
+    },
+    {
+      "property": "Result sorted in Python by (design_name ASC, grade_code ASC)",
+      "status": "pass",
+      "evidence": "Line 104: rows.sort(key=lambda r: (r.design_name, r.grade_code)). Not sorted in SQL; not sorted by id."
+    },
+    {
+      "property": "Direct SQL composition forbidden in service",
+      "status": "pass",
+      "evidence": "No imports of sqlalchemy.text, sqlalchemy.select, sqlalchemy.func, or Session.execute(). Only imports are: datetime.date, sqlalchemy.orm.Session (typing), domain primitives, two repositories, and the Pydantic schema. Pure orchestration."
+    },
+    {
+      "property": "month_first = as_of_date.replace(day=1)",
+      "status": "pass",
+      "evidence": "Line 50: month_first = as_of_date.replace(day=1). Passed as month_start to the aggregate query AND to opening_balance (which itself subtracts 1 day per DS-004)."
+    },
+    {
+      "property": "pair.design/pair.grade eager-loaded — no follow-up lookups",
+      "status": "pass",
+      "evidence": "DesignGradeMapModel declares design = relationship('TradingDesignModel', lazy='joined') and grade = relationship('GradeModel', lazy='joined') at master.py:101-102. Service accesses pair.design.design_name, pair.design.size, pair.grade.grade_code (lines 90-93) — all served from the already-joined row. No explicit selectinload/joinedload needed; no N+1."
+    }
+  ],
+  "lenses": [
+    {
+      "lens": "spec",
+      "status": "pass",
+      "findings": "Signature matches LLD files[2]: class DashboardService with __init__(session: Session) and list_as_of(as_of_date: date) -> list[DashboardRow]. All 5 steps in the LLD function description are present in order: (1) month_first derivation, (2) list_active_all, (3) single GROUP BY via sum_deltas_by_source_type, (4) per-pair opening/closing + aggregate dict lookup with default-0 missing-key handling, (5) invariant assert, plus final sort. Plan.json output_files[] matches the single file written."
+    },
+    {
+      "lens": "contract",
+      "status": "pass",
+      "findings": "Exports: DashboardService (matches LLD interfaces.exports). Imports match depends_on[]: src.domain.stock (opening_balance, closing_balance), src.infrastructure.db.repositories.ledger_aggregates (LedgerAggregatesRepository), src.infrastructure.db.repositories.master (DesignGradeMapRepository), src.presentation.schemas.dashboard (DashboardRow). All imported symbols are used. Method signatures of called functions match: sum_deltas_by_source_type(month_start, as_of_date) returns Row objects with .design_id/.grade_id/.inward_sum/.outward_sum/.adjust_sum (verified against ledger_aggregates.py:46-74); opening_balance/closing_balance take (session, design_id, grade_id, date) returning int (verified against stock.py:123-143); list_active_all() returns list[DesignGradeMapModel] (verified against master.py:59-70). DashboardRow constructor receives all 10 fields it declares (dashboard.py:1-16)."
+    },
+    {
+      "lens": "test",
+      "status": "pass",
+      "findings": "TC-115 (3 pairs, all 10 fields populated) — satisfied; all 10 fields constructed from pair + mov + opening + closing. TC-116 (zero active pairs) — list_active_all returns [], outer loop is no-op, rows=[] returned (empty list, not error). TC-118 (opening = closing prev-day) — delegated to opening_balance which calls closing_balance(month_first - 1 day) per DS-004. TC-119 (inward/outward/adjust from monthly aggregates) — agg_by_key built from sum_deltas_by_source_type Row tuples, missing keys default to {0,0,0}. TC-120 (closing = latest_as_of) — delegated to closing_balance. TC-121 (no movements in window) — agg_by_key.get(key, {0,0,0}) yields zeros; opening + 0 - 0 + 0 == closing holds because no in-window movement means closing == opening. TC-122 (perf p95 < 500ms) — architecture: 1 query for pairs + 1 GROUP BY + 2 indexed lookups per pair = under budget for 6 pairs. TC-127 (movement default 0) — explicit default dict in .get fallback. TC-128 (AssertionError on invariant) — bare assert with diagnostic message. TC-129 (sort by design_name, grade_code) — explicit final sort. TC-156 (carry-forward through month boundary) — opening_balance returns closing of month-N last day; this is automatic correct behaviour since closing_balance reads materialized running_balance which is recomputed by _recompute_forward on back-dated insertion."
+    },
+    {
+      "lens": "security",
+      "status": "pass",
+      "findings": "No user-controlled string is concatenated into a query (no SQL composition at all in this file). as_of_date is a datetime.date object — type-safety enforced by Python; .replace(day=1) is a method call on a date, not a string operation. No secrets, no logging of sensitive values, no eval/exec. Assertion message includes only int IDs and int balances — no PII. No external I/O, no auth concerns (per DS-005 V1 has no auth). Note: assert is correctly used as a correctness invariant (DS-016 documents this as a hard property), not a defensive check that could be stripped by -O — and even if stripped, downstream consumers see corrupt data only if the ledger is already corrupt, which is a separate (and prevented) class of bug."
+    },
+    {
+      "lens": "scope_creep",
+      "status": "pass",
+      "findings": "File contains exactly one class with one public method plus __init__. No additional helpers, no extra exports, no modifications to do_not_touch files (domain/stock.py, repositories/*, schemas/dashboard.py — all untouched per plan). No router code, no DI factory (correctly left to T-062 + dependencies.py modification). No test file authored. No SQL in service. No re-derivation of DS-003/DS-004 logic. The implementation is the minimum surface area required to satisfy the plan."
+    }
+  ],
+  "issues": [],
+  "structural_lens_note": "graphify-out/graph.json exists but Lens 5 not deeply traversed — the file's direct imports were verified to resolve against existing modules, and the call graph from list_as_of into list_active_all + sum_deltas_by_source_type + opening_balance + closing_balance + DashboardRow constructor is explicit. The service is not orphaned; it will be wired by T-062 (router) + T-063 (dependency factory) per LLD files[3,8].",
+  "verdict_detail": "0 critical, 0 major, 0 minor. Implementation is a textbook orchestrator: pure composition of two repositories + two domain primitives + one schema constructor, with the FORMULA-001 invariant asserted on every row and the result sorted per LLD-pinned order. All 7 load-bearing properties verified against source. No ADR tradeoffs masked as bugs; all design references (DS-002/003/004/015/016) are honoured."
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "T-064",
+  "title": "GET /dashboard router",
+  "module_ref": "M-004",
+  "output_files": ["backend/src/presentation/api/routers/dashboard.py"],
+  "scope": "Single FastAPI router. APIRouter(prefix='/dashboard', tags=['dashboard']). One endpoint: GET / with required Query(...) as_of_date: date and Depends(get_dashboard_service). Returns list[DashboardRow]. Pure delegation — service.list_as_of(as_of_date).",
+  "do_not_touch": ["backend/src/application/services/dashboard_service.py", "backend/src/presentation/schemas/dashboard.py", "backend/src/main.py (T-066 owns the mount)", "any other router"],
+  "depends_on": ["T-057", "T-061", "T-063"],
+  "test_case_refs": ["TC-117", "TC-130", "TC-131", "TC-132"],
+  "decisions_referenced": [],
+  "success_criteria": {
+    "manual": "Router can be included by main.py (T-066); GET /api/v1/dashboard?as_of_date=2026-06-30 returns 200 with list payload.",
+    "automated": "TC-117 (200 OK with rows), TC-130 (response_model serialization), TC-131 (missing as_of_date → 422), TC-132 (malformed date → 422) all pass.",
+    "definition_of_done": "Pure delegation — endpoint body is one line: `return service.list_as_of(as_of_date)`. response_model=list[DashboardRow] so FastAPI handles serialization. NO try/except for AssertionError from service (let it bubble — invariant breach is a 500 by design)."
+  },
+  "checkout_prompt": "GET /dashboard router created. Pure delegation, response_model=list[DashboardRow]. Ready for mount in T-066."
+}

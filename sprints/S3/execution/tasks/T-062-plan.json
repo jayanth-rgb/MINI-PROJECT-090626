@@ -1,0 +1,17 @@
+{
+  "task_id": "T-062",
+  "title": "SalesReportService.generate — F-011 dual-payload orchestration",
+  "module_ref": "M-005",
+  "output_files": ["backend/src/application/services/sales_report_service.py"],
+  "scope": "M-005 use case. Single class SalesReportService with one public method generate(date_from, date_to, dealer_ids, places, design_ids) → SalesReportResponse. Builds Consolidation (GROUP BY design+grade) + Transactions (per-line) from sales_header + sales_line + designs + grades + dealers joins. Both queries share a SINGLE filter-predicate builder (DS-017) — guarantees AC-050 reconciliation by construction. Defense-in-depth: service asserts sum(transactions.nos) == sum(consolidation.total_nos) before return.",
+  "do_not_touch": ["backend/src/infrastructure/db/repositories/transactions.py", "backend/src/infrastructure/db/models/*", "backend/src/presentation/schemas/sales_report.py", "any other service", "any test file"],
+  "depends_on": ["T-058"],
+  "test_case_refs": ["TC-133", "TC-134", "TC-135", "TC-136", "TC-137", "TC-138", "TC-139", "TC-141", "TC-142", "TC-143", "TC-144", "TC-145", "TC-146", "TC-157"],
+  "decisions_referenced": ["DS-013", "DS-017"],
+  "success_criteria": {
+    "manual": "Seed 3 dealers × 2 designs × 2 grades × 10 sales across June 2026. generate(date_from=2026-06-01, date_to=2026-06-30) → consolidation rows grouped by (design, grade) with correct SUMs; transactions rows ordered by (sales_date, header_id). sum(transactions.nos) == sum(consolidation.total_nos).",
+    "automated": "All 14 TCs pass (TC-157 perf gate over the same workload as TC-122).",
+    "definition_of_done": "Single class, single public method. Filter predicate built ONCE (private helper) and applied to both queries — no duplicated WHERE clauses. AC-050 assertion present and raises if violated. RULE-019 sort on consolidation, RULE-020 sort on transactions enforced in SQL."
+  },
+  "checkout_prompt": "SalesReportService.generate implemented. Shared filter predicate guarantees AC-050 by construction; defense-in-depth assertion present. Ready for router wiring in T-065."
+}

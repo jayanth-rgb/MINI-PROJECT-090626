@@ -1,0 +1,59 @@
+{
+  "$schema": "ases/v3.0/sprint_gate",
+  "sprint_id": "S3",
+  "timestamp": "2026-06-26T00:00:00Z",
+  "schema_validation": {
+    "lld.json": "PASS",
+    "schema.json": "PASS",
+    "test_cases.json": "PASS",
+    "deps_manifest.json": "PASS (after auto-corrected format defect — see warnings)"
+  },
+  "checks": [
+    {
+      "check": "lld_files_cover_roadmap_scope",
+      "status": "pass",
+      "details": "Roadmap S3 scope: features=[F-010, F-011, F-012], modules=[M-004, M-005]. LLD scope_features=[F-010, F-011, F-012] (100% match). LLD scope_modules=[M-004, M-005] (100% match). File-level coverage: F-010 Stock Dashboard owned by 5 files (dashboard.py schema + ledger_aggregates.py repo + dashboard_service.py + dashboard.py router + master.py list_active_all modify); F-011 Sales Report owned by 3 files (sales_report.py schema + sales_report_service.py + sales_report.py router); F-012 Monthly Carry-Forward verified end-to-end via integration tests against existing domain.stock.opening_balance (S2 T-045) per LLD rules_referenced AC-053 — no new code path required. The LLD additionally touches M-001 (1 new method on DesignGradeMapRepository) and M-002 (2 new DI factories + 2 router mounts on main.py) — these are additive modifications, not roadmap-scope expansions."
+    },
+    {
+      "check": "schema_entities_match_lld_models",
+      "status": "pass",
+      "details": "S3 is a READ-ONLY sprint at the schema layer (0 new tables/columns/constraints/indexes/migrations). All 7 entities in sprints/S3/design/schema.json are marked modification=read_only_reuse_from_S1 or read_only_reuse_from_S2 with explicit used_by_s3_files mappings to LLD files. Reverse check: every LLD persistence-layer file maps to ≥1 schema entity — ledger_aggregates.py→tbl_stock_ledger; dashboard_service.py→tbl_stock_ledger+tbl_design_grade_map+tbl_trading_design_master+tbl_grade_master; sales_report_service.py→tbl_sales_header+tbl_sales_line+tbl_trading_design_master+tbl_grade_master+tbl_dealer_master; master.py modify→tbl_design_grade_map+tbl_grade_master. Non-persistence LLD files (Pydantic schemas, routers, DI, main.py) correctly excluded from entities. schema.json completeness_check confirms every_lld_model_in_schema=true AND every_schema_entity_in_lld=true."
+    },
+    {
+      "check": "test_cases_cover_all_ac",
+      "status": "pass",
+      "details": "PRD lists 13 ACs in S3 scope: AC-041..AC-045 (F-010 = 5), AC-046..AC-050 (F-011 = 5), AC-051..AC-053 (F-012 = 3). test_cases.json provides 46 test cases (TC-115..TC-160) with explicit ac_coverage_detail showing each AC has ≥1 test case (most have 2-3). Bonus regression coverage: AC-012 (Grade soft-delete cascade) covered by TC-152; AC-017 (DesignGradeMap soft-delete) covered by TC-151 — both verified transitively via list_active_all exclusions. Each test case has: ac_ref, type (unit/integration/edge/performance/security), priority, concrete inputs, concrete expected_output, framework=pytest. All test_required=true LLD files have ≥1 unit + ≥1 integration test."
+    },
+    {
+      "check": "deps_manifest_complete",
+      "status": "pass",
+      "details": "deps_manifest.json declares packages=[] (zero new backend Python packages — reuses S1+S2 stack), migrations=[] (zero alembic revisions — read-only sprint), services lists existing PostgreSQL 16 + Docker testcontainers as setup-only inherited dependencies, env_vars lists DATABASE_URL + NEXT_PUBLIC_API_URL (both inherited unchanged from S1). All LLD-declared imports in S3 files resolve via existing manifests: SQLAlchemy (case, func.sum, select, .in_, joined-load), Pydantic v2 (BaseModel, ConfigDict), FastAPI (APIRouter, Query, Depends), datetime — all present in backend/requirements.txt from S1. Frontend deps deferred to /ases-ui-design S3 per LLD frontend_ui_track_note."
+    },
+    {
+      "check": "no_lld_conflicts_with_previous_sprint",
+      "status": "pass",
+      "details": "S3 LLD declares 7 NEW files (all under unused paths: dashboard.py, ledger_aggregates.py, dashboard_service.py, dashboard.py router, sales_report.py schema, sales_report_service.py, sales_report.py router) and 3 MODIFY files (master.py + dependencies.py + main.py). Modify analysis: (a) master.py — adds DesignGradeMapRepository.list_active_all as a new method; existing 6 master repos byte-identical. (b) dependencies.py — adds get_dashboard_service + get_sales_report_service factories; existing 10 S1+S2 factories untouched. (c) main.py — adds 2 include_router calls; existing 9 mounts + CORS + error handlers byte-identical. Zero shared-line edits, zero behavioral changes to S1/S2 paths. The S2 stock-ledger write contract (DS-015 advisory-lock-first + FOR UPDATE) is preserved intact — S3 is read-only against the ledger."
+    }
+  ],
+  "verdict": "PASS",
+  "blocking_issues": [],
+  "warnings": [
+    "W-S3-001 (resolved during gate): sprints/S3/design/deps_manifest.json initial structure used dicts for `services` and `migrations` fields while the format/json/deps_manifest.schema.json requires arrays. Defect originated in /ases-lld S3 output (the lld skill does not run schema validation; sprint-gate is the first validation step). Auto-corrected during this gate run by reshaping the two fields to schema-compliant arrays — semantic content (zero new packages, zero new migrations, list of inherited services) was preserved byte-for-byte. The S2 deps_manifest.json (which passed S2 gate) uses the correct array form, so this was a one-off drift in S3. Recommendation: the /ases-lld skill should call validate_schema.py before exit to catch this earlier. Logged as a process improvement, not a sprint-blocking issue."
+  ],
+  "gate_summary": {
+    "ac_coverage": "13/13 ACs covered (100%)",
+    "test_cases_total": 46,
+    "lld_files_total": 10,
+    "lld_files_new": 7,
+    "lld_files_modified": 3,
+    "schema_entities_total": 7,
+    "schema_entities_new": 0,
+    "schema_entities_reused": 7,
+    "new_decisions_in_S3": ["DS-015", "DS-016", "DS-017"],
+    "new_dependencies": 0,
+    "new_migrations": 0,
+    "phase_2_lock_status": "UNLOCKED"
+  },
+  "next_command_on_PASS": "/ases-analyze S3",
+  "po_approval_required": true
+}

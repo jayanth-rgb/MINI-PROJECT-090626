@@ -55,3 +55,16 @@ class DesignGradeMapRepository(BaseRepository[DesignGradeMapModel]):
             )
         )
         return list(self.session.execute(stmt).scalars())
+
+    def list_active_all(self) -> list[DesignGradeMapModel]:
+        # AC-012/AC-017: grade-soft-delete + map-soft-delete BOTH cascade — JOIN on
+        # tbl_grade_master with grade.is_active=True (DS-007).
+        stmt = (
+            select(DesignGradeMapModel)
+            .join(GradeModel, GradeModel.grade_id == DesignGradeMapModel.grade_id)
+            .where(
+                DesignGradeMapModel.is_active.is_(True),
+                GradeModel.is_active.is_(True),
+            )
+        )
+        return list(self.session.execute(stmt).scalars())

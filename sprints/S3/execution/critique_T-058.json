@@ -1,0 +1,93 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "task_id": "T-058",
+  "sprint_id": "S3",
+  "module_ref": "M-005",
+  "produced_by": "/ases-batch-critique",
+  "target_files": ["backend/src/presentation/schemas/sales_report.py"],
+  "decisions_consulted": ["DS-013", "DS-017"],
+  "lenses_applied": ["spec", "contract", "test", "security", "structural"],
+  "verdict": "CLEAN",
+  "summary": "T-058 implementation matches plan + LLD exactly. Three Pydantic v2 BaseModels (ConsolidationRow 6 fields, TransactionRow 10 fields with place:str per DS-013, SalesReportResponse container) — correct types, correct field order, ConfigDict(from_attributes=True) on the two row models, zero imports beyond pydantic+datetime. No defects across any of the 5 lenses.",
+  "findings": [],
+  "observations": [
+    {
+      "id": "OBS-1",
+      "lens": "spec",
+      "note": "SalesReportResponse does not carry model_config = ConfigDict(from_attributes=True). This is consistent with the plan.md sample (which omits it on the container) and is functionally fine because T-062 SalesReportService will construct it explicitly via SalesReportResponse(consolidation=[...], transactions=[...]) — not via ORM-row attribute hydration. Recording as observation only, not a finding.",
+      "severity": "info",
+      "is_adr_tradeoff": false
+    },
+    {
+      "id": "OBS-2",
+      "lens": "spec",
+      "note": "TransactionRow.place is typed `str` (not `str | None`) per DS-013 — denormalized snapshot captured at sale-time on tbl_sales_header.place. Inline comment on line 23 explicitly cites DS-013. Aligns with the architect decision; is_adr_tradeoff=true.",
+      "severity": "info",
+      "is_adr_tradeoff": true
+    },
+    {
+      "id": "OBS-3",
+      "lens": "contract",
+      "note": "DS-017 (shared filter predicate for consolidation+transactions queries) is a service-layer concern consumed by T-062. T-058 schemas correctly model the dual-payload shape (parallel list[Row] arms) that the AC-050 reconciliation invariant operates over — schemas neither encode nor obstruct DS-017.",
+      "severity": "info",
+      "is_adr_tradeoff": true
+    },
+    {
+      "id": "OBS-4",
+      "lens": "structural",
+      "note": "Leaf module — consumers T-062 (sales_report_service) and T-065 (sales_report router) are downstream in this sprint. depends_on=[] in the LLD; only stdlib + pydantic imports used. Skipping deep graph reachability since the file has no in-sprint dependencies yet.",
+      "severity": "info",
+      "is_adr_tradeoff": false
+    }
+  ],
+  "lens_results": {
+    "spec": {
+      "status": "pass",
+      "checks": [
+        "3 BaseModels defined matching plan output_files scope",
+        "ConsolidationRow fields: design_id:int, design_name:str, size:str, grade_id:int, grade_code:str, total_nos:int — exact match with LLD files[4].functions[0]",
+        "TransactionRow fields: sales_date:date, dealer_id:int, dealer_name:str, place:str, design_id:int, design_name:str, size:str, grade_id:int, grade_code:str, nos:int — exact match with LLD files[4].functions[1]",
+        "SalesReportResponse fields: consolidation:list[ConsolidationRow], transactions:list[TransactionRow] — exact match with LLD files[4].functions[2]",
+        "Field order matches LLD column order per plan.md constraint"
+      ]
+    },
+    "contract": {
+      "status": "pass",
+      "checks": [
+        "Exports = {ConsolidationRow, TransactionRow, SalesReportResponse} — matches LLD interfaces.exports",
+        "Imports = {datetime.date, pydantic.BaseModel, pydantic.ConfigDict} — matches LLD interfaces.expects (no extras)",
+        "depends_on=[] in plan — file is self-contained, no project-internal imports (verified)",
+        "ConfigDict(from_attributes=True) on both row models enables ORM-row hydration in T-062"
+      ]
+    },
+    "test": {
+      "status": "pass",
+      "checks": [
+        "test_required=false in LLD; covered transitively by TC-133, TC-140, TC-141, TC-142, TC-143, TC-145, TC-147 in T-062/T-065",
+        "Manual success criterion: SalesReportResponse(consolidation=[], transactions=[]) instantiates — verified by code shape (both fields are list types with empty-list-compatible defaults via type)",
+        "JSON serialization path (Pydantic v2 model_dump_json) trivially supported — no custom validators or computed fields to break it"
+      ]
+    },
+    "security": {
+      "status": "pass",
+      "checks": [
+        "Pure data classes — no validators, no business logic, no I/O, no secret handling",
+        "Type coercion handled by Pydantic v2 at parse boundary — int/str/date all primitive",
+        "No injection vectors: no SQL, no shell, no template rendering at this layer",
+        "place:str (not Optional) — defends downstream consumers against NULL surprises per DS-013 snapshot invariant"
+      ]
+    },
+    "structural": {
+      "status": "pass",
+      "checks": [
+        "Leaf schema module — three classes defined at module scope, all exported",
+        "No dead imports (date, BaseModel, ConfigDict all referenced)",
+        "No orphan helpers — file contains only the 3 declared BaseModels",
+        "Downstream reachability deferred to T-062/T-065 critique once those files exist"
+      ]
+    }
+  },
+  "iteration_count": 1,
+  "escalate": false
+}

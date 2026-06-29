@@ -1,0 +1,462 @@
+{
+  "$schema": "ases/v3.0/tasks",
+  "document": "tasks",
+  "produced_by": "/ases-tasks",
+  "consumed_by": [
+    "/ases-validate",
+    "/ases-dev",
+    "/ases-critique",
+    "/ases-batch-exec",
+    "/ases-ui-design"
+  ],
+  "sprint_id": "S3",
+  "design_notes": "10 backend tasks decomposing S3's LLD into per-file work units. TC IDs continue from S2 (S1 used T-001..T-040; S2 used T-041..T-056; S3 uses T-057..T-066). Granularity matches S1/S2: one task per LLD file, with `modify` tasks for the 3 S1/S2 files touched (master.py, dependencies.py, main.py). Frontend pages scoped to UI track per LLD frontend_ui_track_note \u00e2\u20ac\u201d /ases-ui-design S3 will produce its own ui_tasks. F-012 (carry-forward correctness) requires zero new code per LLD \u00e2\u20ac\u201d verified end-to-end via integration TCs (TC-153, TC-154, TC-155, TC-156) authored at /ases-test-impl S3 against the existing S2 domain.stock.opening_balance/closing_balance primitives.",
+  "tasks": [
+    {
+      "id": "T-057",
+      "file": "backend/src/presentation/schemas/dashboard.py",
+      "description": "DashboardRow Pydantic v2 schema. 10 fields (design_id, design_name, size, grade_id, grade_code, opening, inward, outward, adjust, closing) with ConfigDict(from_attributes=True). Pure data class \u00e2\u20ac\u201d zero business logic. Foundational; T-061 (DashboardService) and T-064 (dashboard router) project results into this shape.",
+      "type": "create",
+      "module_ref": "M-004",
+      "inputs": {
+        "reads_from": [
+          "sprints/S3/design/lld.json",
+          "sprints/S3/design/schema.json"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "DashboardRow"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[0]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/S3/execution/tasks/T-057-plan.md",
+      "tests_file": "sprints/S3/execution/tasks/T-057-tests.md"
+    },
+    {
+      "id": "T-058",
+      "file": "backend/src/presentation/schemas/sales_report.py",
+      "description": "Sales Report Pydantic v2 schemas: ConsolidationRow (6 fields), TransactionRow (10 fields, includes place denormalized per DS-013), SalesReportResponse (consolidation: list + transactions: list). Pure data classes \u00e2\u20ac\u201d zero business logic. T-062 (SalesReportService) and T-065 (sales_report router) project results into this shape.",
+      "type": "create",
+      "module_ref": "M-005",
+      "inputs": {
+        "reads_from": [
+          "sprints/S3/design/lld.json",
+          "sprints/S3/design/schema.json"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "ConsolidationRow",
+          "TransactionRow",
+          "SalesReportResponse"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[4]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/S3/execution/tasks/T-058-plan.md",
+      "tests_file": "sprints/S3/execution/tasks/T-058-tests.md"
+    },
+    {
+      "id": "T-059",
+      "file": "backend/src/infrastructure/db/repositories/ledger_aggregates.py",
+      "description": "LedgerAggregatesRepository.sum_deltas_by_source_type(month_start, as_of_date) \u00e2\u20ac\u201d single CASE-aggregated GROUP BY (design_id, grade_id) query over tbl_stock_ledger WHERE txn_date BETWEEN :month_start AND :as_of_date. Returns one Row per (design, grade) with columns: design_id, grade_id, inward_sum, outward_sum (= SUM(-delta) on source_type='sale' so it reads positive), adjust_sum. Composite index ix_stock_ledger_dgt(design_id, grade_id, txn_date DESC, ledger_id DESC) supports the (design, grade) ordering \u00e2\u20ac\u201d the inner SUM is over a date range so the planner uses an Index Range Scan. DS-016 documents the single-query rationale.",
+      "type": "create",
+      "module_ref": "M-004",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/models/transactions.py",
+          "backend/src/infrastructure/db/repositories/base.py"
+        ],
+        "env_vars": [],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "LedgerAggregatesRepository"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [],
+      "test_case_refs": [
+        "TC-123",
+        "TC-124",
+        "TC-125",
+        "TC-126"
+      ],
+      "lld_ref": "lld.json files[1]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/S3/execution/tasks/T-059-plan.md",
+      "tests_file": "sprints/S3/execution/tasks/T-059-tests.md"
+    },
+    {
+      "id": "T-060",
+      "file": "backend/src/infrastructure/db/repositories/master.py",
+      "description": "MODIFY: add DesignGradeMapRepository.list_active_all() \u00e2\u2020\u2019 list[DesignGradeMapModel] (NO design_id filter \u00e2\u20ac\u201d returns ALL active pairs across all designs). JOIN on tbl_grade_master with WHERE map.is_active AND grade.is_active. Same JOIN-on-grade pattern as the existing list_active_by_design (S1) but unparameterized. The .design + .grade relationships (lazy='joined') hydrate design_name/size/grade_code for the dashboard projection without N+1. Existing 6 master repositories (Supplier, Staff, Dealer, Grade, TradingDesign, DesignGradeMap.list_active_by_design + get_by_pair) untouched.",
+      "type": "modify",
+      "module_ref": "M-001",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/repositories/base.py",
+          "backend/src/infrastructure/db/models/master.py"
+        ],
+        "env_vars": [],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "DesignGradeMapRepository (existing + list_active_all method)"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [],
+      "test_case_refs": [
+        "TC-150",
+        "TC-151",
+        "TC-152"
+      ],
+      "lld_ref": "lld.json files[7]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/S3/execution/tasks/T-060-plan.md",
+      "tests_file": "sprints/S3/execution/tasks/T-060-tests.md"
+    },
+    {
+      "id": "T-061",
+      "file": "backend/src/application/services/dashboard_service.py",
+      "description": "M-004 use case. DashboardService.list_as_of(as_of_date) composes: (1) month_first = as_of_date.replace(day=1), (2) DesignGradeMapRepository.list_active_all() (T-060) for the row-set, (3) single LedgerAggregatesRepository.sum_deltas_by_source_type(month_first, as_of_date) call (T-059), (4) per-pair domain.stock.opening_balance + closing_balance (S2 T-045, O(1) latest_as_of), (5) invariant assertion opening + inward \u00e2\u02c6\u2019 outward + adjust == closing (surfaces ledger corruption). Result ordered by design_name ASC, grade_code ASC. Target p95 < 500ms per FORMULA-001 + DS-015. DS-016 documents the single-GROUP-BY aggregation strategy.",
+      "type": "create",
+      "module_ref": "M-004",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/repositories/master.py",
+          "backend/src/infrastructure/db/repositories/ledger_aggregates.py",
+          "backend/src/domain/stock.py",
+          "backend/src/presentation/schemas/dashboard.py"
+        ],
+        "env_vars": [],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "DashboardService"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-057",
+        "T-059",
+        "T-060"
+      ],
+      "test_case_refs": [
+        "TC-115",
+        "TC-116",
+        "TC-118",
+        "TC-119",
+        "TC-120",
+        "TC-121",
+        "TC-122",
+        "TC-127",
+        "TC-128",
+        "TC-129",
+        "TC-156"
+      ],
+      "lld_ref": "lld.json files[2]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/S3/execution/tasks/T-061-plan.md",
+      "tests_file": "sprints/S3/execution/tasks/T-061-tests.md"
+    },
+    {
+      "id": "T-062",
+      "file": "backend/src/application/services/sales_report_service.py",
+      "description": "M-005 use case. SalesReportService.generate(date_from, date_to, dealer_ids, places, design_ids) builds dual-payload from sales_header + sales_line joined with designs + grades + dealers, applying optional multi-select filters via .in_(). Both queries (Consolidation GROUP BY + Transactions per-line) share a SINGLE filter predicate function (DS-017) \u00e2\u20ac\u201d guarantees AC-050 reconciliation by construction. Consolidation ORDER BY design_name, grade_code (RULE-019). Transactions ORDER BY sales_date ASC, header_id ASC (RULE-020). Defense-in-depth: service asserts sum(transactions.nos) == sum(consolidation.total_nos) before return.",
+      "type": "create",
+      "module_ref": "M-005",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/models/transactions.py",
+          "backend/src/infrastructure/db/models/master.py",
+          "backend/src/presentation/schemas/sales_report.py"
+        ],
+        "env_vars": [],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "SalesReportService"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-058"
+      ],
+      "test_case_refs": [
+        "TC-133",
+        "TC-134",
+        "TC-135",
+        "TC-136",
+        "TC-137",
+        "TC-138",
+        "TC-139",
+        "TC-141",
+        "TC-142",
+        "TC-143",
+        "TC-144",
+        "TC-145",
+        "TC-146",
+        "TC-157"
+      ],
+      "lld_ref": "lld.json files[5]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/S3/execution/tasks/T-062-plan.md",
+      "tests_file": "sprints/S3/execution/tasks/T-062-tests.md"
+    },
+    {
+      "id": "T-063",
+      "file": "backend/src/presentation/api/dependencies.py",
+      "description": "MODIFY: add 2 new DI factories \u00e2\u20ac\u201d get_dashboard_service(db: Session = Depends(get_db)) \u00e2\u2020\u2019 DashboardService, get_sales_report_service(db) \u00e2\u2020\u2019 SalesReportService. Same pattern as the 10 existing S1+S2 factories (supplier, staff, dealer, grade, design, design_grade_map, inward, sales, adjustment, design_grade_cb). Existing factories untouched.",
+      "type": "modify",
+      "module_ref": "M-002",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/session.py",
+          "backend/src/application/services/dashboard_service.py",
+          "backend/src/application/services/sales_report_service.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "get_dashboard_service",
+          "get_sales_report_service"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-061",
+        "T-062"
+      ],
+      "test_case_refs": [
+        "TC-159",
+        "TC-160"
+      ],
+      "lld_ref": "lld.json files[8]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/S3/execution/tasks/T-063-plan.md",
+      "tests_file": "sprints/S3/execution/tasks/T-063-tests.md"
+    },
+    {
+      "id": "T-064",
+      "file": "backend/src/presentation/api/routers/dashboard.py",
+      "description": "GET /dashboard?as_of_date=YYYY-MM-DD route. Thin delegation to DashboardService.list_as_of. Required as_of_date \u00e2\u20ac\u201d FastAPI parses ISO. Returns 200 with list[DashboardRow] (empty list is a valid outcome \u00e2\u20ac\u201d no active pairs). Tags=['dashboard'], prefix='/dashboard'. Mirrors the S1/S2 router pattern.",
+      "type": "create",
+      "module_ref": "M-004",
+      "inputs": {
+        "reads_from": [
+          "backend/src/application/services/dashboard_service.py",
+          "backend/src/presentation/api/dependencies.py",
+          "backend/src/presentation/schemas/dashboard.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "router (APIRouter prefix='/dashboard', tags=['dashboard'])"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-057",
+        "T-061",
+        "T-063"
+      ],
+      "test_case_refs": [
+        "TC-117",
+        "TC-130",
+        "TC-131",
+        "TC-132"
+      ],
+      "lld_ref": "lld.json files[3]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/S3/execution/tasks/T-064-plan.md",
+      "tests_file": "sprints/S3/execution/tasks/T-064-tests.md"
+    },
+    {
+      "id": "T-065",
+      "file": "backend/src/presentation/api/routers/sales_report.py",
+      "description": "GET /reports/sales route. Multi-select filters via Query(default=None) \u00e2\u20ac\u201d FastAPI handles repeat-key list[int]/list[str] natively (same pattern as T-053's list_sales). date_from + date_to + dealer_ids + places + design_ids all optional (RULE-018). Pure delegation: return service.generate(date_from, date_to, dealer_ids, places, design_ids). Tags=['reports'], prefix='/reports/sales'.",
+      "type": "create",
+      "module_ref": "M-005",
+      "inputs": {
+        "reads_from": [
+          "backend/src/application/services/sales_report_service.py",
+          "backend/src/presentation/api/dependencies.py",
+          "backend/src/presentation/schemas/sales_report.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "router (APIRouter prefix='/reports/sales', tags=['reports'])"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-058",
+        "T-062",
+        "T-063"
+      ],
+      "test_case_refs": [
+        "TC-140",
+        "TC-147",
+        "TC-148",
+        "TC-149",
+        "TC-158"
+      ],
+      "lld_ref": "lld.json files[6]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/S3/execution/tasks/T-065-plan.md",
+      "tests_file": "sprints/S3/execution/tasks/T-065-tests.md"
+    },
+    {
+      "id": "T-066",
+      "file": "backend/src/main.py",
+      "description": "MODIFY: add 2 include_router calls (dashboard, sales_report) under /api/v1. All other wiring (CORS, error handlers, 9 existing router mounts \u00e2\u20ac\u201d suppliers/staff/dealers/grades/designs/design_grade_map/inward/sales/adjustments \u00e2\u20ac\u201d and /health) byte-identical. After this task: /api/v1/dashboard and /api/v1/reports/sales are reachable.",
+      "type": "modify",
+      "module_ref": "M-002",
+      "inputs": {
+        "reads_from": [
+          "backend/src/presentation/api/routers/dashboard.py",
+          "backend/src/presentation/api/routers/sales_report.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "create_app (existing + 2 mounts)",
+          "app"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-064",
+        "T-065"
+      ],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[9]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/S3/execution/tasks/T-066-plan.md",
+      "tests_file": "sprints/S3/execution/tasks/T-066-tests.md"
+    }
+  ],
+  "execution_order": [
+    "T-057",
+    "T-058",
+    "T-059",
+    "T-060",
+    "T-061",
+    "T-062",
+    "T-063",
+    "T-064",
+    "T-065",
+    "T-066"
+  ],
+  "parallel_groups": [
+    [
+      "T-057",
+      "T-058",
+      "T-059",
+      "T-060"
+    ],
+    [
+      "T-061",
+      "T-062"
+    ],
+    [
+      "T-063"
+    ],
+    [
+      "T-064",
+      "T-065"
+    ],
+    [
+      "T-066"
+    ]
+  ],
+  "ui_tasks": [],
+  "backend_tasks": [
+    "T-057",
+    "T-058",
+    "T-059",
+    "T-060",
+    "T-061",
+    "T-062",
+    "T-063",
+    "T-064",
+    "T-065",
+    "T-066"
+  ],
+  "ui_track_note": "Frontend pages (/admin/dashboard/, /admin/reports/sales/) and supporting components/types/api-wrappers are NOT in this list. They are produced by /ases-ui-design S3 \u00e2\u2020\u2019 /ases-ui-review S3 \u00e2\u2020\u2019 /ases-ui-scaffold S3 against this tasks file's integration_points (the 2 new GET endpoints from T-064 + T-065 + the existing S1 GET /designs, /dealers and S2 GET /sales endpoints for filter dropdowns).",
+  "decisions_referenced": [
+    "DS-002",
+    "DS-003",
+    "DS-004",
+    "DS-007",
+    "DS-013",
+    "DS-015",
+    "DS-016",
+    "DS-017"
+  ],
+  "tc_coverage": {
+    "tcs_mapped_to_tasks": 43,
+    "tcs_handled_at_test_impl_only": [
+      {
+        "tc": "TC-153",
+        "reason": "F-012 carry-forward verification against existing S2 domain.stock.opening_balance \u00e2\u20ac\u201d no new dev task per LLD."
+      },
+      {
+        "tc": "TC-154",
+        "reason": "F-012 carry-forward verification against existing S2 domain.stock \u00e2\u20ac\u201d no new dev task per LLD."
+      },
+      {
+        "tc": "TC-155",
+        "reason": "F-012 carry-forward verification against existing S2 domain.stock \u00e2\u20ac\u201d no new dev task per LLD."
+      }
+    ],
+    "total_tcs_in_sprint": 46,
+    "reconciliation": "43 mapped + 3 carry-forward verification (no dev task) = 46 total."
+  },
+  "next": "/ases-validate T-057 S3"
+}

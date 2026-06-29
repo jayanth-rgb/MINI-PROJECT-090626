@@ -1,0 +1,1 @@
+{"task_id": "T-066", "test_case_refs": [], "priority": "n/a", "notes": "No direct TCs. Wiring verified transitively by every integration test that hits /api/v1/{dashboard, reports/sales} — TC-159, TC-160 (T-063), TC-117, TC-130, TC-131, TC-132 (T-064), TC-140, TC-147, TC-148, TC-149, TC-158 (T-065). If T-066 forgets a mount, all 11 of those tests return 404."}

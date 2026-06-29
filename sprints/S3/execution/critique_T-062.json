@@ -1,0 +1,76 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "task_id": "T-062",
+  "sprint_id": "S3",
+  "produced_by": "/ases-batch-critique",
+  "target_files": ["backend/src/application/services/sales_report_service.py"],
+  "module_ref": "M-005",
+  "decisions_consulted": ["DS-013", "DS-017"],
+  "lenses_applied": ["spec", "contract", "test", "security", "structural"],
+  "summary": {
+    "verdict": "CLEAN",
+    "issue_count": 0,
+    "critical": 0,
+    "major": 0,
+    "minor": 0
+  },
+  "findings": [],
+  "load_bearing_property_checks": [
+    {
+      "id": "LBP-1",
+      "description": "Single _build_filters helper applied to BOTH consolidation and transactions queries (DS-017)",
+      "status": "PASS",
+      "evidence": "_build_filters defined at lines 79-114; called once at line 58; result list spread into both queries via .where(*filters) at lines 140 and 191. No inline WHEREs anywhere."
+    },
+    {
+      "id": "LBP-2",
+      "description": "AC-050 assertion present after both queries run",
+      "status": "PASS",
+      "evidence": "Lines 66-71: consol_total = sum(r.total_nos for r in consolidation); txn_total = sum(r.nos for r in transactions); assert consol_total == txn_total with informative message."
+    },
+    {
+      "id": "LBP-3",
+      "description": "Consolidation ORDER BY design_name ASC, grade_code ASC (RULE-019) in SQL",
+      "status": "PASS",
+      "evidence": "Lines 148-151: .order_by(TradingDesignModel.design_name.asc(), GradeModel.grade_code.asc()) with RULE-019 comment."
+    },
+    {
+      "id": "LBP-4",
+      "description": "Transactions ORDER BY sales_date ASC, header_id ASC (RULE-020) in SQL",
+      "status": "PASS",
+      "evidence": "Lines 192-195: .order_by(SalesHeaderModel.sales_date.asc(), SalesHeaderModel.header_id.asc()) with RULE-020 comment."
+    },
+    {
+      "id": "LBP-5",
+      "description": "TransactionRow.place from SalesHeaderModel.place (denormalized DS-013 snapshot), not joined live from DealerModel.place",
+      "status": "PASS",
+      "evidence": "Line 179 projects SalesHeaderModel.place.label('place'); _build_filters line 109 filters on SalesHeaderModel.place.in_(places). DealerModel join (line 190) is used only for dealer_name display. Model at backend/src/infrastructure/db/models/transactions.py:96 exposes column name 'place' with DS-013 comment — worker correctly auto-corrected the plan's nominal 'place_snapshot' to the actual S2 column name."
+    },
+    {
+      "id": "LBP-6",
+      "description": "Multi-select lists use SQLAlchemy .in_() parameter binding, no string interpolation (DS-017 security)",
+      "status": "PASS",
+      "evidence": "Lines 104 (dealer_ids), 109 (places), 112 (design_ids) all use Model.column.in_(list). No f-strings, no % formatting, no .format() in WHERE construction. Defense at router layer (TC-158) is reinforced here at service layer."
+    },
+    {
+      "id": "LBP-7",
+      "description": "Empty list inputs treated as 'no filter' (must not produce IN ())",
+      "status": "PASS",
+      "evidence": "All three list filters use truthy checks: 'if dealer_ids:' (103), 'if places:' (106), 'if design_ids:' (111). Python treats [] as falsy → branch skipped → no condition appended → no IN () in generated SQL. TC-144/TC-145 expectations satisfied."
+    },
+    {
+      "id": "LBP-8",
+      "description": "Filter predicate builder skips None values and empty lists",
+      "status": "PASS",
+      "evidence": "date_from/date_to use 'is not None' (97, 100) to distinguish from valid date(1,1,1). Lists use truthy check (103, 106, 111). TC-143 (all-None → empty list) satisfied."
+    }
+  ],
+  "lens_notes": {
+    "lens_1_spec": "Class name SalesReportService, single public method generate, signature matches LLD function spec exactly (date_from, date_to, dealer_ids, places, design_ids → SalesReportResponse). Private helpers _build_filters/_query_consolidation/_query_transactions match plan structure. AC-050 defense-in-depth assertion implemented per plan DoD.",
+    "lens_2_contract": "Imports DealerModel/GradeModel/TradingDesignModel from master, SalesHeaderModel/SalesLineModel from transactions, ConsolidationRow/SalesReportResponse/TransactionRow from sales_report schemas — all match LLD interfaces.expects. Exports SalesReportService class as declared in interfaces.exports. Session DI follows S2 pattern.",
+    "lens_3_test": "TC-133..TC-139 satisfied: filter combinations apply correctly via .in_() and date comparisons; GROUP BY produces (design, grade) totals; ORDER BY enforced in SQL on both queries. TC-141/142/145 (AC-050) satisfied by shared filter builder + assertion (assert holds trivially when both lists are empty, 0==0). TC-143 (all-None → empty conds) satisfied. TC-144 (empty list → no IN ()) satisfied via truthy check. TC-146 (ConsolidationRow validation) satisfied via model_validate(row, from_attributes=True). TC-157 perf: single GROUP BY + indexed joins, no Python-side aggregation — feasible.",
+    "lens_4_security": "TC-158 (SQL injection) protected at the service layer because every user-supplied value flows through SQLAlchemy parameter binding (.in_(), >=, <=). No raw SQL string concatenation. Per DS-005, V1 has no auth/RBAC — out of scope. Assertion message embeds only integer sums, no user data, so no log-injection risk.",
+    "lens_5_structural": "graphify-out/graph.json exists but file was just authored; deep callsite scan deferred. SalesReportService consumer is get_sales_report_service in dependencies.py per LLD (T-064 scope). Imports are all used; no orphan symbols within this file."
+  }
+}

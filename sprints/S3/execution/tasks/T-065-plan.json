@@ -1,0 +1,17 @@
+{
+  "task_id": "T-065",
+  "title": "GET /reports/sales router with multi-select filters",
+  "module_ref": "M-005",
+  "output_files": ["backend/src/presentation/api/routers/sales_report.py"],
+  "scope": "Single FastAPI router. APIRouter(prefix='/reports/sales', tags=['reports']). One endpoint: GET / with 5 optional Query(default=None) params (date_from: date | None, date_to: date | None, dealer_ids: list[int] | None, places: list[str] | None, design_ids: list[int] | None). FastAPI handles repeat-key list parsing natively (same pattern as T-053's list_sales in S2). Pure delegation — service.generate(...).",
+  "do_not_touch": ["backend/src/application/services/sales_report_service.py", "backend/src/presentation/schemas/sales_report.py", "backend/src/main.py (T-066 owns the mount)", "any other router"],
+  "depends_on": ["T-058", "T-062", "T-063"],
+  "test_case_refs": ["TC-140", "TC-147", "TC-148", "TC-149", "TC-158"],
+  "decisions_referenced": ["DS-017"],
+  "success_criteria": {
+    "manual": "GET /api/v1/reports/sales (no params) → 200 with full dataset. GET /api/v1/reports/sales?dealer_ids=1&dealer_ids=2&places=Mysuru → 200 with filtered dataset.",
+    "automated": "TC-140 (200 OK with payload), TC-147 (no filters), TC-148 (all 5 filters), TC-149 (malformed list params → 422), TC-158 (SQL injection attempt safely rejected/parameterized) all pass.",
+    "definition_of_done": "Pure delegation. response_model=SalesReportResponse. No try/except. FastAPI handles list parameter parsing — do not manually split comma-separated strings."
+  },
+  "checkout_prompt": "GET /reports/sales router created. Multi-select filters via repeated query keys, response_model=SalesReportResponse. Ready for mount in T-066."
+}

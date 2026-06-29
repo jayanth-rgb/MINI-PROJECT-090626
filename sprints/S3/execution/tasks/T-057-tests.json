@@ -1,0 +1,1 @@
+{"task_id": "T-057", "test_case_refs": [], "priority": "n/a", "notes": "test_required=false per LLD files[0]. Schema correctness verified transitively via T-061 (TC-115, TC-129) which constructs DashboardRow from query rows, and via T-064 (TC-117, TC-130) which round-trips through the JSON response."}

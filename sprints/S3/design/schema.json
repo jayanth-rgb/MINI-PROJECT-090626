@@ -1,0 +1,270 @@
+{
+  "$schema": "ases/v3.0/schema",
+  "document": "schema",
+  "produced_by": "/ases-schema",
+  "consumed_by": ["/ases-dev", "/ases-sprint-gate", "/ases-test-spec", "/ases-tasks", "/ases-validate"],
+  "sprint_id": "S3",
+  "scope_modules": ["M-001", "M-004", "M-005"],
+  "scope_features": ["F-010", "F-011", "F-012"],
+  "decisions_referenced": ["DS-002", "DS-003", "DS-004", "DS-007", "DS-013", "DS-015", "DS-016", "DS-017"],
+
+  "schema_amendments": {
+    "description": "S3 is a READ-ONLY sprint at the schema layer. ZERO new tables, ZERO new columns, ZERO new constraints, ZERO new indexes, ZERO migrations. The dashboard, sales report, and carry-forward verification all consume entities and indexes already shipped in S1 (master tables) + S2 (transaction tables + tbl_stock_ledger). The S2 composite index ix_stock_ledger_dgt(design_id, grade_id, txn_date DESC, ledger_id DESC) was explicitly designed to also service S3's dashboard aggregation (see S2 schema.json comment on that index); S3 now exercises that prior intent. The S2 indexes ix_sales_header_sales_date, ix_sales_header_dealer, ix_sales_line_dgd were similarly forward-declared for S3 Sales Report and now come into use.",
+    "altered_tables": []
+  },
+
+  "entities": [
+    {
+      "name": "tbl_stock_ledger",
+      "hld_module": "M-003",
+      "type": "table",
+      "modification": "read_only_reuse_from_S2",
+      "feature_ref": "F-010",
+      "fields": [
+        {"name": "ledger_id", "type": "BIGSERIAL", "nullable": false, "description": "PK. Existing — see S2 schema.json. NOT modified."},
+        {"name": "design_id", "type": "BIGINT", "nullable": false, "description": "Existing — partition key for the dashboard CASE-aggregated SUM (DS-016)."},
+        {"name": "grade_id", "type": "BIGINT", "nullable": false, "description": "Existing — partition key for the dashboard CASE-aggregated SUM (DS-016)."},
+        {"name": "txn_date", "type": "DATE", "nullable": false, "description": "Existing — date-range predicate for dashboard month-window scan (txn_date BETWEEN :month_start AND :as_of_date)."},
+        {"name": "source_type", "type": "TEXT", "nullable": false, "description": "Existing — CASE branch key for dashboard SUM (inward / sale / adjustment)."},
+        {"name": "delta", "type": "INTEGER", "nullable": false, "description": "Existing — summed within CASE branches; the 'sale' branch sums -delta so the outward column reads positive (DS-016)."},
+        {"name": "running_balance", "type": "INTEGER", "nullable": false, "description": "Existing — read by opening_balance + closing_balance for O(1) per-pair latest_as_of lookups (DS-003/004)."}
+      ],
+      "indexes": [
+        "ix_stock_ledger_dgt(design_id, grade_id, txn_date DESC, ledger_id DESC) — EXISTING from S2/T-042. Services the S3 dashboard date-range scan (Index Range Scan on the (design_id, grade_id) prefix + txn_date) AND continues to service S2's closing_balance / latest_for_design_grade / rows_after lookups. No new index needed."
+      ],
+      "relationships": [],
+      "constraints": [],
+      "used_by_s3_files": [
+        "backend/src/infrastructure/db/repositories/ledger_aggregates.py (single CASE-aggregated GROUP BY)",
+        "backend/src/application/services/dashboard_service.py (via stock.opening_balance + stock.closing_balance — existing S2 primitives)"
+      ],
+      "ac_refs": ["AC-041", "AC-042", "AC-043", "AC-044", "AC-045"],
+      "design_notes": [
+        "DS-015 amends DS-002 to mandate pg_advisory_xact_lock-before-FOR-UPDATE pattern on WRITES. S3 only READS so DS-015 has no direct effect on S3 code — but documenting it here keeps the lock contract visible to any S3 reviewer who wonders why ledger writes look layered.",
+        "DS-016: the single CASE-aggregated SUM over a date range uses ix_stock_ledger_dgt — the (design_id, grade_id) prefix groups; the txn_date suffix limits the in-window slice. No additional index required."
+      ]
+    },
+    {
+      "name": "tbl_sales_header",
+      "hld_module": "M-002",
+      "type": "table",
+      "modification": "read_only_reuse_from_S2",
+      "feature_ref": "F-011",
+      "fields": [
+        {"name": "header_id", "type": "BIGSERIAL", "nullable": false, "description": "Existing PK. Joined to sales_line in both consolidation + transaction queries."},
+        {"name": "sales_date", "type": "DATE", "nullable": false, "description": "Existing — date-range filter predicate via build_filter() (DS-017). Used in transaction-row ORDER BY ASC per RULE-020."},
+        {"name": "dealer_id", "type": "BIGINT", "nullable": false, "description": "Existing — dealer multi-select filter predicate via build_filter() (DS-017)."},
+        {"name": "place", "type": "TEXT", "nullable": false, "description": "Existing — denormalized snapshot per DS-013. Used directly in transaction-row projection AND in place multi-select filter via build_filter() (DS-017)."}
+      ],
+      "indexes": [
+        "ix_sales_header_sales_date — EXISTING from S2/T-042. Services the AC-046 date-range filter for both queries.",
+        "ix_sales_header_dealer — EXISTING from S2/T-042. Services the AC-046 dealer-id filter for both queries.",
+        "NOTE: there is NO index on tbl_sales_header.place. Place filtering may fall back to a sequential scan when place is the only filter applied. Acceptable for V1 volumes (single-digit concurrent users, V1 scale) per PRD non_functional.scalability. If profiling at V1 shows place-only filters dominating the report mix, add ix_sales_header_place in V2."
+      ],
+      "relationships": [
+        {"type": "one_to_many", "target": "tbl_sales_line", "via": "tbl_sales_line.header_id"},
+        {"type": "one_to_many", "target": "tbl_dealer_master", "via": "dealer_id"}
+      ],
+      "constraints": [],
+      "used_by_s3_files": [
+        "backend/src/application/services/sales_report_service.py (both consolidation + transactions queries via shared build_filter())"
+      ],
+      "ac_refs": ["AC-046", "AC-048", "AC-049", "AC-050"],
+      "design_notes": [
+        "DS-017 enforces AC-050 by construction — the same filter predicate object is .where()-applied to both consolidation and transactions queries, so divergent filter rows are structurally impossible."
+      ]
+    },
+    {
+      "name": "tbl_sales_line",
+      "hld_module": "M-002",
+      "type": "table",
+      "modification": "read_only_reuse_from_S2",
+      "feature_ref": "F-011",
+      "fields": [
+        {"name": "line_id", "type": "BIGSERIAL", "nullable": false, "description": "Existing PK."},
+        {"name": "header_id", "type": "BIGINT", "nullable": false, "description": "Existing — JOIN to tbl_sales_header for date/dealer/place filters + projection."},
+        {"name": "design_id", "type": "BIGINT", "nullable": false, "description": "Existing — design multi-select filter predicate via build_filter() (DS-017). GROUP BY key in consolidation (FORMULA-004)."},
+        {"name": "grade_id", "type": "BIGINT", "nullable": false, "description": "Existing — GROUP BY key in consolidation (FORMULA-004)."},
+        {"name": "nos", "type": "INTEGER", "nullable": false, "description": "Existing — SUM(nos) target in consolidation, raw value in transactions."}
+      ],
+      "indexes": [
+        "ix_sales_line_dgd(design_id, grade_id, header_id) — EXISTING from S2/T-042. Supports the GROUP BY design_id, grade_id in the consolidation query AND the design_id IN (...) filter when design_ids is non-empty.",
+        "ix_sales_line_header(header_id) — EXISTING from S2/T-042. Supports the JOIN to tbl_sales_header."
+      ],
+      "relationships": [
+        {"type": "one_to_many", "target": "tbl_sales_header", "via": "header_id"},
+        {"type": "one_to_many", "target": "tbl_trading_design_master", "via": "design_id"},
+        {"type": "one_to_many", "target": "tbl_grade_master", "via": "grade_id"}
+      ],
+      "constraints": [],
+      "used_by_s3_files": [
+        "backend/src/application/services/sales_report_service.py"
+      ],
+      "ac_refs": ["AC-046", "AC-047", "AC-048", "AC-050"]
+    },
+    {
+      "name": "tbl_design_grade_map",
+      "hld_module": "M-001",
+      "type": "table",
+      "modification": "read_only_reuse_from_S1",
+      "feature_ref": "F-010",
+      "fields": [
+        {"name": "map_id", "type": "BIGSERIAL", "nullable": false, "description": "Existing PK."},
+        {"name": "design_id", "type": "BIGINT", "nullable": false, "description": "Existing — joined for active-pair enumeration in DashboardService.list_as_of."},
+        {"name": "grade_id", "type": "BIGINT", "nullable": false, "description": "Existing — joined for active-pair enumeration."},
+        {"name": "is_active", "type": "BOOLEAN", "nullable": false, "description": "Existing — filtered to true in DesignGradeMapRepository.list_active_all (new method this sprint, reads only this column + design/grade)."}
+      ],
+      "indexes": [
+        "ux_design_grade_map_pair UNIQUE (design_id, grade_id) — EXISTING from S1.",
+        "Implicit B-tree from UNIQUE supports the list_active_all WHERE is_active scan; at V1 scale (~6 rows after seed, growing slowly) a seq scan is also acceptable. No new index required."
+      ],
+      "relationships": [
+        {"type": "one_to_many", "target": "tbl_trading_design_master", "via": "design_id"},
+        {"type": "one_to_many", "target": "tbl_grade_master", "via": "grade_id"}
+      ],
+      "constraints": [],
+      "used_by_s3_files": [
+        "backend/src/infrastructure/db/repositories/master.py (NEW method DesignGradeMapRepository.list_active_all — additive only, the existing 6 master repos are byte-identical)",
+        "backend/src/application/services/dashboard_service.py (consumes list_active_all to enumerate the dashboard row-set)"
+      ],
+      "ac_refs": ["AC-041"],
+      "design_notes": [
+        "list_active_all is a small extension of list_active_by_design from S1 — drops the design_id filter, keeps the .design + .grade lazy='joined' hydration so design_name/size/grade_code reach the DashboardRow projection without N+1."
+      ]
+    },
+    {
+      "name": "tbl_trading_design_master",
+      "hld_module": "M-001",
+      "type": "table",
+      "modification": "read_only_reuse_from_S1",
+      "feature_ref": "F-010",
+      "fields": [
+        {"name": "design_id", "type": "BIGINT", "nullable": false, "description": "Existing PK. JOIN target for both dashboard row enumeration AND sales report projection (design_name + size)."},
+        {"name": "design_name", "type": "TEXT", "nullable": false, "description": "Existing — projected into DashboardRow.design_name + ConsolidationRow.design_name + TransactionRow.design_name. ORDER BY design_name ASC per RULE-019."},
+        {"name": "size", "type": "TEXT", "nullable": false, "description": "Existing — projected into all 3 response schemas."},
+        {"name": "is_active", "type": "BOOLEAN", "nullable": false, "description": "Existing — dashboard enumerates ONLY where design.is_active AND grade.is_active (transitively via tbl_design_grade_map.is_active)."}
+      ],
+      "indexes": [],
+      "relationships": [],
+      "constraints": [],
+      "used_by_s3_files": [
+        "backend/src/application/services/dashboard_service.py",
+        "backend/src/application/services/sales_report_service.py",
+        "backend/src/infrastructure/db/repositories/master.py (read-only access via DesignGradeMapModel.design lazy='joined')"
+      ],
+      "ac_refs": ["AC-041", "AC-047", "AC-048"]
+    },
+    {
+      "name": "tbl_grade_master",
+      "hld_module": "M-001",
+      "type": "table",
+      "modification": "read_only_reuse_from_S1",
+      "feature_ref": "F-010",
+      "fields": [
+        {"name": "grade_id", "type": "BIGINT", "nullable": false, "description": "Existing PK."},
+        {"name": "grade_code", "type": "TEXT", "nullable": false, "description": "Existing — UNIQUE per AC-011. Projected into DashboardRow + ConsolidationRow + TransactionRow. ORDER BY grade_code ASC per RULE-019."},
+        {"name": "is_active", "type": "BOOLEAN", "nullable": false, "description": "Existing — filtered to true in list_active_all join condition."}
+      ],
+      "indexes": [],
+      "relationships": [],
+      "constraints": [],
+      "used_by_s3_files": [
+        "backend/src/application/services/dashboard_service.py",
+        "backend/src/application/services/sales_report_service.py",
+        "backend/src/infrastructure/db/repositories/master.py"
+      ],
+      "ac_refs": ["AC-041", "AC-047", "AC-048"]
+    },
+    {
+      "name": "tbl_dealer_master",
+      "hld_module": "M-001",
+      "type": "table",
+      "modification": "read_only_reuse_from_S1",
+      "feature_ref": "F-011",
+      "fields": [
+        {"name": "dealer_id", "type": "BIGINT", "nullable": false, "description": "Existing PK. JOIN target for sales report transaction-row dealer_name projection."},
+        {"name": "dealer_name", "type": "TEXT", "nullable": false, "description": "Existing — projected into TransactionRow.dealer_name."}
+      ],
+      "indexes": [],
+      "relationships": [],
+      "constraints": [],
+      "used_by_s3_files": [
+        "backend/src/application/services/sales_report_service.py"
+      ],
+      "ac_refs": ["AC-048"],
+      "design_notes": [
+        "Sales report ONLY reads dealer.dealer_name for the transaction-row projection. place is read from tbl_sales_header.place (denormalized snapshot per DS-013) — not from the dealer master — so historical sales rows display the place that was in effect at sale time, even if the dealer record's place is later updated."
+      ]
+    }
+  ],
+
+  "completeness_check": {
+    "every_lld_model_in_schema": true,
+    "every_schema_entity_in_lld": true,
+    "lld_persistence_files_audited": [
+      "ledger_aggregates.py -> tbl_stock_ledger",
+      "dashboard_service.py -> tbl_stock_ledger (via domain.stock primitives) + tbl_design_grade_map + tbl_trading_design_master + tbl_grade_master",
+      "sales_report_service.py -> tbl_sales_header + tbl_sales_line + tbl_trading_design_master + tbl_grade_master + tbl_dealer_master",
+      "master.py (MODIFY) -> tbl_design_grade_map + tbl_grade_master"
+    ],
+    "lld_non_persistence_files_excluded": [
+      "presentation/schemas/dashboard.py (Pydantic only)",
+      "presentation/schemas/sales_report.py (Pydantic only)",
+      "presentation/api/routers/dashboard.py (HTTP only)",
+      "presentation/api/routers/sales_report.py (HTTP only)",
+      "presentation/api/dependencies.py (DI only)",
+      "main.py (FastAPI wiring only)"
+    ],
+    "entity_count": 7,
+    "new_entity_count": 0,
+    "modified_entity_count": 0,
+    "read_only_reused_count": 7,
+    "feature_count": 3,
+    "module_count": 3,
+    "indexes_added": 0,
+    "indexes_reused": 5
+  },
+
+  "migration_plan": {
+    "revision_id": null,
+    "down_revision": "0003_tx_ledger",
+    "operations_in_order": [],
+    "rationale": "S3 introduces no schema changes. Existing migrations 0001 (master tables) + 0002 (master indexes) + 0003 (transaction + ledger tables with all indexes pre-declared for S3 reuse) are sufficient. No alembic revision created for S3.",
+    "downgrade_order": "n/a — no upgrade to revert"
+  },
+
+  "indexes_in_play_summary": [
+    {
+      "index": "ix_stock_ledger_dgt(design_id, grade_id, txn_date DESC, ledger_id DESC)",
+      "sprint_added": "S2 (T-042)",
+      "s3_uses": ["dashboard CASE-aggregated date-range scan (DS-016)", "opening_balance latest-as-of lookup (DS-004)", "closing_balance latest-as-of lookup (DS-003)"]
+    },
+    {
+      "index": "ix_sales_header_sales_date(sales_date)",
+      "sprint_added": "S2 (T-042)",
+      "s3_uses": ["AC-046 date-range filter for both consolidation + transaction queries"]
+    },
+    {
+      "index": "ix_sales_header_dealer(dealer_id)",
+      "sprint_added": "S2 (T-042)",
+      "s3_uses": ["AC-046 dealer multi-select filter for both queries"]
+    },
+    {
+      "index": "ix_sales_line_dgd(design_id, grade_id, header_id)",
+      "sprint_added": "S2 (T-042)",
+      "s3_uses": ["AC-047 GROUP BY design_id, grade_id in consolidation", "AC-046 design multi-select filter"]
+    },
+    {
+      "index": "ix_sales_line_header(header_id)",
+      "sprint_added": "S2 (T-042)",
+      "s3_uses": ["JOIN sales_line -> sales_header in both queries"]
+    },
+    {
+      "index": "(no index on tbl_sales_header.place)",
+      "sprint_added": "n/a",
+      "s3_uses": ["place-only filter falls back to seq scan — acceptable at V1 scale per PRD non_functional.scalability. Documented gap; V2 candidate."]
+    }
+  ],
+
+  "next": "/ases-test-spec S3"
+}

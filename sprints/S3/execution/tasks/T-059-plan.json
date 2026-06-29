@@ -1,0 +1,17 @@
+{
+  "task_id": "T-059",
+  "title": "LedgerAggregatesRepository — single CASE-aggregated GROUP BY",
+  "module_ref": "M-004",
+  "output_files": ["backend/src/infrastructure/db/repositories/ledger_aggregates.py"],
+  "scope": "New repository file. Single class LedgerAggregatesRepository(BaseRepository[StockLedgerModel]) with one method: sum_deltas_by_source_type(month_start, as_of_date) → list[Row]. Single SELECT with CASE-conditional SUMs over tbl_stock_ledger, GROUP BY (design_id, grade_id), WHERE txn_date BETWEEN month_start AND as_of_date. Returns rows with columns: design_id, grade_id, inward_sum, outward_sum, adjust_sum.",
+  "do_not_touch": ["backend/src/infrastructure/db/repositories/base.py", "backend/src/infrastructure/db/repositories/master.py", "backend/src/infrastructure/db/repositories/transactions.py", "backend/src/infrastructure/db/models/*", "any test file"],
+  "depends_on": [],
+  "test_case_refs": ["TC-123", "TC-124", "TC-125", "TC-126"],
+  "decisions_referenced": ["DS-016"],
+  "success_criteria": {
+    "manual": "Construct repo with a session, call sum_deltas_by_source_type(date(2026,6,1), date(2026,6,30)) on seeded ledger data — verify exactly one row per (design, grade) with correct SUMs and date filtering.",
+    "automated": "TC-123/124/125/126 pass against testcontainers PG.",
+    "definition_of_done": "Class exports LedgerAggregatesRepository. Single SQL statement (one round-trip). outward_sum is positive (SUM of -delta on source_type='sale' must be inverted so the dashboard column reads as outgoing quantity, NOT negative). Uses ix_stock_ledger_dgt (Index Range Scan visible via EXPLAIN — verified manually if PG available)."
+  },
+  "checkout_prompt": "LedgerAggregatesRepository.sum_deltas_by_source_type implemented. Single GROUP BY + CASE-aggregated SUMs. Ready for DashboardService composition in T-061."
+}

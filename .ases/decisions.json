@@ -245,6 +245,60 @@
       "timestamp": "2026-06-21",
       "status": "active",
       "closes_tech_debt": ["TD-007"]
+    },
+    {
+      "id": "DS-015",
+      "stage": "lld",
+      "sprint_id": "S3",
+      "decision": "Amend DS-002 wording: serialization for stock_ledger writes per (design, grade) MUST acquire pg_advisory_xact_lock(design_id, grade_id) BEFORE the SELECT ... LIMIT 1 FOR UPDATE on the latest row. The FOR UPDATE row lock alone is INSUFFICIENT because PostgreSQL's SELECT ... ORDER BY ... LIMIT 1 FOR UPDATE does not re-resolve LIMIT after waiting on a row lock — the waiter re-reads the originally-identified row, missing the row just inserted by the holder. Discovered + fixed in S2 via TD-011 (advisory lock added to domain.stock._apply). This decision documents the layered pattern so future write paths don't regress.",
+      "rationale": "Closes FA-S2-002/003 and RI-003 from S2 final-audit. DS-002's original text described only the FOR UPDATE primitive; the verified safe implementation requires advisory-lock-first. Spec text must catch up to implementation reality.",
+      "tradeoffs": "Advisory lock adds ~1 RTT per write call (negligible). Spec is now more prescriptive about the lock pattern — future contributors implementing a new write path on the ledger must compose both locks; if they only do FOR UPDATE, they recreate TD-011.",
+      "alternatives_considered": [
+        "Replace FOR UPDATE with advisory lock alone: rejected — FOR UPDATE provides row-visibility guarantees (the read returns latest committed within the lock) that advisory locks alone don't. Keep both for defense-in-depth.",
+        "Switch isolation level to SERIALIZABLE with retry: rejected — adds retry complexity to every write path; advisory lock is simpler.",
+        "Lock the (design, grade) row in tbl_design_grade_map as the sentinel: rejected — that table is read-mostly and locking it on every ledger write couples concurrent admin edits to all writers."
+      ],
+      "module_refs": ["M-002", "M-003"],
+      "recall_keywords": ["concurrency", "advisory lock", "for update", "limit", "DS-002", "TD-011"],
+      "made_by": "architect",
+      "timestamp": "2026-06-23",
+      "status": "active",
+      "amends": ["DS-002"]
+    },
+    {
+      "id": "DS-016",
+      "stage": "lld",
+      "sprint_id": "S3",
+      "decision": "Stock Dashboard aggregation uses a SINGLE GROUP BY query with CASE-conditional SUMs (over tbl_stock_ledger filtered by date range), NOT per-(design, grade) sub-queries. Opening + Closing per row remain O(1) latest_as_of lookups against the materialized running_balance per DS-003/004.",
+      "rationale": "Dashboard target is sub-second (PRD AC-045). Per-(design, grade) sub-queries would be O(N) where N is active pair count (initially ~6, scaling with design+grade growth) — slow with full table scan per sub-query. The single GROUP BY uses ix_stock_ledger_dgt's (design_id, grade_id) prefix + the txn_date range to scan only the in-window rows once. Opening/Closing remain index-O(1) per pair.",
+      "tradeoffs": "Single CASE-aggregated SQL is slightly less readable than 4 separate small queries. Acceptable — the SQL is a stable, well-commented expression in LedgerAggregatesRepository.",
+      "alternatives_considered": [
+        "Per-pair sub-queries (4 sub-queries × N pairs): rejected — at PRD scale of 12 months × O(1000) txns this can exceed sub-second target.",
+        "Pre-aggregated monthly summary table: rejected — adds a maintenance path (refresh-on-write) and the savings are speculative for V1 volumes.",
+        "Materialized view refreshed on each transaction: rejected — same maintenance burden plus stale-window risk."
+      ],
+      "module_refs": ["M-004"],
+      "recall_keywords": ["dashboard", "aggregation", "GROUP BY", "performance", "AC-045"],
+      "made_by": "architect",
+      "timestamp": "2026-06-23",
+      "status": "active"
+    },
+    {
+      "id": "DS-017",
+      "stage": "lld",
+      "sprint_id": "S3",
+      "decision": "Sales Report consolidation + transactions queries share a SINGLE filter predicate construction function (built once per request, applied to both queries). This guarantees AC-050 reconciliation (sum(transactions.nos) == sum(consolidation.total_nos)) by construction — divergent filter logic between the two queries is impossible.",
+      "rationale": "AC-050 is a critical correctness invariant for the dual-payload report. Hand-maintaining matching filter clauses across two SELECT statements is fragile; a shared predicate-builder enforces parity by construction.",
+      "tradeoffs": "Slightly more code structure (helper function) for what could otherwise be two inline WHEREs. Negligible cost.",
+      "alternatives_considered": [
+        "Inline two separate filter clauses: rejected — AC-050 violations would be silent until tested.",
+        "Run a single query and post-aggregate in Python: rejected — pushes work out of Postgres into Python where it's slower and harder to test."
+      ],
+      "module_refs": ["M-005"],
+      "recall_keywords": ["sales report", "consolidation", "transactions", "filter", "AC-050"],
+      "made_by": "architect",
+      "timestamp": "2026-06-23",
+      "status": "active"
     }
   ]
 }

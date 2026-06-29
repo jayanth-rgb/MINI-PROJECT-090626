@@ -1,0 +1,17 @@
+{
+  "task_id": "T-058",
+  "title": "Sales Report Pydantic v2 schemas",
+  "module_ref": "M-005",
+  "output_files": ["backend/src/presentation/schemas/sales_report.py"],
+  "scope": "Three Pydantic v2 BaseModels: ConsolidationRow (6 fields), TransactionRow (10 fields incl. `place` per DS-013), SalesReportResponse (consolidation + transactions). All carry ConfigDict(from_attributes=True). Pure data classes — no validators, no business logic, no imports of project modules beyond pydantic.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-013", "DS-017"],
+  "success_criteria": {
+    "manual": "Import all 3 schemas. SalesReportResponse(consolidation=[], transactions=[]) instantiates. Field sets match the LLD.",
+    "automated": "T-062 + T-065 integration tests (TC-133, TC-140) serialize/deserialize without raising.",
+    "definition_of_done": "File exports exactly 3 BaseModels with the fields enumerated in the LLD. No other exports."
+  },
+  "checkout_prompt": "ConsolidationRow, TransactionRow, SalesReportResponse created. Ready for SalesReportService projection in T-062."
+}

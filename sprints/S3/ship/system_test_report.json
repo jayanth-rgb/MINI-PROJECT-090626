@@ -1,0 +1,130 @@
+{
+  "$schema": "ases/v3.0/system_test_report",
+  "sprint_id": "S3",
+  "produced_by": "/ases-system-test S3 Step B",
+  "executed_at": "2026-06-29T00:00:00Z",
+  "verdict": "pass",
+  "critical_failures": [],
+  "summary": {
+    "scenarios_total": 5,
+    "passed": 5,
+    "failed": 0,
+    "skipped": 0,
+    "fix_iterations_total": 0
+  },
+  "scenarios": [
+    {
+      "id": "ST-008",
+      "type": "performance",
+      "nfr_ref": "PRD non_functional.performance — Dashboard sub-second",
+      "ac_ref": "AC-045",
+      "risk_ref": "HLD R-002 (DS-003 materialized ledger mitigation)",
+      "description": "Sustained p95 latency of GET /api/v1/dashboard via full HTTP stack with 6 active pairs × 12 months × 28 txns/month cumulative-balance ledger seed.",
+      "threshold": "p95 < 800ms",
+      "result": "pass",
+      "actual_value": "p95=33.1ms (p50=24.8ms)",
+      "samples": 30,
+      "warmup": 3,
+      "headroom_factor": "≈24x under threshold",
+      "details": "Seed 2016 ledger rows with per-pair cumulative running_balance (matches the corrected TC-122 pattern from /ases-test-run). 3 warmups + 30 timed TestClient.get() calls. p95 = 33.1ms vs 800ms threshold — substantial headroom, indicating DS-016's single CASE-aggregated GROUP BY combined with the ix_stock_ledger_dgt index plus the DS-003 materialized running_balance is operating well within budget at V1 catalog size.",
+      "severity_if_failed": "major",
+      "implementation_file": "backend/tests/system/test_system_st008_dashboard_http_latency.py",
+      "fix_iterations": 0
+    },
+    {
+      "id": "ST-009",
+      "type": "performance",
+      "nfr_ref": "PRD non_functional.performance — Sales Report < 2s for 1 year of data unfiltered",
+      "ac_ref": null,
+      "risk_ref": null,
+      "description": "Sustained p95 latency of GET /api/v1/reports/sales with NO filters over a year of sales: 6 dealers × 12 months × 50 sales/month × 3 lines/sale ≈ 10,800 sales_line rows.",
+      "threshold": "p95 < 2000ms",
+      "result": "pass",
+      "actual_value": "p95=715.7ms (p50=363.2ms)",
+      "samples": 15,
+      "warmup": 2,
+      "headroom_factor": "≈2.8x under threshold",
+      "details": "Seed 3,600 sales_header + 10,800 sales_line + supporting master rows. 2 warmups + 15 timed TestClient.get('/api/v1/reports/sales') (no filters → full dataset). p95 = 715.7ms vs 2000ms PRD threshold. The dual-payload (consolidation + transactions) shared-predicate query plan from DS-017 + the ix_sales_header_sales_date / ix_sales_line_dgd composite indexes keep both queries well within budget.",
+      "severity_if_failed": "major",
+      "implementation_file": "backend/tests/system/test_system_st009_sales_report_http_latency.py",
+      "fix_iterations": 0
+    },
+    {
+      "id": "ST-010",
+      "type": "security",
+      "nfr_ref": "PRD non_functional.security — server-side input validation",
+      "ac_ref": null,
+      "risk_ref": null,
+      "description": "SQL-injection protection across ALL THREE list-type filters of GET /reports/sales (dealer_ids, design_ids, places). Extends TC-158's coverage which only touched 'places'.",
+      "threshold": "All 3 injection attempts neutralized; tbl_sales_header still exists with seed row after the loop",
+      "result": "pass",
+      "actual_value": "3/3 injections handled correctly",
+      "details": "dealer_ids='1; DROP TABLE tbl_sales_header;--' → 422 (FastAPI rejects non-int at parse time, never reaches the service); design_ids='(SELECT design_id FROM tbl_trading_design)' → 422 (same); places='\\'; DROP TABLE tbl_sales_header;--' → 200 with consolidation=[] + transactions=[] (SQLAlchemy .in_() parameter binding — the literal payload string matched no place_snapshot). Post-loop confirmation: tbl_sales_header still contained the seeded row, proving the DROPs were not executed.",
+      "severity_if_failed": "critical",
+      "implementation_file": "backend/tests/system/test_system_st010_sales_report_injection.py",
+      "fix_iterations": 0
+    },
+    {
+      "id": "ST-011",
+      "type": "security",
+      "nfr_ref": "PRD non_functional.security — V1 no-auth posture",
+      "ac_ref": null,
+      "risk_ref": "HLD R-004 — V1 no auth, trusted-network deployment only (DS-005)",
+      "description": "Verify the 2 NEW S3 endpoints maintain V1's open-on-trusted-network posture (mirroring S1 ST-002 for prior endpoints).",
+      "threshold": "All 4 GET variants return 200 — with no Authorization header AND with a bogus 'Bearer fake' header",
+      "result": "pass",
+      "actual_value": "4/4 assertions pass",
+      "details": "GET /api/v1/dashboard returns 200 both with no Authorization header and with 'Authorization: Bearer fake' (FastAPI ignores unconfigured auth schemes — confirms V1 contract). Same for GET /api/v1/reports/sales. If/when V2 adds auth, this test will start failing — by design it's the lock-in marker for the V1 contract.",
+      "severity_if_failed": "medium",
+      "implementation_file": "backend/tests/system/test_system_st011_s3_endpoints_no_auth.py",
+      "fix_iterations": 0
+    },
+    {
+      "id": "ST-012",
+      "type": "boundary",
+      "nfr_ref": null,
+      "ac_ref": "AC-012, AC-017",
+      "risk_ref": "HLD R-005 — soft-delete of design-grade map with existing transactions",
+      "description": "End-to-end soft-delete behavior: deactivate a (design, grade) pair after ledger + sales history exists. Dashboard MUST hide the pair; Sales Report MUST still show historical transactions for it.",
+      "threshold": "(a) Active pair visible on dashboard with correct closing; (b) After is_active=False, pair is hidden from dashboard; (c) Sales Report still includes the historical sale for the deactivated pair via FK joins",
+      "result": "pass",
+      "actual_value": "3/3 phases verified",
+      "details": "Phase (a): pair active, dashboard shows closing=80 (inward=+100, sale=-20). Phase (b): set map.is_active=False + flush; dashboard response contains zero rows for that (design, grade) key — DesignGradeMapRepository.list_active_all correctly filters via JOIN on grade.is_active AND map.is_active. Phase (c): seed historical SalesHeader + SalesLine for the now-deactivated pair; GET /reports/sales returns the sale in both transactions[] (nos=20) and consolidation[] (total_nos=20) — proves R-005 mitigation: tbl_sales_line FK join is unaffected by is_active on the mapping table, so historical reports retain fidelity.",
+      "severity_if_failed": "medium",
+      "implementation_file": "backend/tests/system/test_system_st012_soft_delete_post_history.py",
+      "fix_iterations": 0
+    }
+  ],
+  "nfr_coverage": {
+    "performance": {
+      "prd_quote": "Dashboard sub-second for single date; Sales Report < 2s for 1 year of data unfiltered",
+      "scenarios": ["ST-008", "ST-009"],
+      "verdict": "PASS — both targets met with substantial headroom"
+    },
+    "security": {
+      "prd_quote": "V1 has no authentication; deployment must be on a trusted internal network. All inputs validated server-side",
+      "scenarios": ["ST-010", "ST-011"],
+      "verdict": "PASS — input validation + no-auth contract both verified"
+    },
+    "scalability": {
+      "prd_quote": "Single tenant, single-digit concurrent users",
+      "scenarios": [],
+      "verdict": "covered transitively — S2 ST-007 already validated DS-002/DS-015 concurrent-write serialization; S3 is read-only and does not introduce new concurrency hazards"
+    },
+    "accessibility": {
+      "prd_quote": "Forms keyboard-navigable; tab order from header to line items",
+      "scenarios": [],
+      "verdict": "N/A for S3 — backend-only sprint; accessibility owned by /ases-ui-scaffold S3"
+    }
+  },
+  "risk_coverage": {
+    "R-001": "covered by S2 ST-007 — no new S3 surface",
+    "R-002": "covered by ST-008 — dashboard latency under realistic load well within DS-003 budget",
+    "R-003": "covered by S2 ST-007 + S3 IS-008/IS-012 — back-date recompute + cross-month carry-forward both verified",
+    "R-004": "covered by S1 ST-002 + S3 ST-011 — no-auth posture verified across all V1 endpoints",
+    "R-005": "covered by ST-012 — soft-delete with historical transactions verified end-to-end"
+  },
+  "framework_used": "pytest + time.perf_counter() + statistics (project convention; pytest-benchmark deferred — not in venv)",
+  "regression_check": "ST suite ran on top of the green 158/158 test_run baseline; no test outside backend/tests/system/ was touched",
+  "next": "/ases-uat S3"
+}

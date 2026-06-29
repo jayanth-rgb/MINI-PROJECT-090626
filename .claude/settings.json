@@ -66,7 +66,15 @@
       "Bash(.venv/Scripts/python -m pytest tests/ --tb=no -q)",
       "Bash(.venv/Scripts/python -m pytest tests/ --tb=no)",
       "Bash(grep -E \"^={5,}|passed|failed|error\")",
-      "Bash(git diff-tree *)"
+      "Bash(git diff-tree *)",
+      "Bash(python .claude/hooks/validate_schema.py sprints/S3/design/lld.json lld)",
+      "Bash(python .claude/hooks/validate_schema.py sprints/S3/design/schema.json schema)",
+      "Bash(python .claude/hooks/validate_schema.py sprints/S3/design/test_cases.json test_cases)",
+      "Bash(python .claude/hooks/validate_schema.py sprints/S3/design/deps_manifest.json deps_manifest)",
+      "Bash('e:/MY NEW MINI PROJECT/MINI PROJECT 090626/backend/.venv/Scripts/python.exe' -c \"import importlib.metadata as m; pkgs=['fastapi','sqlalchemy','pydantic','alembic','psycopg','pytest','uvicorn','httpx']; [print\\(f'{p}={m.version\\(p\\)}'\\) for p in pkgs]\")",
+      "Bash(python .claude/hooks/validate_schema.py sprints/S3/execution/analysis.json format/json/analysis.schema.json)",
+      "Bash(python .claude/hooks/validate_schema.py sprints/S3/execution/analysis.json analysis)",
+      "Bash(python -c ' *)"
     ],
     "deny": [
       "Write(./.env)",

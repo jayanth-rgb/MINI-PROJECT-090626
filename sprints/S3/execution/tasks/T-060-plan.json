@@ -1,0 +1,17 @@
+{
+  "task_id": "T-060",
+  "title": "DesignGradeMapRepository.list_active_all — modify master.py",
+  "module_ref": "M-001",
+  "output_files": ["backend/src/infrastructure/db/repositories/master.py"],
+  "scope": "MODIFY: append a single new method list_active_all() to the existing DesignGradeMapRepository class. JOIN tbl_design_grade_map with tbl_grade_master, WHERE map.is_active AND grade.is_active. Returns list[DesignGradeMapModel] across ALL designs (no design_id filter). Existing 6 master repositories (Supplier, Staff, Dealer, Grade, TradingDesign) and the existing DesignGradeMap methods (get_by_pair, list_active_by_design) byte-identical.",
+  "do_not_touch": ["any class other than DesignGradeMapRepository", "any existing method on DesignGradeMapRepository (get_by_pair, list_active_by_design)", "any other file"],
+  "depends_on": [],
+  "test_case_refs": ["TC-150", "TC-151", "TC-152"],
+  "decisions_referenced": ["DS-007"],
+  "success_criteria": {
+    "manual": "Seed master data with 3 active pairs across 2 designs + 1 deactivated pair + 1 active pair with a deactivated grade. Call list_active_all() → exactly 3 rows, with .design and .grade relationships eagerly hydrated.",
+    "automated": "TC-150 (basic listing), TC-151 (deactivated map excluded), TC-152 (active map with deactivated grade excluded) all pass.",
+    "definition_of_done": "Existing methods byte-identical (git diff shows only the new method appended). New method uses the same JOIN-on-grade pattern as list_active_by_design but without the design_id WHERE clause."
+  },
+  "checkout_prompt": "DesignGradeMapRepository.list_active_all appended. JOIN-on-grade ensures grade-soft-delete cascade. Ready for DashboardService row-set enumeration in T-061."
+}

@@ -1,0 +1,64 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-batch-critique",
+  "consumed_by": ["/ases-dev", "/ases-sprint-close", "/ases-final-audit"],
+  "task_id": "T-060",
+  "sprint_id": "S3",
+  "module_ref": "M-001",
+  "target_file": "backend/src/infrastructure/db/repositories/master.py",
+  "verdict": "CLEAN",
+  "summary": "DesignGradeMapRepository.list_active_all appended cleanly. Existing 6 repository classes and the 2 existing DesignGradeMap methods are byte-identical to S1. The new method uses the correct JOIN-on-grade pattern with BOTH map.is_active AND grade.is_active predicates and no design_id filter, satisfying TC-150/151/152 and the AC-012/AC-017 cascade requirements.",
+  "decisions_consulted": ["DS-007", "DS-008", "DS-012"],
+  "lenses": {
+    "spec": {
+      "verdict": "pass",
+      "notes": "Method signature `list_active_all(self) -> list[DesignGradeMapModel]` matches LLD files[7].functions[0] exactly. Implementation logic is verbatim from T-060-plan.md lines 22-33. No design_id parameter (correct per LLD)."
+    },
+    "contract": {
+      "verdict": "pass",
+      "notes": "Exports DesignGradeMapRepository (existing class extended with one new method) per LLD interfaces.exports. Imports `select`, `DesignGradeMapModel`, `GradeModel` already present at top of file (lines 1-10) — no new imports required, as anticipated in plan. `self.session` inherited from BaseRepository (verified). The `.design` and `.grade` relationships on DesignGradeMapModel are `lazy='joined'` (master model lines 101-102), so the scalar load eager-fetches both — T-061's DashboardService projection of design_name/size/grade_code will not trigger N+1."
+    },
+    "test": {
+      "verdict": "pass",
+      "notes": "TC-150 satisfied: 4 active pairs across 3 designs → returns 4 rows (no design_id filter). TC-151 satisfied: `DesignGradeMapModel.is_active.is_(True)` predicate excludes the map_id=2 deactivated row. TC-152 satisfied: INNER JOIN to GradeModel with `GradeModel.is_active.is_(True)` predicate excludes the row whose parent grade was soft-deleted. AC-012 + AC-017 cascade both honored by the dual is_active predicate exactly as DS-008 (soft-delete) requires."
+    },
+    "security": {
+      "verdict": "pass",
+      "notes": "No user input flows into the query. Pure SQLAlchemy core expression — parameter binding handled by the driver. No string interpolation, no f-strings in SQL, no exposed secrets."
+    },
+    "structural": {
+      "verdict": "pass",
+      "notes": "graph.json exists. New method `DesignGradeMapRepository.list_active_all` is a sibling of the existing `list_active_by_design` and will become reachable from the entry point once T-061 DashboardService consumes it (DashboardService.list_as_of → repo.list_active_all per LLD files[2].interfaces.expects line 79). Verifying that downstream connectivity is the scope of T-061's critique, not this task. No orphaned imports introduced; existing imports (`select`, `DesignGradeMapModel`, `GradeModel`) remain used."
+    }
+  },
+  "additive_modification_audit": {
+    "existing_classes_byte_identical": true,
+    "checked_classes": [
+      "SupplierRepository (line 14-15, `pass` only — unchanged)",
+      "StaffRepository (line 18-19, `pass` only — unchanged)",
+      "DealerRepository (line 22-23, `pass` only — unchanged)",
+      "GradeRepository (line 26-30, `get_by_code` only — unchanged)",
+      "TradingDesignRepository (line 33-34, `pass` only — unchanged)",
+      "DesignGradeMapRepository.get_by_pair (lines 38-44 — unchanged)",
+      "DesignGradeMapRepository.list_active_by_design (lines 46-57 — unchanged)"
+    ],
+    "new_method_location": "DesignGradeMapRepository.list_active_all (lines 59-70) — appended as last method of last class, pure additive edit."
+  },
+  "critical_property_checks": {
+    "1_pure_additive_modification": "PASS — existing 6 repo classes and 2 existing DesignGradeMap methods byte-identical to S1.",
+    "2_cascade_join_predicate": "PASS — JOIN on tbl_grade_master with BOTH `DesignGradeMapModel.is_active.is_(True)` (line 66) AND `GradeModel.is_active.is_(True)` (line 67). AC-012 (grade cascade) + AC-017 (map cascade) both honored.",
+    "3_no_design_id_filter": "PASS — WHERE clause contains only the two is_active predicates; no design_id parameter, no design_id filter.",
+    "4_no_new_imports": "PASS — `select` (line 1), `DesignGradeMapModel` (line 5), `GradeModel` (line 6) all present at top of file from S1; no import additions."
+  },
+  "issues": [],
+  "metrics": {
+    "issues_total": 0,
+    "issues_critical": 0,
+    "issues_major": 0,
+    "issues_minor": 0,
+    "decisions_referenced": 3,
+    "lenses_applied": 5
+  },
+  "next": "Ready for T-061 (DashboardService) to consume the new method."
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "T-066",
+  "title": "main.py MODIFY — mount 2 new routers",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/main.py"],
+  "scope": "MODIFY: add 2 imports (from src.presentation.api.routers import dashboard, sales_report) into the existing tuple-import block, and 2 app.include_router(... prefix='/api/v1') calls after the existing 9 mounts. CORS, error handlers, /health, and the 9 existing mounts byte-identical.",
+  "do_not_touch": ["create_app's CORS block", "register_error_handlers call", "any existing include_router call", "the /health endpoint", "any other file"],
+  "depends_on": ["T-064", "T-065"],
+  "test_case_refs": [],
+  "decisions_referenced": [],
+  "success_criteria": {
+    "manual": "uvicorn src.main:app --reload; GET /api/v1/dashboard?as_of_date=2026-06-30 → 200; GET /api/v1/reports/sales → 200; GET /health → {status:'ok'}; all 9 existing endpoints still reachable.",
+    "automated": "T-063's TC-159 + TC-160 implicitly exercise this (FastAPI test client uses the full app); T-064's TC-117/130/131/132 and T-065's TC-140/147/148/149/158 all hit /api/v1/{dashboard, reports/sales} so a missing mount immediately breaks them.",
+    "definition_of_done": "git diff shows: (a) 2 module names added to the alphabetized `routers` import tuple, (b) 2 new include_router calls appended after `adjustments`. Existing 9 mounts byte-identical. CORS + error handlers + /health unchanged."
+  },
+  "checkout_prompt": "main.py mounts dashboard + sales_report routers under /api/v1. S3 API surface complete. Ready for /ases-critique."
+}

@@ -1,0 +1,98 @@
+{
+  "$schema": "ases/v3.0/system_test_scenarios",
+  "sprint_id": "S3",
+  "produced_by": "/ases-system-test S3 Step A",
+  "designed_at": "2026-06-29",
+  "framework_note": "Performance scenarios use time.perf_counter() + statistics — same pattern as S2 ST-004 (test_perf_apply_inward.py). The /ases-system-test skill template suggests pytest-benchmark, but the project venv doesn't have it installed and S2 already established the perf_counter idiom. Adding a backend dep mid-Phase-3 needs PO approval; consistency with S2 wins.",
+  "scope_modules": ["M-004", "M-005"],
+  "scope_features": ["F-010", "F-011"],
+  "scenarios": [
+    {
+      "id": "ST-008",
+      "type": "performance",
+      "nfr_ref": "PRD non_functional.performance — 'Dashboard sub-second for single date'",
+      "ac_ref": "AC-045",
+      "risk_ref": "HLD R-002 (dashboard SUM scales with volume — mitigated by DS-003 materialized ledger)",
+      "description": "Sustained p95 latency of GET /api/v1/dashboard under realistic catalog (6 active design-grade pairs) × 12 months of accumulated ledger (~2016 rows). Distinct from the unit-level TC-122 perf gate at the service layer — this measures the FULL HTTP stack (TestClient → router → DI → service → repo → testcontainers PG).",
+      "threshold_ms_p95": 800,
+      "threshold_rationale": "PRD says 'sub-second' (< 1000ms). 800ms gives 20% headroom over the spec and is consistent with the same '< 500ms' service-level target from TC-122 (network + serialization overhead is well under 300ms on a testcontainer).",
+      "samples": 30,
+      "warmup": 3,
+      "severity_if_failed": "major",
+      "implementation_file": "backend/tests/system/test_system_st008_dashboard_http_latency.py"
+    },
+    {
+      "id": "ST-009",
+      "type": "performance",
+      "nfr_ref": "PRD non_functional.performance — 'Sales Report < 2s for 1 year of data unfiltered'",
+      "ac_ref": null,
+      "risk_ref": null,
+      "description": "Sustained p95 latency of GET /api/v1/reports/sales with NO filters over a realistic year of sales: 6 dealers × 12 months × 50 sales/month × 3 lines/sale ≈ 10,800 sales_line rows. Verifies the LLD's claim that the consolidation + transactions queries — both running against the existing S2 composite indexes (ix_sales_header_sales_date, ix_sales_line_dgd) — stay under the 2s budget through the full HTTP stack.",
+      "threshold_ms_p95": 2000,
+      "threshold_rationale": "Direct PRD quote.",
+      "samples": 15,
+      "warmup": 2,
+      "severity_if_failed": "major",
+      "implementation_file": "backend/tests/system/test_system_st009_sales_report_http_latency.py"
+    },
+    {
+      "id": "ST-010",
+      "type": "security",
+      "nfr_ref": "PRD non_functional.security — 'All inputs validated server-side'",
+      "ac_ref": null,
+      "risk_ref": null,
+      "description": "SQL-injection protection across ALL THREE list-type filters of GET /reports/sales: dealer_ids (list[int] — typed at parse time), places (list[str] — typed but free-form), design_ids (list[int]). Extends TC-158 which only covered places. For typed-int filters, sending a SQL-payload string is expected to 422 at FastAPI's Query parsing layer. For places (free-form string), the injection payload is bound through SQLAlchemy .in_() and matches no real rows.",
+      "injections": [
+        {"param": "dealer_ids", "payload": "1; DROP TABLE tbl_sales_header;--", "expected_status": 422, "rationale": "FastAPI rejects non-int values; never reaches the service"},
+        {"param": "design_ids", "payload": "(SELECT design_id FROM tbl_trading_design)", "expected_status": 422, "rationale": "Same — non-int rejected at parse"},
+        {"param": "places", "payload": "'; DROP TABLE tbl_sales_header;--", "expected_status": 200, "expected_body_constraint": "transactions=[] and consolidation=[]", "rationale": ".in_() parameter binding causes the literal string to match no place_snapshot value"}
+      ],
+      "post_assertion": "After all 3 injection attempts, the tbl_sales_header table still exists and still has the seeded rows — confirming the DROP attempts were not executed.",
+      "severity_if_failed": "critical",
+      "implementation_file": "backend/tests/system/test_system_st010_sales_report_injection.py"
+    },
+    {
+      "id": "ST-011",
+      "type": "security",
+      "nfr_ref": "PRD non_functional.security — 'V1 has no authentication'",
+      "ac_ref": null,
+      "risk_ref": "HLD R-004 — V1 has no auth (mitigation: deployment on trusted network only; documented as DS-005)",
+      "description": "Verify the V1 no-auth posture is consistently applied to the 2 NEW S3 endpoints (mirroring S1 ST-002 which already covered S1+S2 endpoints). Both GET /api/v1/dashboard and GET /api/v1/reports/sales must accept requests WITHOUT any Authorization header — V1 is intentionally open on a trusted network. If auth ever gets added in V2, these tests must be updated/removed (currently they ASSERT no-auth).",
+      "assertions": [
+        "GET /api/v1/dashboard?as_of_date=<today> returns 200 with no Authorization header",
+        "GET /api/v1/dashboard?as_of_date=<today> still returns 200 even with a bogus Authorization header (FastAPI ignores unconfigured auth)",
+        "GET /api/v1/reports/sales returns 200 with no Authorization header",
+        "GET /api/v1/reports/sales returns 200 with a bogus Authorization header"
+      ],
+      "severity_if_failed": "medium",
+      "implementation_file": "backend/tests/system/test_system_st011_s3_endpoints_no_auth.py"
+    },
+    {
+      "id": "ST-012",
+      "type": "boundary",
+      "nfr_ref": null,
+      "ac_ref": "AC-012, AC-017",
+      "risk_ref": "HLD R-005 — soft-delete of design-grade mapping with existing transactions (mitigation: is_active=false; reports JOIN against masters and display historical grade_code)",
+      "description": "End-to-end soft-delete behavior: a (design, grade) pair has historical ledger rows from prior transactions. The mapping is then deactivated (map.is_active=False). The dashboard MUST exclude this pair from the row-set going forward (DesignGradeMapRepository.list_active_all only returns active rows), even though historical ledger data still exists for the pair. Independently, the Sales Report must still return transactions that reference the deactivated pair (historical fidelity — joining on FK with no is_active filter on tbl_sales_line).",
+      "test_data": {
+        "pair_to_deactivate": "16X10 Ridges + grade '2'",
+        "historical_inward_nos": 100,
+        "historical_sale_nos": 20,
+        "expected_dashboard_after_deactivation": "pair NOT in response",
+        "expected_sales_report_after_deactivation": "the historical sale row IS in response (transactions[] AND consolidation[] include the deactivated pair via FK join)"
+      },
+      "boundary_values": ["map.is_active=True before deactivation (pair visible)", "map.is_active=False after deactivation (pair hidden from dashboard, still shown in sales report)"],
+      "severity_if_failed": "medium",
+      "implementation_file": "backend/tests/system/test_system_st012_soft_delete_post_history.py"
+    }
+  ],
+  "execution_results": [
+    {"id": "ST-008", "result": "pass", "actual_value_p50_ms": 24.8, "actual_value_p95_ms": 33.1, "threshold_ms_p95": 800, "samples": 30, "warmup": 3, "fix_iterations": 0, "details": "GET /api/v1/dashboard p95=33.1ms over 30 samples; 2016 ledger rows seeded with per-pair cumulative running_balance. ~24x headroom vs PRD 'sub-second' threshold."},
+    {"id": "ST-009", "result": "pass", "actual_value_p50_ms": 363.2, "actual_value_p95_ms": 715.7, "threshold_ms_p95": 2000, "samples": 15, "warmup": 2, "fix_iterations": 0, "details": "GET /api/v1/reports/sales (no filters) p95=715.7ms over 15 samples; 10,800 sales_line rows seeded. ~2.8x headroom vs PRD 2s threshold. DS-017 shared-predicate + ix_sales_* indexes keep both queries within budget."},
+    {"id": "ST-010", "result": "pass", "fix_iterations": 0, "details": "All 3 injection payloads neutralized: dealer_ids/design_ids → 422 (FastAPI int parse); places → 200 with empty results (SQLAlchemy .in_() binding). Post-loop confirmation: tbl_sales_header still has seed row."},
+    {"id": "ST-011", "result": "pass", "fix_iterations": 0, "details": "4/4 GETs return 200 — V1 no-auth contract verified for both new S3 endpoints."},
+    {"id": "ST-012", "result": "pass", "fix_iterations": 0, "details": "3-phase E2E: (a) active pair → closing=80; (b) is_active=False → pair hidden from dashboard; (c) historical SalesLine for deactivated pair → still present in /reports/sales consolidation + transactions. R-005 mitigation verified."}
+  ],
+  "verdict": "PASS",
+  "next": "/ases-uat S3"
+}

@@ -40,7 +40,13 @@
       "Skill(ases-final-audit)",
       "Skill(ases-final-audit:*)",
       "Skill(ases-release)",
-      "Skill(ases-release:*)"
+      "Skill(ases-release:*)",
+      "Bash(python -c ' *)",
+      "Bash(python3 -c ' *)",
+      "Bash(backend/.venv/Scripts/python.exe -c ' *)",
+      "Bash(DATABASE_URL=postgresql+psycopg://x:x@localhost/x API_CORS_ORIGINS=http://localhost:3000 .venv/Scripts/python.exe -c ' *)",
+      "Bash(DATABASE_URL=postgresql+psycopg://x:x@localhost/x API_CORS_ORIGINS='[\"http://localhost:3000\"]' .venv/Scripts/python.exe -c ' *)",
+      "Bash(graphify update *)"
     ]
   }
 }

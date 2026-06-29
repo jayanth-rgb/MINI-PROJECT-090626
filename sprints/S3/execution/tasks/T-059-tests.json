@@ -1,0 +1,1 @@
+{"task_id": "T-059", "test_case_refs": ["TC-123", "TC-124", "TC-125", "TC-126"], "priority": "critical", "notes": "4 TCs (1 unit/critical + 3 edge). TC-125 (window-edge inclusivity) and TC-126 (multiple source types in one window) are the highest-value correctness checks for the dashboard."}

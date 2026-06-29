@@ -1,0 +1,17 @@
+{
+  "task_id": "T-063",
+  "title": "dependencies.py MODIFY — 2 new DI factories",
+  "module_ref": "M-002",
+  "output_files": ["backend/src/presentation/api/dependencies.py"],
+  "scope": "MODIFY: append 2 new factory functions — get_dashboard_service(db) → DashboardService and get_sales_report_service(db) → SalesReportService. Add the corresponding 2 import lines at the top of the file. All 10 existing factories byte-identical.",
+  "do_not_touch": ["any existing factory function", "any other file"],
+  "depends_on": ["T-061", "T-062"],
+  "test_case_refs": ["TC-159", "TC-160"],
+  "decisions_referenced": [],
+  "success_criteria": {
+    "manual": "Import both new factories; FastAPI dependency-resolution returns service instances bound to a session.",
+    "automated": "TC-159 (dashboard DI integration) + TC-160 (sales_report DI integration) pass.",
+    "definition_of_done": "git diff shows: 2 new import lines + 2 new factory functions at end of file. 10 existing factories byte-identical."
+  },
+  "checkout_prompt": "get_dashboard_service + get_sales_report_service appended. DI wired for T-064 + T-065 router mounts."
+}

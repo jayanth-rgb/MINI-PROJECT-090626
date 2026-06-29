@@ -1,0 +1,382 @@
+{
+  "$schema": "ases/v3.0/lld",
+  "document": "lld",
+  "produced_by": "/ases-lld S3",
+  "consumed_by": ["/ases-schema", "/ases-test-spec", "/ases-sprint-gate", "/ases-analyze", "/ases-tasks", "/ases-dev"],
+  "sprint_id": "S3",
+  "scope_features": ["F-010", "F-011", "F-012"],
+  "scope_modules": ["M-004", "M-005"],
+  "scope_summary": "Read-side completion of the system. F-010 Stock Dashboard renders Opening/Inward/Outward/Adjust/Closing per (active design, active grade) as of a date — driven by a single-query CASE-aggregated SUM over tbl_stock_ledger keyed on the composite ix_stock_ledger_dgt index from S2. F-011 Sales Report returns Consolidation (GROUP BY design+grade) + Transaction (per-line) dual payload with multi-select optional filters (date range, dealer, place, design). F-012 (carry-forward) is verified end-to-end via integration tests against the existing domain.stock.opening_balance primitive; no new code paths.",
+
+  "files": [
+    {
+      "path": "backend/src/presentation/schemas/dashboard.py",
+      "purpose": "Pydantic v2 schemas for the Stock Dashboard response. DashboardRow projects per (active design, active grade) Opening/Inward/Outward/Adjust/Closing for the month-to-date through as_of_date.",
+      "layer": "presentation",
+      "module_ref": "M-004",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "DashboardRow",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: design_id (int), design_name (str), size (str), grade_id (int), grade_code (str), opening (int), inward (int), outward (int), adjust (int), closing (int). ConfigDict(from_attributes=True) — direct hydration from the SQLAlchemy Row result tuple. opening + inward − outward + adjust = closing (invariant, asserted in service)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["DashboardRow"],
+        "expects": ["pydantic.BaseModel", "pydantic.ConfigDict"]
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+    {
+      "path": "backend/src/infrastructure/db/repositories/ledger_aggregates.py",
+      "purpose": "Raw SQL-expression queries that aggregate over tbl_stock_ledger by (design_id, grade_id) within a date window — needed for the dashboard's monthly Inward/Outward/Adjust totals. Reads only — no writes. Uses the ix_stock_ledger_dgt composite index from S2/T-042 for the date-range scan.",
+      "layer": "infrastructure",
+      "module_ref": "M-004",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "LedgerAggregatesRepository.sum_deltas_by_source_type",
+          "inputs": [
+            { "name": "month_start", "type": "date" },
+            { "name": "as_of_date", "type": "date" }
+          ],
+          "outputs": [{ "name": "rows", "type": "list[Row]" }],
+          "description": "Single CASE-aggregated GROUP BY (design_id, grade_id) query over tbl_stock_ledger WHERE txn_date BETWEEN :month_start AND :as_of_date. Returns one Row per (design, grade) with columns: design_id, grade_id, inward_sum, outward_sum (= sum of -delta for sale rows so it reads positive), adjust_sum. Composite index ix_stock_ledger_dgt(design_id, grade_id, txn_date DESC, ledger_id DESC) supports the (design, grade) ordering — the inner SUM is over a date range so the planner will use an Index Range Scan."
+        }
+      ],
+      "interfaces": {
+        "exports": ["LedgerAggregatesRepository"],
+        "expects": ["StockLedgerModel (S2 T-042)", "BaseRepository.session contract (S1)"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/models/transactions.py",
+        "backend/src/infrastructure/db/repositories/base.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/application/services/dashboard_service.py",
+      "purpose": "M-004 use case. Composes (design × grade) active mappings from DesignGradeMapRepository (S1 T-006), domain.stock.opening_balance + closing_balance (S2 T-045), and LedgerAggregatesRepository (this sprint) into a list[DashboardRow]. Single round-trip to the DB per dashboard call via aggregated SUMs; opening + closing are O(1) latest_as_of lookups (DS-003/004).",
+      "layer": "application",
+      "module_ref": "M-004",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "DashboardService.list_as_of",
+          "inputs": [
+            { "name": "as_of_date", "type": "date" }
+          ],
+          "outputs": [{ "name": "rows", "type": "list[DashboardRow]" }],
+          "description": "(1) Compute month_first = as_of_date.replace(day=1). (2) Fetch all active design+grade pair rows via DesignGradeMapRepository.list_active_all (NEW in this sprint — small extension of existing list_active_by_design). (3) Single GROUP BY query via LedgerAggregatesRepository.sum_deltas_by_source_type(month_first, as_of_date). (4) For each active pair: opening = stock.opening_balance(month_first); closing = stock.closing_balance(as_of_date); inward/outward/adjust from the aggregate row dict (default 0 if no movement in window). (5) Verify invariant opening + inward − outward + adjust == closing (assert at service level; surfaces ledger corruption fast). Result ordered by design_name ASC, grade_code ASC. Target p95 < 500ms per FORMULA-001 + DS-015."
+        }
+      ],
+      "interfaces": {
+        "exports": ["DashboardService"],
+        "expects": [
+          "DesignGradeMapRepository.list_active_all (S1 + new method needed)",
+          "domain.stock.opening_balance",
+          "domain.stock.closing_balance",
+          "LedgerAggregatesRepository.sum_deltas_by_source_type",
+          "DashboardRow schema"
+        ]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/master.py",
+        "backend/src/infrastructure/db/repositories/ledger_aggregates.py",
+        "backend/src/domain/stock.py",
+        "backend/src/presentation/schemas/dashboard.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/dashboard.py",
+      "purpose": "GET /dashboard?as_of_date=YYYY-MM-DD route. Thin delegation to DashboardService.",
+      "layer": "presentation",
+      "module_ref": "M-004",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "list_dashboard",
+          "inputs": [
+            { "name": "as_of_date", "type": "date = Query(...)" },
+            { "name": "service", "type": "DashboardService = Depends(get_dashboard_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "list[DashboardRow]" }],
+          "description": "GET /dashboard. Required stock_date — FastAPI parses ISO. Returns 200 with list (empty if no active pairs). NotFoundError → 404 only if some upstream master lookup misses; otherwise 200 (empty list is a valid dashboard outcome)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/dashboard', tags=['dashboard'])"],
+        "expects": ["DashboardService via Depends", "DashboardRow"]
+      },
+      "depends_on": [
+        "backend/src/application/services/dashboard_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/dashboard.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/schemas/sales_report.py",
+      "purpose": "Pydantic v2 schemas for the dual-pane Sales Report response: Consolidation (grouped by design+grade) + Transactions (per-line).",
+      "layer": "presentation",
+      "module_ref": "M-005",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "ConsolidationRow",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: design_id (int), design_name (str), size (str), grade_id (int), grade_code (str), total_nos (int). ORDER BY design_name ASC, grade_code ASC per RULE-019."
+        },
+        {
+          "name": "TransactionRow",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: sales_date (date), dealer_id (int), dealer_name (str), place (str — denormalized snapshot per DS-013), design_id (int), design_name (str), size (str), grade_id (int), grade_code (str), nos (int). ORDER BY sales_date ASC per RULE-020."
+        },
+        {
+          "name": "SalesReportResponse",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: consolidation (list[ConsolidationRow]), transactions (list[TransactionRow]). Both rendered simultaneously on the same screen per AC-049 (Consolidation first). Sum reconciliation invariant AC-050: sum(transactions.nos) == sum(consolidation.total_nos)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["ConsolidationRow", "TransactionRow", "SalesReportResponse"],
+        "expects": ["pydantic.BaseModel", "pydantic.ConfigDict"]
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+    {
+      "path": "backend/src/application/services/sales_report_service.py",
+      "purpose": "M-005 use case. Builds the dual-payload from sales_header + sales_line joined with designs + grades + dealers, applying multi-select optional filters via .in_(). Both queries share the same filter predicate to guarantee AC-050 reconciliation.",
+      "layer": "application",
+      "module_ref": "M-005",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "SalesReportService.generate",
+          "inputs": [
+            { "name": "date_from", "type": "date | None", "required": false },
+            { "name": "date_to", "type": "date | None", "required": false },
+            { "name": "dealer_ids", "type": "list[int] | None", "required": false },
+            { "name": "places", "type": "list[str] | None", "required": false },
+            { "name": "design_ids", "type": "list[int] | None", "required": false }
+          ],
+          "outputs": [{ "name": "response", "type": "SalesReportResponse" }],
+          "description": "(1) Build the base filter predicate: a list of conditional .where() applied to BOTH queries (RULE-018: all filters optional, multi-select — no filters means full dataset). (2) Consolidation query: SELECT design_id, grade_id, SUM(nos) FROM tbl_sales_line JOIN tbl_sales_header ON ... JOIN designs JOIN grades JOIN dealers WHERE <filter> GROUP BY design_id, grade_id, design_name, size, grade_code ORDER BY design_name, grade_code. (3) Transaction query: SELECT sales_date, dealer_id, dealer_name, place, design_id, design_name, size, grade_id, grade_code, nos FROM ... <same JOINs + filter> ORDER BY sales_date ASC, sales_header.header_id ASC. (4) Return SalesReportResponse(consolidation=, transactions=). Service asserts the AC-050 invariant before return (defense-in-depth)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["SalesReportService"],
+        "expects": [
+          "Session (sqlalchemy.orm)",
+          "SalesHeaderModel + SalesLineModel (S2 T-042)",
+          "TradingDesignModel + GradeModel + DealerModel (S1)",
+          "Pydantic schemas"
+        ]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/models/transactions.py",
+        "backend/src/infrastructure/db/models/master.py",
+        "backend/src/presentation/schemas/sales_report.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/routers/sales_report.py",
+      "purpose": "GET /reports/sales route. Multi-select filters via Query(default=None) — FastAPI handles repeat-key list[int]/list[str] natively (same pattern as T-053's list_sales).",
+      "layer": "presentation",
+      "module_ref": "M-005",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "get_sales_report",
+          "inputs": [
+            { "name": "date_from", "type": "date | None = Query(default=None)" },
+            { "name": "date_to", "type": "date | None = Query(default=None)" },
+            { "name": "dealer_ids", "type": "list[int] | None = Query(default=None)" },
+            { "name": "places", "type": "list[str] | None = Query(default=None)" },
+            { "name": "design_ids", "type": "list[int] | None = Query(default=None)" },
+            { "name": "service", "type": "SalesReportService = Depends(get_sales_report_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "SalesReportResponse" }],
+          "description": "Pure delegation: return service.generate(date_from, date_to, dealer_ids, places, design_ids)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/reports/sales', tags=['reports'])"],
+        "expects": ["SalesReportService via Depends", "SalesReportResponse"]
+      },
+      "depends_on": [
+        "backend/src/application/services/sales_report_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/sales_report.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/infrastructure/db/repositories/master.py",
+      "purpose": "MODIFY (S1 file). ADD DesignGradeMapRepository.list_active_all() → list[DesignGradeMapModel] (NO design_id filter — returns ALL active pairs across all designs). Needed by DashboardService to enumerate the row-set. Existing 6 master repositories untouched.",
+      "layer": "infrastructure",
+      "module_ref": "M-001",
+      "modification": "modify",
+      "functions": [
+        {
+          "name": "DesignGradeMapRepository.list_active_all",
+          "inputs": [],
+          "outputs": [{ "name": "pairs", "type": "list[DesignGradeMapModel]" }],
+          "description": "SELECT * FROM tbl_design_grade_map JOIN tbl_grade_master ON ... WHERE map.is_active AND grade.is_active. Same JOIN-on-grade as list_active_by_design (S1) but without the design_id filter. The .design + .grade relationships (lazy='joined') hydrate design_name/size/grade_code for the dashboard projection without N+1."
+        }
+      ],
+      "interfaces": {
+        "exports": ["DesignGradeMapRepository (existing) + list_active_all method"],
+        "expects": ["DesignGradeMapModel + GradeModel (S1)"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/base.py",
+        "backend/src/infrastructure/db/models/master.py"
+      ],
+      "test_required": true
+    },
+    {
+      "path": "backend/src/presentation/api/dependencies.py",
+      "purpose": "MODIFY (S1+S2 file). ADD 2 new DI factories: get_dashboard_service, get_sales_report_service. Existing 10 factories untouched.",
+      "layer": "presentation",
+      "module_ref": "M-002",
+      "modification": "modify",
+      "functions": [
+        {
+          "name": "get_dashboard_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "DashboardService" }],
+          "description": "Returns DashboardService(db). Same pattern as S2 factories."
+        },
+        {
+          "name": "get_sales_report_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "SalesReportService" }],
+          "description": "Returns SalesReportService(db)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["get_dashboard_service", "get_sales_report_service"],
+        "expects": ["Session", "Depends", "get_db (S1)", "DashboardService", "SalesReportService"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/session.py",
+        "backend/src/application/services/dashboard_service.py",
+        "backend/src/application/services/sales_report_service.py"
+      ],
+      "test_required": false
+    },
+    {
+      "path": "backend/src/main.py",
+      "purpose": "MODIFY (S1+S2 file). Add 2 include_router calls (dashboard, sales_report) under /api/v1. All other wiring (CORS, error handlers, 9 existing router mounts, /health) byte-identical.",
+      "layer": "presentation",
+      "module_ref": "M-002",
+      "modification": "modify",
+      "functions": [
+        {
+          "name": "create_app (modified)",
+          "inputs": [],
+          "outputs": [{ "name": "app", "type": "FastAPI" }],
+          "description": "Add app.include_router(dashboard.router, prefix='/api/v1') and app.include_router(sales_report.router, prefix='/api/v1') after the 9 existing mounts. No other changes."
+        }
+      ],
+      "interfaces": {
+        "exports": ["create_app (existing) — adds 2 mounts", "app"],
+        "expects": ["FastAPI (existing)", "dashboard router", "sales_report router"]
+      },
+      "depends_on": [
+        "backend/src/presentation/api/routers/dashboard.py",
+        "backend/src/presentation/api/routers/sales_report.py"
+      ],
+      "test_required": false
+    }
+  ],
+
+  "deps_manifest_summary": "S3 adds zero new backend Python packages — uses existing FastAPI/SQLAlchemy/Pydantic stack. Frontend may add a charting library for dashboard (TBD at /ases-ui-design S3); LLD leaves frontend track unspecified per the S2 precedent (LLD frontend_ui_track_note).",
+
+  "frontend_ui_track_note": "S3's 2 user-facing pages (Stock Dashboard at /admin/dashboard/, Sales Report at /admin/reports/sales/) and their dependencies (TS types, axios wrappers, date-range picker, multi-select filters, optional chart library) are NOT enumerated in this LLD — they ship via the UI track (/ases-ui-design S3 → /ases-ui-review S3 → /ases-ui-scaffold S3) which reads this LLD's API contracts and produces a standalone frontend scaffold. Integration points the UI track will need: GET /api/v1/dashboard?as_of_date= and GET /api/v1/reports/sales?date_from=&date_to=&dealer_ids=&places=&design_ids= plus existing S1 GET /api/v1/{designs,dealers} for the filter dropdowns and S2 GET /api/v1/sales for the place-options derivation (UI computes distinct places from already-fetched sales or dealers).",
+
+  "new_decisions": [
+    {
+      "id": "DS-015",
+      "stage": "lld",
+      "sprint_id": "S3",
+      "decision": "Amend DS-002 wording: serialization for stock_ledger writes per (design, grade) MUST acquire pg_advisory_xact_lock(design_id, grade_id) BEFORE the SELECT ... LIMIT 1 FOR UPDATE on the latest row. The FOR UPDATE row lock alone is INSUFFICIENT because PostgreSQL's `SELECT ... ORDER BY ... LIMIT 1 FOR UPDATE` does not re-resolve LIMIT after waiting on a row lock — the waiter re-reads the originally-identified row, missing the row just inserted by the holder. Discovered + fixed in S2 via TD-011 (advisory lock added to domain.stock._apply). This decision documents the layered pattern so future write paths don't regress.",
+      "rationale": "Closes FA-S2-002/003 and RI-003 from S2 final-audit. DS-002's original text described only the FOR UPDATE primitive; the verified safe implementation requires advisory-lock-first. Spec text must catch up to implementation reality.",
+      "tradeoffs": "Advisory lock adds ~1 RTT per write call (negligible). Spec is now more prescriptive about the lock pattern — future contributors implementing a new write path on the ledger must compose both locks; if they only do FOR UPDATE, they recreate TD-011.",
+      "alternatives_considered": [
+        "Replace FOR UPDATE with advisory lock alone: rejected — FOR UPDATE provides row-visibility guarantees (the read returns latest committed within the lock) that advisory locks alone don't. Keep both for defense-in-depth.",
+        "Switch isolation level to SERIALIZABLE with retry: rejected — adds retry complexity to every write path; advisory lock is simpler.",
+        "Lock the (design, grade) row in tbl_design_grade_map as the sentinel: rejected — that table is read-mostly and locking it on every ledger write couples concurrent admin edits to all writers."
+      ],
+      "module_refs": ["M-002", "M-003"],
+      "recall_keywords": ["concurrency", "advisory lock", "for update", "limit", "DS-002", "TD-011"],
+      "made_by": "architect",
+      "timestamp": "2026-06-23",
+      "status": "active",
+      "amends": ["DS-002"]
+    },
+    {
+      "id": "DS-016",
+      "stage": "lld",
+      "sprint_id": "S3",
+      "decision": "Stock Dashboard aggregation uses a SINGLE GROUP BY query with CASE-conditional SUMs (over tbl_stock_ledger filtered by date range), NOT per-(design, grade) sub-queries. Opening + Closing per row remain O(1) latest_as_of lookups against the materialized running_balance per DS-003/004.",
+      "rationale": "Dashboard target is sub-second (PRD AC-045). Per-(design, grade) sub-queries would be O(N) where N is active pair count (initially ~6, scaling with design+grade growth) — slow with full table scan per sub-query. The single GROUP BY uses ix_stock_ledger_dgt's (design_id, grade_id) prefix + the txn_date range to scan only the in-window rows once. Opening/Closing remain index-O(1) per pair.",
+      "tradeoffs": "Single CASE-aggregated SQL is slightly less readable than 4 separate small queries. Acceptable — the SQL is a stable, well-commented expression in LedgerAggregatesRepository.",
+      "alternatives_considered": [
+        "Per-pair sub-queries (4 sub-queries × N pairs): rejected — at PRD scale of 12 months × O(1000) txns this can exceed sub-second target.",
+        "Pre-aggregated monthly summary table: rejected — adds a maintenance path (refresh-on-write) and the savings are speculative for V1 volumes.",
+        "Materialized view refreshed on each transaction: rejected — same maintenance burden plus stale-window risk."
+      ],
+      "module_refs": ["M-004"],
+      "recall_keywords": ["dashboard", "aggregation", "GROUP BY", "performance", "AC-045"],
+      "made_by": "architect",
+      "timestamp": "2026-06-23",
+      "status": "active"
+    },
+    {
+      "id": "DS-017",
+      "stage": "lld",
+      "sprint_id": "S3",
+      "decision": "Sales Report consolidation + transactions queries share a SINGLE filter predicate construction function (built once per request, applied to both queries). This guarantees AC-050 reconciliation (sum(transactions.nos) == sum(consolidation.total_nos)) by construction — divergent filter logic between the two queries is impossible.",
+      "rationale": "AC-050 is a critical correctness invariant for the dual-payload report. Hand-maintaining matching filter clauses across two SELECT statements is fragile; a shared predicate-builder enforces parity by construction.",
+      "tradeoffs": "Slightly more code structure (helper function) for what could otherwise be two inline WHEREs. Negligible cost.",
+      "alternatives_considered": [
+        "Inline two separate filter clauses: rejected — AC-050 violations would be silent until tested.",
+        "Run a single query and post-aggregate in Python: rejected — pushes work out of Postgres into Python where it's slower and harder to test."
+      ],
+      "module_refs": ["M-005"],
+      "recall_keywords": ["sales report", "consolidation", "transactions", "filter", "AC-050"],
+      "made_by": "architect",
+      "timestamp": "2026-06-23",
+      "status": "active"
+    }
+  ],
+
+  "rules_referenced": [
+    "FORMULA-001: Dashboard column formulas (Opening + Inward − Outward + Adjust = Closing per row)",
+    "FORMULA-002: opening_balance(m_first) = closing_balance(m_first − 1 day) — DS-004 implementation (already in domain.stock from S2)",
+    "FORMULA-003: closing_balance(d) = latest_as_of(d).running_balance (DS-003)",
+    "FORMULA-004: Consolidation = GROUP BY (design, grade) with SUM(nos)",
+    "RULE-018: All Sales Report filters optional and multi-select",
+    "RULE-019: Consolidation ORDER BY design_name, grade_code",
+    "RULE-020: Transactions ORDER BY sales_date ASC",
+    "AC-053: Carry-forward correct after back-dated transaction crossing a month boundary — verified end-to-end via integration test, no new code"
+  ],
+
+  "depends_on_completed_sprints": [
+    "S1 (M-001 — master CRUD + soft-delete + DesignGradeMap)",
+    "S2 (M-003 stock domain, M-007 transactions tables + composite index)"
+  ],
+
+  "next": "/ases-schema S3"
+}

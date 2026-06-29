@@ -1,0 +1,40 @@
+{
+  "$schema": "ases/v3.0/deps_manifest",
+  "sprint_id": "S3",
+  "summary": "S3 reuses the existing FastAPI 0.115 / SQLAlchemy 2.x / Pydantic v2 / Alembic 1.14 / psycopg 3.2 stack — zero new backend Python packages required. The dashboard aggregation and sales report queries use SQLAlchemy's existing expression API (case(), func.sum(), select(), .in_(), joined-load relationships). Schema layer is read-only: zero new tables, zero new columns, zero new constraints, zero new indexes, zero migrations. Existing S2 composite indexes (ix_stock_ledger_dgt, ix_sales_header_{sales_date,dealer}, ix_sales_line_dgd) service all S3 query plans.",
+  "packages": [],
+  "services": [
+    {
+      "name": "PostgreSQL 16",
+      "setup_notes": "Inherits from S1 docker-compose. No new instance, no schema changes — S3 is read-only at the persistence layer."
+    },
+    {
+      "name": "Docker (testcontainers)",
+      "setup_notes": "Test execution dependency only — used by backend/tests/conftest.py for ephemeral PG. Inherits from S1."
+    }
+  ],
+  "env_vars": [
+    {
+      "name": "DATABASE_URL",
+      "required": true,
+      "description": "Inherits from S1. PostgreSQL DSN. Backend cannot start without it.",
+      "example": "postgresql+psycopg://trading_app:<pwd>@localhost:5432/jayanth_trading"
+    },
+    {
+      "name": "NEXT_PUBLIC_API_URL",
+      "required": true,
+      "description": "Inherits from S1. Backend API base URL consumed by the Next.js frontend.",
+      "example": "http://localhost:8000/api/v1"
+    }
+  ],
+  "migrations": [],
+  "frontend_deps_note": "TBD at /ases-ui-design S3. Likely candidates if the UI design adds a chart panel: recharts (small, React-native, MIT) or visx. No charting is mandated by PRD AC-041..AC-045 — a table layout for the dashboard satisfies the ACs. The 2 new pages (/admin/dashboard/, /admin/reports/sales/) and their date-range / multi-select filter UX dependencies will land via the UI track per the S2 precedent.",
+  "decisions_referenced": ["DS-002", "DS-003", "DS-004", "DS-007", "DS-010", "DS-013", "DS-015", "DS-016", "DS-017"],
+  "modules_touched": ["M-004 (new)", "M-005 (new)", "M-001 (modify — add 1 repo method)", "M-002 (modify — DI + main mount)"],
+  "no_breaking_changes_to": ["S1 master CRUD", "S2 transaction forms", "S2 stock ledger writes (advisory lock + FOR UPDATE intact via DS-015)"],
+  "carry_forward_from_s2": {
+    "TD-010": "Frontend Radix-UI Select/Popover jsdom incompatibility — to be revisited at S3 ui-scaffold per TD-010 target_sprint='S3 or V2'.",
+    "TD-008": "First-row insert race (theoretical) — V2 target, no S3 action required."
+  },
+  "next": "/ases-schema S3"
+}

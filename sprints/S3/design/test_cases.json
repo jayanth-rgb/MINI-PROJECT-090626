@@ -1,0 +1,1176 @@
+{
+  "$schema": "ases/v3.0/test_cases",
+  "document": "test_cases",
+  "produced_by": "/ases-test-spec",
+  "consumed_by": ["/ases-tasks", "/ases-test-impl", "/ases-critique", "/ases-final-audit"],
+  "sprint_id": "S3",
+  "scope_features": ["F-010", "F-011", "F-012"],
+  "scope_modules": ["M-001", "M-004", "M-005"],
+  "ac_coverage_summary": {
+    "F-010": {"acs": 5, "covered_acs": 5},
+    "F-011": {"acs": 5, "covered_acs": 5},
+    "F-012": {"acs": 3, "covered_acs": 3}
+  },
+  "numbering_note": "TC IDs start at TC-115. S1 owned TC-001..TC-046 (46), S2 owned TC-047..TC-114 (68). New IDs allocated sequentially within S3.",
+
+  "test_cases": [
+
+    {
+      "id": "TC-115",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "DashboardService.list_as_of with 3 active (design, grade) pairs + non-zero ledger movements returns exactly 3 DashboardRow with all 10 fields populated (design_id, design_name, size, grade_id, grade_code, opening, inward, outward, adjust, closing).",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/dashboard_service.py",
+      "function_ref": "DashboardService.list_as_of",
+      "inputs": {
+        "seed_pairs": [
+          {"design_id": 1, "grade_id": 1, "design_name": "16X10 Ridges", "size": "16X10", "grade_code": "1"},
+          {"design_id": 1, "grade_id": 2, "design_name": "16X10 Ridges", "size": "16X10", "grade_code": "2"},
+          {"design_id": 2, "grade_id": 3, "design_name": "12X8 Ridges",  "size": "12X8",  "grade_code": "2A"}
+        ],
+        "ledger_seed": [
+          {"design_id": 1, "grade_id": 1, "txn_date": "2026-06-05", "source_type": "inward", "delta": 100, "running_balance": 100},
+          {"design_id": 1, "grade_id": 1, "txn_date": "2026-06-10", "source_type": "sale",   "delta": -30, "running_balance": 70},
+          {"design_id": 1, "grade_id": 2, "txn_date": "2026-06-07", "source_type": "inward", "delta": 50,  "running_balance": 50},
+          {"design_id": 2, "grade_id": 3, "txn_date": "2026-06-01", "source_type": "inward", "delta": 20,  "running_balance": 20},
+          {"design_id": 2, "grade_id": 3, "txn_date": "2026-06-08", "source_type": "adjustment", "delta": -5, "running_balance": 15}
+        ],
+        "as_of_date": "2026-06-15"
+      },
+      "expected_output": {
+        "row_count": 3,
+        "rows_in_order": [
+          {"design_id": 1, "design_name": "16X10 Ridges", "size": "16X10", "grade_id": 1, "grade_code": "1",  "opening": 0, "inward": 100, "outward": 30, "adjust": 0,  "closing": 70},
+          {"design_id": 1, "design_name": "16X10 Ridges", "size": "16X10", "grade_id": 2, "grade_code": "2",  "opening": 0, "inward": 50,  "outward": 0,  "adjust": 0,  "closing": 50},
+          {"design_id": 2, "design_name": "12X8 Ridges",  "size": "12X8",  "grade_id": 3, "grade_code": "2A", "opening": 0, "inward": 20,  "outward": 0,  "adjust": -5, "closing": 15}
+        ],
+        "invariant_holds": "opening + inward - outward + adjust == closing for every row"
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-116",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "Edge — DashboardService.list_as_of when DesignGradeMapRepository.list_active_all returns [] (all pairs deactivated): returns empty list, NOT a 404.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/dashboard_service.py",
+      "function_ref": "DashboardService.list_as_of",
+      "inputs": {
+        "active_pairs": [],
+        "ledger_seed": [],
+        "as_of_date": "2026-06-15"
+      },
+      "expected_output": {
+        "result": [],
+        "exception": null
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-117",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "Integration — GET /dashboard?as_of_date=2026-06-15 with S1 seed (6 active design-grade pairs) returns HTTP 200 with exactly 6 dashboard rows, each containing the 10 fields. Verifies dashboard router → DI factory → service → repo + domain wiring end-to-end.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/dashboard.py",
+      "function_ref": "list_dashboard",
+      "inputs": {
+        "request": "GET /api/v1/dashboard?as_of_date=2026-06-15",
+        "seed": "S1 master seed (6 active design_grade_map rows: 16X10R{1,2}, 12X8R{1,OB}, 11X7R{1,2})",
+        "ledger_seed": "empty"
+      },
+      "expected_output": {
+        "status_code": 200,
+        "response_length": 6,
+        "all_rows_have_zero_columns": "opening=inward=outward=adjust=closing=0 (no ledger movements)",
+        "ordering": "design_name ASC, grade_code ASC"
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-118",
+      "feature_id": "F-010",
+      "ac_ref": "AC-042",
+      "description": "First-month opening is zero (FORMULA-002 base case). For (design=1, grade=1) with NO ledger rows before 2026-06-01, opening_balance(2026-06-01) returns 0; dashboard row at as_of=2026-06-30 shows opening=0.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/dashboard_service.py",
+      "function_ref": "DashboardService.list_as_of",
+      "inputs": {
+        "pair": {"design_id": 1, "grade_id": 1},
+        "ledger_seed": [
+          {"txn_date": "2026-06-12", "source_type": "inward", "delta": 40, "running_balance": 40}
+        ],
+        "as_of_date": "2026-06-30"
+      },
+      "expected_output": {
+        "opening": 0,
+        "inward": 40,
+        "outward": 0,
+        "adjust": 0,
+        "closing": 40
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-119",
+      "feature_id": "F-010",
+      "ac_ref": "AC-043",
+      "description": "On the first day of subsequent month, Opening = Closing of last day of previous month (no manual operation). Insert ledger entries through May 2026; query dashboard at as_of=2026-06-01 — opening must equal May 31 closing balance.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/dashboard_service.py",
+      "function_ref": "DashboardService.list_as_of",
+      "inputs": {
+        "pair": {"design_id": 1, "grade_id": 1},
+        "ledger_seed": [
+          {"txn_date": "2026-05-10", "source_type": "inward", "delta": 80, "running_balance": 80},
+          {"txn_date": "2026-05-20", "source_type": "sale",   "delta": -30, "running_balance": 50},
+          {"txn_date": "2026-05-31", "source_type": "inward", "delta": 25, "running_balance": 75}
+        ],
+        "as_of_date": "2026-06-01"
+      },
+      "expected_output": {
+        "opening": 75,
+        "inward": 0,
+        "outward": 0,
+        "adjust": 0,
+        "closing": 75,
+        "note": "Opening==Closing because no June movements yet"
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-120",
+      "feature_id": "F-010",
+      "ac_ref": "AC-044",
+      "description": "Closing for any date equals Opening + cumulative Inward − cumulative Outward + cumulative Adjust within the current month up to that date. Multi-row June 2026 sequence.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/dashboard_service.py",
+      "function_ref": "DashboardService.list_as_of",
+      "inputs": {
+        "pair": {"design_id": 1, "grade_id": 1},
+        "may_seed_to_set_opening": [
+          {"txn_date": "2026-05-31", "source_type": "inward", "delta": 60, "running_balance": 60}
+        ],
+        "june_seed": [
+          {"txn_date": "2026-06-03", "source_type": "inward",     "delta": 40,  "running_balance": 100},
+          {"txn_date": "2026-06-07", "source_type": "sale",       "delta": -25, "running_balance": 75},
+          {"txn_date": "2026-06-12", "source_type": "adjustment", "delta": 10,  "running_balance": 85},
+          {"txn_date": "2026-06-14", "source_type": "sale",       "delta": -5,  "running_balance": 80}
+        ],
+        "as_of_date": "2026-06-15"
+      },
+      "expected_output": {
+        "opening": 60,
+        "inward": 40,
+        "outward": 30,
+        "adjust": 10,
+        "closing": 80,
+        "invariant_check": "60 + 40 - 30 + 10 == 80 ✓"
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-121",
+      "feature_id": "F-010",
+      "ac_ref": "AC-044",
+      "description": "Edge — Closing invariant holds when as_of_date is mid-month and some ledger rows fall AFTER as_of_date (those rows MUST be excluded from inward/outward/adjust sums + must not affect closing returned).",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/dashboard_service.py",
+      "function_ref": "DashboardService.list_as_of",
+      "inputs": {
+        "pair": {"design_id": 1, "grade_id": 1},
+        "ledger_seed": [
+          {"txn_date": "2026-06-03", "source_type": "inward", "delta": 40, "running_balance": 40},
+          {"txn_date": "2026-06-10", "source_type": "sale",   "delta": -10, "running_balance": 30},
+          {"txn_date": "2026-06-20", "source_type": "inward", "delta": 50, "running_balance": 80, "note": "AFTER as_of — must be excluded"}
+        ],
+        "as_of_date": "2026-06-15"
+      },
+      "expected_output": {
+        "opening": 0,
+        "inward": 40,
+        "outward": 10,
+        "adjust": 0,
+        "closing": 30,
+        "post_asof_row_excluded": true
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-122",
+      "feature_id": "F-010",
+      "ac_ref": "AC-045",
+      "description": "Performance — Dashboard p95 < 500ms with 12 months of accumulated transactions (≈4000 ledger rows for 6 active pairs). Validates DS-016 single CASE-aggregated SUM + ix_stock_ledger_dgt index plan.",
+      "type": "performance",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/dashboard_service.py",
+      "function_ref": "DashboardService.list_as_of",
+      "inputs": {
+        "seed": "6 active pairs × 12 months × ~60 txns/month = ~4320 ledger rows",
+        "as_of_date": "2026-06-15",
+        "iterations": 20
+      },
+      "expected_output": {
+        "p95_ms_max": 500,
+        "threshold_source": "PRD non_functional.performance + AC-045 (sub-second target)",
+        "metric": "wall-clock time of DashboardService.list_as_of"
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-123",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "LedgerAggregatesRepository.sum_deltas_by_source_type returns one Row per (design, grade) with inward_sum / outward_sum / adjust_sum from the CASE-aggregated GROUP BY. outward_sum is the SUM of -delta for source_type='sale' (reads positive).",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/db/repositories/ledger_aggregates.py",
+      "function_ref": "LedgerAggregatesRepository.sum_deltas_by_source_type",
+      "inputs": {
+        "month_start": "2026-06-01",
+        "as_of_date": "2026-06-15",
+        "ledger_seed": [
+          {"design_id": 1, "grade_id": 1, "txn_date": "2026-06-03", "source_type": "inward",     "delta": 40},
+          {"design_id": 1, "grade_id": 1, "txn_date": "2026-06-10", "source_type": "sale",       "delta": -25},
+          {"design_id": 1, "grade_id": 1, "txn_date": "2026-06-12", "source_type": "adjustment", "delta": 10},
+          {"design_id": 1, "grade_id": 2, "txn_date": "2026-06-08", "source_type": "inward",     "delta": 15}
+        ]
+      },
+      "expected_output": {
+        "rows": [
+          {"design_id": 1, "grade_id": 1, "inward_sum": 40, "outward_sum": 25, "adjust_sum": 10},
+          {"design_id": 1, "grade_id": 2, "inward_sum": 15, "outward_sum": 0,  "adjust_sum": 0}
+        ]
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-124",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "Edge — LedgerAggregatesRepository.sum_deltas_by_source_type with empty date window (no ledger rows in range) returns empty list.",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "backend/src/infrastructure/db/repositories/ledger_aggregates.py",
+      "function_ref": "LedgerAggregatesRepository.sum_deltas_by_source_type",
+      "inputs": {
+        "month_start": "2026-01-01",
+        "as_of_date": "2026-01-31",
+        "ledger_seed": []
+      },
+      "expected_output": {
+        "rows": []
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-125",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "Edge — outward_sum reads positive even though delta column is negative for sale rows. Verifies the CASE WHEN source_type='sale' THEN -delta branch in DS-016.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/db/repositories/ledger_aggregates.py",
+      "function_ref": "LedgerAggregatesRepository.sum_deltas_by_source_type",
+      "inputs": {
+        "month_start": "2026-06-01",
+        "as_of_date": "2026-06-30",
+        "ledger_seed": [
+          {"design_id": 1, "grade_id": 1, "txn_date": "2026-06-05", "source_type": "sale", "delta": -15},
+          {"design_id": 1, "grade_id": 1, "txn_date": "2026-06-15", "source_type": "sale", "delta": -25}
+        ]
+      },
+      "expected_output": {
+        "rows": [
+          {"design_id": 1, "grade_id": 1, "inward_sum": 0, "outward_sum": 40, "adjust_sum": 0}
+        ]
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-126",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "Edge — adjust_sum preserves signed values (positive AND negative adjustments). Different from outward which always reads positive — adjust_sum can be negative if a physical_cb < software_cb shrinkage was applied.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/db/repositories/ledger_aggregates.py",
+      "function_ref": "LedgerAggregatesRepository.sum_deltas_by_source_type",
+      "inputs": {
+        "month_start": "2026-06-01",
+        "as_of_date": "2026-06-30",
+        "ledger_seed": [
+          {"design_id": 1, "grade_id": 1, "txn_date": "2026-06-10", "source_type": "adjustment", "delta": 5},
+          {"design_id": 1, "grade_id": 1, "txn_date": "2026-06-20", "source_type": "adjustment", "delta": -12}
+        ]
+      },
+      "expected_output": {
+        "rows": [
+          {"design_id": 1, "grade_id": 1, "inward_sum": 0, "outward_sum": 0, "adjust_sum": -7}
+        ]
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-127",
+      "feature_id": "F-010",
+      "ac_ref": "AC-043",
+      "description": "DashboardService.list_as_of computes month_first = as_of_date.replace(day=1) and passes (month_first, as_of_date) to the aggregation query. Verified by inspecting the actual repository call arguments.",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "backend/src/application/services/dashboard_service.py",
+      "function_ref": "DashboardService.list_as_of",
+      "inputs": {
+        "as_of_date": "2026-06-15",
+        "mock_repos": "spy on LedgerAggregatesRepository.sum_deltas_by_source_type"
+      },
+      "expected_output": {
+        "agg_repo_call_args": {"month_start": "2026-06-01", "as_of_date": "2026-06-15"},
+        "opening_balance_called_with_month_first": "2026-06-01"
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-128",
+      "feature_id": "F-010",
+      "ac_ref": "AC-044",
+      "description": "Edge — DashboardService.list_as_of asserts the invariant opening+inward-outward+adjust==closing per row. Constructing a row where the running_balance was tampered (closing read from ledger doesn't match formula) MUST raise AssertionError (defense-in-depth per LLD §dashboard_service.py).",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "backend/src/application/services/dashboard_service.py",
+      "function_ref": "DashboardService.list_as_of",
+      "inputs": {
+        "scenario": "Deliberately insert a ledger row with running_balance != cumulative deltas",
+        "pair": {"design_id": 1, "grade_id": 1},
+        "ledger_seed": [
+          {"txn_date": "2026-06-05", "source_type": "inward", "delta": 100, "running_balance": 100},
+          {"txn_date": "2026-06-10", "source_type": "sale", "delta": -30, "running_balance": 999, "note": "tampered"}
+        ],
+        "as_of_date": "2026-06-15"
+      },
+      "expected_output": {
+        "raises": "AssertionError",
+        "message_contains": "invariant"
+      },
+      "should_raise": "AssertionError",
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-129",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "DashboardService.list_as_of result ordered by design_name ASC, grade_code ASC consistently regardless of insertion order of design_grade_map rows.",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "backend/src/application/services/dashboard_service.py",
+      "function_ref": "DashboardService.list_as_of",
+      "inputs": {
+        "active_pairs": [
+          {"design_name": "12X8 Ridges", "grade_code": "OB"},
+          {"design_name": "16X10 Ridges", "grade_code": "1"},
+          {"design_name": "12X8 Ridges", "grade_code": "1"},
+          {"design_name": "11X7 Ridges", "grade_code": "2"}
+        ]
+      },
+      "expected_output": {
+        "ordered_rows": [
+          {"design_name": "11X7 Ridges", "grade_code": "2"},
+          {"design_name": "12X8 Ridges", "grade_code": "1"},
+          {"design_name": "12X8 Ridges", "grade_code": "OB"},
+          {"design_name": "16X10 Ridges", "grade_code": "1"}
+        ]
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-130",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "GET /api/v1/dashboard?as_of_date=2026-06-15 with seeded ledger returns HTTP 200 + JSON array of DashboardRow.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/dashboard.py",
+      "function_ref": "list_dashboard",
+      "inputs": {
+        "request": "GET /api/v1/dashboard?as_of_date=2026-06-15"
+      },
+      "expected_output": {
+        "status_code": 200,
+        "response_keys_per_row": ["design_id", "design_name", "size", "grade_id", "grade_code", "opening", "inward", "outward", "adjust", "closing"]
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-131",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "GET /api/v1/dashboard without as_of_date returns HTTP 422 (FastAPI validation — required query param missing).",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "backend/src/presentation/api/routers/dashboard.py",
+      "function_ref": "list_dashboard",
+      "inputs": {
+        "request": "GET /api/v1/dashboard"
+      },
+      "expected_output": {
+        "status_code": 422,
+        "response_body_contains": "as_of_date"
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-132",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "GET /api/v1/dashboard?as_of_date=not-a-date returns HTTP 422 (FastAPI date parsing error).",
+      "type": "security",
+      "priority": "high",
+      "file_ref": "backend/src/presentation/api/routers/dashboard.py",
+      "function_ref": "list_dashboard",
+      "inputs": {
+        "request": "GET /api/v1/dashboard?as_of_date=not-a-date"
+      },
+      "expected_output": {
+        "status_code": 422,
+        "response_body_contains": "as_of_date"
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-133",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "Sales Report with no filters (RULE-018) returns the full dataset — all sales lines + all consolidation groupings.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "sales_seed": [
+          {"sales_date": "2026-06-05", "dealer_id": 1, "place": "Dindivanam", "lines": [{"design_id": 1, "grade_id": 1, "nos": 10}, {"design_id": 1, "grade_id": 2, "nos": 5}]},
+          {"sales_date": "2026-06-10", "dealer_id": 2, "place": "Attibelle",  "lines": [{"design_id": 1, "grade_id": 1, "nos": 20}]}
+        ],
+        "filters": {}
+      },
+      "expected_output": {
+        "consolidation_row_count": 2,
+        "transaction_row_count": 3,
+        "consolidation_sum_nos": 35,
+        "transaction_sum_nos": 35
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-134",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "Sales Report with single dealer filter (dealer_ids=[1]) returns only that dealer's sales.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "sales_seed": "same as TC-133",
+        "filters": {"dealer_ids": [1]}
+      },
+      "expected_output": {
+        "transaction_row_count": 2,
+        "transaction_dealer_ids_unique": [1],
+        "consolidation_sum_nos": 15,
+        "transaction_sum_nos": 15
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-135",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "Sales Report with multi-select dealer filter (dealer_ids=[1, 2]) returns union — verifies SQLAlchemy .in_() builder for list[int].",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "sales_seed": "TC-133 seed + extra dealer_id=3 row",
+        "extra_row": {"sales_date": "2026-06-12", "dealer_id": 3, "place": "Coimbatore", "lines": [{"design_id": 2, "grade_id": 3, "nos": 7}]},
+        "filters": {"dealer_ids": [1, 2]}
+      },
+      "expected_output": {
+        "transaction_row_count": 3,
+        "transaction_dealer_ids_unique_sorted": [1, 2],
+        "dealer_id_3_excluded": true
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-136",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "Sales Report with ALL 5 filters combined (date_from, date_to, dealer_ids, places, design_ids) returns the intersection.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "sales_seed": "10 rows spanning 2026-05-15 to 2026-06-15 across dealers {1,2,3} and designs {1,2}",
+        "filters": {
+          "date_from": "2026-06-01",
+          "date_to":   "2026-06-15",
+          "dealer_ids": [1, 2],
+          "places":     ["Dindivanam", "Attibelle"],
+          "design_ids": [1]
+        }
+      },
+      "expected_output": {
+        "all_5_predicates_applied": true,
+        "transaction_dates_in_range": true,
+        "transaction_dealer_ids_subset_of": [1, 2],
+        "transaction_places_subset_of": ["Dindivanam", "Attibelle"],
+        "transaction_design_ids_unique": [1]
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-137",
+      "feature_id": "F-011",
+      "ac_ref": "AC-047",
+      "description": "Consolidation rows GROUP BY (design_id, grade_id) and SUM(nos) per FORMULA-004. Multiple sales of same pair collapse into one consolidation row.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "sales_seed": [
+          {"sales_date": "2026-06-05", "lines": [{"design_id": 1, "grade_id": 1, "nos": 10}]},
+          {"sales_date": "2026-06-07", "lines": [{"design_id": 1, "grade_id": 1, "nos": 15}]},
+          {"sales_date": "2026-06-10", "lines": [{"design_id": 1, "grade_id": 1, "nos": 5}]}
+        ],
+        "filters": {}
+      },
+      "expected_output": {
+        "consolidation_row_count": 1,
+        "consolidation_row_total_nos": 30,
+        "transaction_row_count": 3,
+        "transaction_sum_nos": 30
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-138",
+      "feature_id": "F-011",
+      "ac_ref": "AC-047",
+      "description": "Consolidation ordering: ORDER BY design_name ASC, grade_code ASC per RULE-019. Returned in deterministic alphabetical order regardless of insertion order.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "sales_seed_pairs": [
+          {"design_name": "16X10 Ridges", "grade_code": "2"},
+          {"design_name": "11X7 Ridges",  "grade_code": "1"},
+          {"design_name": "16X10 Ridges", "grade_code": "1"},
+          {"design_name": "12X8 Ridges",  "grade_code": "OB"},
+          {"design_name": "12X8 Ridges",  "grade_code": "1"}
+        ]
+      },
+      "expected_output": {
+        "consolidation_order": [
+          {"design_name": "11X7 Ridges",  "grade_code": "1"},
+          {"design_name": "12X8 Ridges",  "grade_code": "1"},
+          {"design_name": "12X8 Ridges",  "grade_code": "OB"},
+          {"design_name": "16X10 Ridges", "grade_code": "1"},
+          {"design_name": "16X10 Ridges", "grade_code": "2"}
+        ]
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-139",
+      "feature_id": "F-011",
+      "ac_ref": "AC-048",
+      "description": "Transactions ordered by sales_date ASC per RULE-020. Same-date ties broken by header_id ASC for determinism.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "sales_seed_dates_in_random_insertion_order": ["2026-06-10", "2026-06-03", "2026-06-15", "2026-06-03", "2026-06-07"]
+      },
+      "expected_output": {
+        "transaction_sales_dates_in_returned_order": ["2026-06-03", "2026-06-03", "2026-06-07", "2026-06-10", "2026-06-15"]
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-140",
+      "feature_id": "F-011",
+      "ac_ref": "AC-049",
+      "description": "Both sections render simultaneously in a single response payload. GET /reports/sales returns JSON with both 'consolidation' and 'transactions' top-level keys in the same response.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/sales_report.py",
+      "function_ref": "get_sales_report",
+      "inputs": {
+        "request": "GET /api/v1/reports/sales"
+      },
+      "expected_output": {
+        "status_code": 200,
+        "response_body_keys": ["consolidation", "transactions"],
+        "no_pagination": true,
+        "no_separate_endpoints": true
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-141",
+      "feature_id": "F-011",
+      "ac_ref": "AC-050",
+      "description": "Reconciliation invariant — sum(transactions.nos) == sum(consolidation.total_nos) with no filters applied. Validates DS-017 shared-filter-predicate construction.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "sales_seed": "10 sales rows × 2 lines each × varying nos values; total nos = 537",
+        "filters": {}
+      },
+      "expected_output": {
+        "sum_transactions_nos": 537,
+        "sum_consolidation_total_nos": 537,
+        "invariant_holds": true
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-142",
+      "feature_id": "F-011",
+      "ac_ref": "AC-050",
+      "description": "Reconciliation invariant — sum(transactions.nos) == sum(consolidation.total_nos) with ALL filters applied. Same dataset as TC-141 but with date_from=2026-06-05, date_to=2026-06-10, dealer_ids=[1], places=['Dindivanam'], design_ids=[1].",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "sales_seed": "same as TC-141",
+        "filters": {
+          "date_from": "2026-06-05",
+          "date_to":   "2026-06-10",
+          "dealer_ids": [1],
+          "places":     ["Dindivanam"],
+          "design_ids": [1]
+        }
+      },
+      "expected_output": {
+        "sum_transactions_nos": "Σ filter-matching rows",
+        "sum_consolidation_total_nos": "same Σ",
+        "invariant_holds": true
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-143",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "SalesReportService.generate with all-None filter inputs (equivalent to no filters) returns both queries without WHERE clauses on the optional predicates.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "date_from": null,
+        "date_to": null,
+        "dealer_ids": null,
+        "places": null,
+        "design_ids": null
+      },
+      "expected_output": {
+        "consolidation_query_filters_count": 0,
+        "transactions_query_filters_count": 0,
+        "both_queries_use_same_filter_list_reference": true
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-144",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "SalesReportService.generate with empty list[] filter (dealer_ids=[]) is treated identically to None (skipped). Verifies the if-statement guards work with falsy lists.",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "dealer_ids": [],
+        "expected_behavior": "empty list NOT translated into 'dealer_id IN (empty)' which would return zero rows"
+      },
+      "expected_output": {
+        "treated_as": "no filter applied (full dataset)",
+        "result_row_count": "matches no-filter call"
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-145",
+      "feature_id": "F-011",
+      "ac_ref": "AC-050",
+      "description": "Edge — SalesReportService.generate asserts the AC-050 reconciliation invariant before return. A mocked scenario where the two queries return divergent sums MUST raise AssertionError (defense-in-depth per DS-017).",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "scenario": "Mock session.execute to return divergent SUMs for consolidation vs transactions"
+      },
+      "expected_output": {
+        "raises": "AssertionError",
+        "message_contains": "AC-050"
+      },
+      "should_raise": "AssertionError",
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-146",
+      "feature_id": "F-011",
+      "ac_ref": "AC-047",
+      "description": "SalesReportService.generate consolidation rows include all GROUP BY columns (design_id, grade_id, design_name, size, grade_code) and the SUM column (total_nos).",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "single_seed_row": {"sales_date": "2026-06-05", "dealer_id": 1, "lines": [{"design_id": 1, "grade_id": 1, "nos": 7}]},
+        "filters": {}
+      },
+      "expected_output": {
+        "consolidation_row": {"design_id": 1, "design_name": "16X10 Ridges", "size": "16X10", "grade_id": 1, "grade_code": "1", "total_nos": 7}
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-147",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "GET /api/v1/reports/sales with no query params returns HTTP 200 + full dataset.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/sales_report.py",
+      "function_ref": "get_sales_report",
+      "inputs": {
+        "request": "GET /api/v1/reports/sales"
+      },
+      "expected_output": {
+        "status_code": 200,
+        "response_body_keys": ["consolidation", "transactions"]
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-148",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "GET /api/v1/reports/sales?dealer_ids=1&dealer_ids=2 — FastAPI parses repeat-key query into list[int]=[1,2] and forwards to service. Confirms multi-select wire format works.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/sales_report.py",
+      "function_ref": "get_sales_report",
+      "inputs": {
+        "request": "GET /api/v1/reports/sales?dealer_ids=1&dealer_ids=2"
+      },
+      "expected_output": {
+        "status_code": 200,
+        "service_called_with": {"dealer_ids": [1, 2]}
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-149",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "GET /api/v1/reports/sales?date_from=not-a-date returns HTTP 422 (FastAPI date parse error). Server-side input validation per PRD non_functional.security.",
+      "type": "security",
+      "priority": "high",
+      "file_ref": "backend/src/presentation/api/routers/sales_report.py",
+      "function_ref": "get_sales_report",
+      "inputs": {
+        "request": "GET /api/v1/reports/sales?date_from=not-a-date"
+      },
+      "expected_output": {
+        "status_code": 422,
+        "response_body_contains": "date_from"
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-150",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "DesignGradeMapRepository.list_active_all returns ALL rows where map.is_active AND grade.is_active across all designs (NOT filtered by design_id). Verifies the new method extends list_active_by_design correctly.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/db/repositories/master.py",
+      "function_ref": "DesignGradeMapRepository.list_active_all",
+      "inputs": {
+        "seed": [
+          {"map_id": 1, "design_id": 1, "grade_id": 1, "is_active": true, "grade_is_active": true},
+          {"map_id": 2, "design_id": 1, "grade_id": 2, "is_active": true, "grade_is_active": true},
+          {"map_id": 3, "design_id": 2, "grade_id": 1, "is_active": true, "grade_is_active": true},
+          {"map_id": 4, "design_id": 3, "grade_id": 9, "is_active": true, "grade_is_active": true}
+        ]
+      },
+      "expected_output": {
+        "returned_count": 4,
+        "returned_map_ids_sorted": [1, 2, 3, 4],
+        "design_lazy_joined": true,
+        "grade_lazy_joined": true
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-151",
+      "feature_id": "F-010",
+      "ac_ref": "AC-017",
+      "description": "Edge — DesignGradeMapRepository.list_active_all EXCLUDES rows where map.is_active=false (S1 AC-017 soft-delete contract preserved).",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/db/repositories/master.py",
+      "function_ref": "DesignGradeMapRepository.list_active_all",
+      "inputs": {
+        "seed": [
+          {"map_id": 1, "design_id": 1, "grade_id": 1, "is_active": true,  "grade_is_active": true},
+          {"map_id": 2, "design_id": 1, "grade_id": 2, "is_active": false, "grade_is_active": true}
+        ]
+      },
+      "expected_output": {
+        "returned_count": 1,
+        "returned_map_ids": [1]
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-152",
+      "feature_id": "F-010",
+      "ac_ref": "AC-012",
+      "description": "Edge — DesignGradeMapRepository.list_active_all EXCLUDES rows where the JOINed parent grade is inactive (transitive filter via JOIN ON grade.is_active).",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/db/repositories/master.py",
+      "function_ref": "DesignGradeMapRepository.list_active_all",
+      "inputs": {
+        "seed": [
+          {"map_id": 1, "design_id": 1, "grade_id": 1, "is_active": true, "grade_is_active": true},
+          {"map_id": 2, "design_id": 1, "grade_id": 2, "is_active": true, "grade_is_active": false, "note": "grade soft-deleted by admin"}
+        ]
+      },
+      "expected_output": {
+        "returned_count": 1,
+        "returned_map_ids": [1]
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-153",
+      "feature_id": "F-012",
+      "ac_ref": "AC-051",
+      "description": "On the first transaction in Month N+1, opening_balance(month_first) MUST equal closing_balance(last day of Month N). Verifies FORMULA-002 end-to-end against existing domain.stock primitives — NO new code path.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/stock.py",
+      "function_ref": "opening_balance",
+      "inputs": {
+        "pair": {"design_id": 1, "grade_id": 1},
+        "month_n_seed": [
+          {"txn_date": "2026-05-10", "source_type": "inward", "delta": 80,  "running_balance": 80},
+          {"txn_date": "2026-05-25", "source_type": "sale",   "delta": -30, "running_balance": 50}
+        ],
+        "month_n_plus_1_first_txn": {"txn_date": "2026-06-03", "source_type": "inward", "nos": 10}
+      },
+      "expected_output": {
+        "closing_2026_05_31": 50,
+        "opening_2026_06_01": 50,
+        "after_first_june_txn_running_balance": 60
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-154",
+      "feature_id": "F-012",
+      "ac_ref": "AC-052",
+      "description": "When no prior month data exists for a (design, grade), opening = 0 (RULE-012). First-ever transaction for that pair should land with running_balance = delta (not + opening).",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/stock.py",
+      "function_ref": "opening_balance",
+      "inputs": {
+        "pair": {"design_id": 99, "grade_id": 99, "comment": "Never-touched pair"},
+        "ledger_seed": [],
+        "as_of_query_date": "2026-06-15"
+      },
+      "expected_output": {
+        "opening_balance": 0,
+        "closing_balance": 0
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-155",
+      "feature_id": "F-012",
+      "ac_ref": "AC-053",
+      "description": "Edge — Back-dated transaction in the 7-day window that STRADDLES a month boundary must leave carry-forward correct. Insert May 28 row first, then back-date a May 30 row inserted on June 4 (within 7-day window). May 31 closing AND June 1 opening must both reflect both rows.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/stock.py",
+      "function_ref": "apply_inward",
+      "inputs": {
+        "pair": {"design_id": 1, "grade_id": 1},
+        "step_1_insert": {"insertion_date": "2026-05-28", "txn_date": "2026-05-28", "source_type": "inward", "nos": 40},
+        "step_2_back_dated_insert": {"insertion_date": "2026-06-04", "txn_date": "2026-05-30", "source_type": "inward", "nos": 25, "note": "back-dated 5 days, within 7-day window"},
+        "queries_after_step_2": [
+          {"closing_balance": "2026-05-31"},
+          {"opening_balance": "2026-06-01"}
+        ]
+      },
+      "expected_output": {
+        "closing_2026_05_31": 65,
+        "opening_2026_06_01": 65,
+        "recompute_forward_executed": true
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-156",
+      "feature_id": "F-012",
+      "ac_ref": "AC-053",
+      "description": "Edge — After the back-dated cross-month insert in TC-155, the Stock Dashboard refetched at as_of=2026-06-15 must show: June row opening=65 (reflects back-dated May 30 row); inward/outward/adjust for June reflect only June movements; closing recomputes correctly.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/dashboard_service.py",
+      "function_ref": "DashboardService.list_as_of",
+      "inputs": {
+        "scenario": "Continuation of TC-155 — then add June 5 sale of 10 nos",
+        "june_addition": {"txn_date": "2026-06-05", "source_type": "sale", "nos": 10},
+        "as_of_date": "2026-06-15"
+      },
+      "expected_output": {
+        "dashboard_row": {
+          "opening": 65,
+          "inward": 0,
+          "outward": 10,
+          "adjust": 0,
+          "closing": 55
+        },
+        "carry_forward_consistent_across_back_date_window": true
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-157",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "Performance — Sales Report unfiltered query against 1 year of data returns in < 2s per PRD non_functional.performance.",
+      "type": "performance",
+      "priority": "high",
+      "file_ref": "backend/src/application/services/sales_report_service.py",
+      "function_ref": "SalesReportService.generate",
+      "inputs": {
+        "seed": "~12 months × ~80 sales/month × ~3 lines/sale ≈ 2880 sales_line rows",
+        "filters": {},
+        "iterations": 10
+      },
+      "expected_output": {
+        "p95_ms_max": 2000,
+        "threshold_source": "PRD non_functional.performance (Sales Report < 2s for 1 year of data unfiltered)"
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-158",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "Security — GET /api/v1/reports/sales?places=' OR 1=1-- → SQLAlchemy parameter binding prevents SQL injection; the literal string is passed to .in_() and matches zero rows (no place equals that string). No 500.",
+      "type": "security",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/sales_report.py",
+      "function_ref": "get_sales_report",
+      "inputs": {
+        "request": "GET /api/v1/reports/sales?places=' OR 1=1--"
+      },
+      "expected_output": {
+        "status_code": 200,
+        "transaction_row_count": 0,
+        "no_sql_injection": true
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-159",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "Integration smoke — End-to-end seed → /dashboard call uses real PostgreSQL via testcontainers (no mocks). Validates DI factory get_dashboard_service correctly wires DashboardService(db). Smoke for /ases-integration-test entry point IS-009.",
+      "type": "integration",
+      "priority": "high",
+      "file_ref": "backend/src/presentation/api/dependencies.py",
+      "function_ref": "get_dashboard_service",
+      "inputs": {
+        "scenario": "TestClient → real session → real query",
+        "as_of_date": "2026-06-15"
+      },
+      "expected_output": {
+        "status_code": 200,
+        "DI_factory_invoked": true,
+        "service_instance_received_db_session": true
+      },
+      "framework": "pytest"
+    },
+
+    {
+      "id": "TC-160",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "Integration smoke — End-to-end /reports/sales call wired through get_sales_report_service. Smoke for /ases-integration-test entry point IS-010.",
+      "type": "integration",
+      "priority": "high",
+      "file_ref": "backend/src/presentation/api/dependencies.py",
+      "function_ref": "get_sales_report_service",
+      "inputs": {
+        "scenario": "TestClient → real session → real query"
+      },
+      "expected_output": {
+        "status_code": 200,
+        "DI_factory_invoked": true
+      },
+      "framework": "pytest"
+    }
+
+  ],
+
+  "framework_summary": {
+    "pytest": 46,
+    "jest": 0,
+    "playwright": 0,
+    "note": "All 46 test cases are backend (pytest). Frontend tests for the dashboard + sales report UI ship via the /ases-ui-design S3 → /ases-test-impl track and will be appended to this file or written into the UI scaffold's own jest suite."
+  },
+
+  "type_summary": {
+    "unit": 8,
+    "integration": 27,
+    "edge": 8,
+    "performance": 2,
+    "security": 1
+  },
+
+  "priority_summary": {
+    "critical": 35,
+    "high": 11,
+    "low": 0
+  },
+
+  "ac_coverage_detail": {
+    "F-010": {
+      "AC-041": ["TC-115", "TC-116", "TC-117", "TC-123", "TC-124", "TC-125", "TC-126", "TC-129", "TC-130", "TC-131", "TC-132", "TC-150", "TC-159"],
+      "AC-042": ["TC-118"],
+      "AC-043": ["TC-119", "TC-127"],
+      "AC-044": ["TC-120", "TC-121", "TC-128"],
+      "AC-045": ["TC-122"]
+    },
+    "F-011": {
+      "AC-046": ["TC-133", "TC-134", "TC-135", "TC-136", "TC-143", "TC-144", "TC-147", "TC-148", "TC-149", "TC-157", "TC-158", "TC-160"],
+      "AC-047": ["TC-137", "TC-138", "TC-146"],
+      "AC-048": ["TC-139"],
+      "AC-049": ["TC-140"],
+      "AC-050": ["TC-141", "TC-142", "TC-145"]
+    },
+    "F-012": {
+      "AC-051": ["TC-153"],
+      "AC-052": ["TC-154"],
+      "AC-053": ["TC-155", "TC-156"]
+    },
+    "regression_coverage_from_S1": {
+      "AC-012": ["TC-152"],
+      "AC-017": ["TC-151"]
+    }
+  },
+
+  "lld_interface_coverage_check": {
+    "files_requiring_tests": [
+      "ledger_aggregates.py",
+      "dashboard_service.py",
+      "dashboard.py (router)",
+      "sales_report_service.py",
+      "sales_report.py (router)",
+      "master.py (modify — list_active_all)"
+    ],
+    "ledger_aggregates.py_tests": ["TC-123", "TC-124", "TC-125", "TC-126"],
+    "dashboard_service.py_tests": ["TC-115", "TC-116", "TC-118", "TC-119", "TC-120", "TC-121", "TC-122", "TC-127", "TC-128", "TC-129", "TC-156"],
+    "dashboard_router_tests": ["TC-117", "TC-130", "TC-131", "TC-132", "TC-159"],
+    "sales_report_service.py_tests": ["TC-133", "TC-134", "TC-135", "TC-136", "TC-137", "TC-138", "TC-139", "TC-141", "TC-142", "TC-143", "TC-144", "TC-145", "TC-146", "TC-157"],
+    "sales_report_router_tests": ["TC-140", "TC-147", "TC-148", "TC-149", "TC-158", "TC-160"],
+    "master.py_modify_tests": ["TC-150", "TC-151", "TC-152"],
+    "all_test_required_files_covered": true,
+    "files_not_requiring_tests_excluded": [
+      "presentation/schemas/dashboard.py (Pydantic only, test_required=false)",
+      "presentation/schemas/sales_report.py (Pydantic only, test_required=false)",
+      "presentation/api/dependencies.py (DI glue, test_required=false — but smoke-covered by TC-159/160 via the router calls)",
+      "main.py (FastAPI wiring, test_required=false)"
+    ]
+  },
+
+  "integration_scenarios_derived_from_hld": {
+    "DF-004 (M-006 Dashboard → M-004 GET /dashboard)": ["TC-117", "TC-130", "TC-159"],
+    "DF-005 (M-006 Sales Report → M-005 GET /reports/sales)": ["TC-140", "TC-147", "TC-148", "TC-160"]
+  },
+
+  "next": "/ases-sprint-gate S3"
+}

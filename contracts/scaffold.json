@@ -324,5 +324,44 @@
     "tech_debt_introduced": [],
     "gaps_resolved": [],
     "gaps_still_open": ["W5 / CF-001 (PO PG bring-up — independent of S2 dev)"]
+  },
+  "sprint_S3": {
+    "ran_at": "2026-06-26",
+    "scaffold_spec_ref": "sprints/S3/design/scaffold_spec.json",
+    "files_created": [],
+    "config_appended": [],
+    "added_packages": [],
+    "removed_packages": [],
+    "bumped_packages": [],
+    "npm_log_excerpt": "(no frontend deps added in S3 sprint-scaffold — frontend track defers to /ases-ui-design S3)",
+    "pip_log_excerpt": "(no backend deps added in S3 sprint-scaffold — S3 reuses the S1+S2 stack)",
+    "migrations_applied": [],
+    "verify_passed": true,
+    "verify_output": "no files created; deps unchanged; scaffold_spec ready_for_step_b=true; sprint-gate already verified deps_manifest_complete=PASS at design stage",
+    "skipped_steps": [
+      { "step": "B (file creation)", "reason": "scaffold_spec.files_to_create = []. All 7 net-new S3 source files land under existing scaffolded directories (presentation/schemas, infrastructure/db/repositories, application/services, presentation/api/routers); the 3 modify-targets exist with stable surfaces. Test files (placed at /ases-test-impl time) land under existing tests/{unit/application/services, integration/api, integration/db, unit/domain} directories." },
+      { "step": "B (dep install)", "reason": "dependency_changes.{backend,frontend}.{add,remove,bump} all = []. No pip install or npm install needed." },
+      { "step": "B.5 — Apply migrations", "reason": "scaffold_spec.migrations_to_apply = []. S3 is read-only at the persistence layer; deps_manifest.migrations = []." },
+      { "step": "B.6 — graphify update", "reason": "Optional — flagged as NB-S3-001 in analysis.json (graph is at S1-era commit 91d39423, current HEAD df03a51). Recommended before /ases-critique S3 but not required for /ases-tasks. PO may run /ases-graphify manually." }
+    ],
+    "files_deferred_to_ases_dev": [
+      { "path": "backend/src/presentation/schemas/dashboard.py",                "reason": "Pydantic v2 schema (DashboardRow) — implementation code (T-058 candidate)." },
+      { "path": "backend/src/infrastructure/db/repositories/ledger_aggregates.py", "reason": "LedgerAggregatesRepository (CASE-aggregated GROUP BY) — implementation code (T-059 candidate)." },
+      { "path": "backend/src/application/services/dashboard_service.py",        "reason": "DashboardService.list_as_of orchestration — implementation code (T-060 candidate)." },
+      { "path": "backend/src/presentation/api/routers/dashboard.py",            "reason": "GET /dashboard router — implementation code (T-061 candidate)." },
+      { "path": "backend/src/presentation/schemas/sales_report.py",             "reason": "ConsolidationRow + TransactionRow + SalesReportResponse — implementation code (T-062 candidate)." },
+      { "path": "backend/src/application/services/sales_report_service.py",     "reason": "SalesReportService.generate (shared filter predicate per DS-017) — implementation code (T-063 candidate)." },
+      { "path": "backend/src/presentation/api/routers/sales_report.py",         "reason": "GET /reports/sales router with multi-select Query params — implementation code (T-064 candidate)." },
+      { "path": "backend/src/infrastructure/db/repositories/master.py (MODIFY)", "reason": "Add DesignGradeMapRepository.list_active_all — implementation code (T-065 candidate)." },
+      { "path": "backend/src/presentation/api/dependencies.py (MODIFY)",        "reason": "Add get_dashboard_service + get_sales_report_service DI factories — implementation code (T-066 candidate)." },
+      { "path": "backend/src/main.py (MODIFY)",                                  "reason": "Mount 2 new routers under /api/v1 — implementation code (T-067 candidate)." }
+    ],
+    "tech_debt_introduced": [],
+    "gaps_resolved": [],
+    "gaps_still_open": [
+      "NB-S3-001 (graphify graph stale at commit 91d39423 — see analysis.json)",
+      "NB-S3-002 (W5 / CF-001 PO PG bring-up — independent of S3 dev)",
+      "NB-S3-003 (TD-001 + TD-010 UI-track tech-debt — surface at /ases-ui-scaffold S3)"
+    ]
   }
 }

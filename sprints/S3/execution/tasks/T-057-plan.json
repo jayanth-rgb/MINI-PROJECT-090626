@@ -1,0 +1,17 @@
+{
+  "task_id": "T-057",
+  "title": "DashboardRow Pydantic v2 schema",
+  "module_ref": "M-004",
+  "output_files": ["backend/src/presentation/schemas/dashboard.py"],
+  "scope": "Single Pydantic v2 BaseModel `DashboardRow` with 10 fields and ConfigDict(from_attributes=True). Pure data class. No validators, no business logic, no imports of project modules beyond pydantic.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-016"],
+  "success_criteria": {
+    "manual": "from src.presentation.schemas.dashboard import DashboardRow; DashboardRow.model_fields → 10 keys; DashboardRow.model_config['from_attributes'] is True.",
+    "automated": "T-061 + T-064 integration tests (TC-115, TC-117) serialize DashboardRow instances and pass.",
+    "definition_of_done": "File exists with exactly one BaseModel (DashboardRow), 10 typed fields per the LLD, ConfigDict(from_attributes=True). No other exports."
+  },
+  "checkout_prompt": "DashboardRow schema created. 10 fields, from_attributes=True. Ready for DashboardService projection in T-061."
+}

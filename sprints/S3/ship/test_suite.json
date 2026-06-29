@@ -1,0 +1,259 @@
+{
+  "$schema": "ases/v3.0/test_suite",
+  "sprint_id": "S3",
+  "produced_by": "/ases-test-impl",
+  "consumed_by": [
+    "/ases-test-run",
+    "/ases-integration-test",
+    "/ases-system-test"
+  ],
+  "convention_note": "Tests follow the established S1/S2 nested-layer convention: unit + edge co-located in tests/unit/<layer>/test_<sut>.py; repository-level tests live in tests/integration/db/ because they require testcontainers PG; API/router tests live in tests/integration/api/. This overrides the /ases-test-impl skill template's flat layout for continuity with the existing test tree.",
+  "test_files": [
+    {
+      "path": "backend/tests/unit/application/services/test_dashboard_service.py",
+      "task_ref": "T-061",
+      "test_case_refs": [
+        "TC-116",
+        "TC-121",
+        "TC-127",
+        "TC-128",
+        "TC-129"
+      ],
+      "type": "unit+edge",
+      "framework": "pytest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "pytest backend/tests/unit/application/services/test_dashboard_service.py -v",
+      "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    },
+    {
+      "path": "backend/tests/unit/application/services/test_sales_report_service.py",
+      "task_ref": "T-062",
+      "test_case_refs": [
+        "TC-143",
+        "TC-144",
+        "TC-145",
+        "TC-146"
+      ],
+      "type": "unit+edge",
+      "framework": "pytest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "pytest backend/tests/unit/application/services/test_sales_report_service.py -v",
+      "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    },
+    {
+      "path": "backend/tests/integration/db/test_ledger_aggregates.py",
+      "task_ref": "T-059",
+      "test_case_refs": [
+        "TC-123",
+        "TC-124",
+        "TC-125",
+        "TC-126"
+      ],
+      "type": "unit+edge (testcontainers-backed)",
+      "framework": "pytest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "pytest backend/tests/integration/db/test_ledger_aggregates.py -v",
+      "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    },
+    {
+      "path": "backend/tests/integration/db/test_design_grade_map_list_active_all.py",
+      "task_ref": "T-060",
+      "test_case_refs": [
+        "TC-150",
+        "TC-151",
+        "TC-152"
+      ],
+      "type": "unit+edge (testcontainers-backed)",
+      "framework": "pytest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "pytest backend/tests/integration/db/test_design_grade_map_list_active_all.py -v",
+      "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    },
+    {
+      "path": "backend/tests/integration/api/test_dashboard_api.py",
+      "task_ref": "T-061+T-063+T-064+T-066",
+      "test_case_refs": [
+        "TC-115",
+        "TC-117",
+        "TC-118",
+        "TC-119",
+        "TC-120",
+        "TC-130",
+        "TC-131",
+        "TC-156",
+        "TC-159"
+      ],
+      "type": "integration",
+      "framework": "pytest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "pytest backend/tests/integration/api/test_dashboard_api.py -v",
+      "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    },
+    {
+      "path": "backend/tests/integration/api/test_sales_report_api.py",
+      "task_ref": "T-062+T-063+T-065+T-066",
+      "test_case_refs": [
+        "TC-133",
+        "TC-134",
+        "TC-135",
+        "TC-136",
+        "TC-137",
+        "TC-138",
+        "TC-139",
+        "TC-140",
+        "TC-141",
+        "TC-142",
+        "TC-147",
+        "TC-148",
+        "TC-160"
+      ],
+      "type": "integration",
+      "framework": "pytest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "pytest backend/tests/integration/api/test_sales_report_api.py -v",
+      "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    },
+    {
+      "path": "backend/tests/integration/test_carry_forward.py",
+      "task_ref": "F-012 (verification only \u2014 no new dev task; tests existing S2 domain.stock)",
+      "test_case_refs": [
+        "TC-153",
+        "TC-154",
+        "TC-155"
+      ],
+      "type": "integration",
+      "framework": "pytest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "pytest backend/tests/integration/test_carry_forward.py -v",
+      "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    },
+    {
+      "path": "backend/tests/system/test_perf_dashboard.py",
+      "task_ref": "T-061",
+      "test_case_refs": [
+        "TC-122"
+      ],
+      "type": "performance",
+      "framework": "pytest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "pytest backend/tests/system/test_perf_dashboard.py -v",
+      "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    },
+    {
+      "path": "backend/tests/system/test_perf_sales_report.py",
+      "task_ref": "T-062",
+      "test_case_refs": [
+        "TC-157"
+      ],
+      "type": "performance",
+      "framework": "pytest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "pytest backend/tests/system/test_perf_sales_report.py -v",
+      "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    },
+    {
+      "path": "backend/tests/system/test_security_dashboard.py",
+      "task_ref": "T-064",
+      "test_case_refs": [
+        "TC-132"
+      ],
+      "type": "security",
+      "framework": "pytest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "pytest backend/tests/system/test_security_dashboard.py -v",
+      "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    },
+    {
+      "path": "backend/tests/system/test_security_sales_report.py",
+      "task_ref": "T-065",
+      "test_case_refs": [
+        "TC-149",
+        "TC-158"
+      ],
+      "type": "security",
+      "framework": "pytest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "pytest backend/tests/system/test_security_sales_report.py -v",
+      "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    }
+  ],
+  "coverage_map": {
+    "TC-115": "backend/tests/integration/api/test_dashboard_api.py::test_tc115_three_active_pairs_with_movements",
+    "TC-116": "backend/tests/unit/application/services/test_dashboard_service.py::test_tc116_empty_active_pairs_returns_empty_list",
+    "TC-117": "backend/tests/integration/api/test_dashboard_api.py::test_tc117_six_active_pairs_no_ledger_returns_six_zero_rows",
+    "TC-118": "backend/tests/integration/api/test_dashboard_api.py::test_tc118_first_month_opening_is_zero",
+    "TC-119": "backend/tests/integration/api/test_dashboard_api.py::test_tc119_opening_equals_prior_month_closing",
+    "TC-120": "backend/tests/integration/api/test_dashboard_api.py::test_tc120_closing_invariant_with_multi_row_june_sequence",
+    "TC-121": "backend/tests/unit/application/services/test_dashboard_service.py::test_tc121_rows_after_asof_excluded_from_sums",
+    "TC-122": "backend/tests/system/test_perf_dashboard.py::test_tc122_dashboard_p95_under_500ms",
+    "TC-123": "backend/tests/integration/db/test_ledger_aggregates.py::test_tc123_sum_deltas_returns_correct_aggregates_per_pair",
+    "TC-124": "backend/tests/integration/db/test_ledger_aggregates.py::test_tc124_empty_date_window_returns_empty_list",
+    "TC-125": "backend/tests/integration/db/test_ledger_aggregates.py::test_tc125_outward_sum_reads_positive_from_negative_sale_deltas",
+    "TC-126": "backend/tests/integration/db/test_ledger_aggregates.py::test_tc126_adjust_sum_preserves_signed_values",
+    "TC-127": "backend/tests/unit/application/services/test_dashboard_service.py::test_tc127_month_first_derived_correctly",
+    "TC-128": "backend/tests/unit/application/services/test_dashboard_service.py::test_tc128_tampered_running_balance_raises_assertion_error",
+    "TC-129": "backend/tests/unit/application/services/test_dashboard_service.py::test_tc129_result_ordered_by_design_name_then_grade_code",
+    "TC-130": "backend/tests/integration/api/test_dashboard_api.py::test_tc130_get_dashboard_returns_200_with_correct_schema",
+    "TC-131": "backend/tests/integration/api/test_dashboard_api.py::test_tc131_missing_as_of_date_returns_422",
+    "TC-132": "backend/tests/system/test_security_dashboard.py::test_tc132_invalid_date_format_returns_422",
+    "TC-133": "backend/tests/integration/api/test_sales_report_api.py::test_tc133_no_filters_returns_full_dataset",
+    "TC-134": "backend/tests/integration/api/test_sales_report_api.py::test_tc134_single_dealer_filter_returns_only_that_dealer",
+    "TC-135": "backend/tests/integration/api/test_sales_report_api.py::test_tc135_multi_select_dealer_filter_returns_union",
+    "TC-136": "backend/tests/integration/api/test_sales_report_api.py::test_tc136_all_five_filters_return_intersection",
+    "TC-137": "backend/tests/integration/api/test_sales_report_api.py::test_tc137_consolidation_groups_same_pair_into_one_row",
+    "TC-138": "backend/tests/integration/api/test_sales_report_api.py::test_tc138_consolidation_ordered_by_design_name_then_grade_code",
+    "TC-139": "backend/tests/integration/api/test_sales_report_api.py::test_tc139_transactions_ordered_by_sales_date_asc",
+    "TC-140": "backend/tests/integration/api/test_sales_report_api.py::test_tc140_response_has_both_consolidation_and_transactions_keys",
+    "TC-141": "backend/tests/integration/api/test_sales_report_api.py::test_tc141_reconciliation_invariant_no_filters",
+    "TC-142": "backend/tests/integration/api/test_sales_report_api.py::test_tc142_reconciliation_invariant_all_filters",
+    "TC-143": "backend/tests/unit/application/services/test_sales_report_service.py::test_tc143_all_none_filters_produce_empty_filter_list",
+    "TC-144": "backend/tests/unit/application/services/test_sales_report_service.py::test_tc144_empty_list_filters_treated_as_no_filter",
+    "TC-145": "backend/tests/unit/application/services/test_sales_report_service.py::test_tc145_divergent_sums_raise_assertion_error",
+    "TC-146": "backend/tests/unit/application/services/test_sales_report_service.py::test_tc146_consolidation_row_has_all_columns",
+    "TC-147": "backend/tests/integration/api/test_sales_report_api.py::test_tc147_no_query_params_returns_200_with_both_keys",
+    "TC-148": "backend/tests/integration/api/test_sales_report_api.py::test_tc148_repeat_key_dealer_ids_parsed_as_list",
+    "TC-149": "backend/tests/system/test_security_sales_report.py::test_tc149_invalid_date_from_returns_422",
+    "TC-150": "backend/tests/integration/db/test_design_grade_map_list_active_all.py::test_tc150_list_active_all_returns_all_active_maps",
+    "TC-151": "backend/tests/integration/db/test_design_grade_map_list_active_all.py::test_tc151_inactive_map_excluded",
+    "TC-152": "backend/tests/integration/db/test_design_grade_map_list_active_all.py::test_tc152_inactive_grade_excluded_via_join",
+    "TC-153": "backend/tests/integration/test_carry_forward.py::test_tc153_opening_balance_equals_prior_month_closing",
+    "TC-154": "backend/tests/integration/test_carry_forward.py::test_tc154_opening_balance_zero_for_new_pair",
+    "TC-155": "backend/tests/integration/test_carry_forward.py::test_tc155_backdated_crossmonth_insert_carry_forward_correct",
+    "TC-156": "backend/tests/integration/api/test_dashboard_api.py::test_tc156_backdated_crossmonth_insert_reflects_in_june_dashboard",
+    "TC-157": "backend/tests/system/test_perf_sales_report.py::test_tc157_sales_report_p95_latency",
+    "TC-158": "backend/tests/system/test_security_sales_report.py::test_tc158_sql_injection_via_places_returns_empty",
+    "TC-159": "backend/tests/integration/api/test_dashboard_api.py::test_tc159_di_factory_smoke_real_session",
+    "TC-160": "backend/tests/integration/api/test_sales_report_api.py::test_tc160_integration_smoke_di_factory_wired"
+  },
+  "run_all_cmd": "pytest backend/tests/ -v",
+  "run_s3_only_cmd": "pytest backend/tests/unit/application/services/test_dashboard_service.py backend/tests/unit/application/services/test_sales_report_service.py backend/tests/integration/db/test_ledger_aggregates.py backend/tests/integration/db/test_design_grade_map_list_active_all.py backend/tests/integration/api/test_dashboard_api.py backend/tests/integration/api/test_sales_report_api.py backend/tests/integration/test_carry_forward.py backend/tests/system/test_perf_dashboard.py backend/tests/system/test_perf_sales_report.py backend/tests/system/test_security_dashboard.py backend/tests/system/test_security_sales_report.py -v",
+  "total_cases": 46,
+  "skipped_cases": 0,
+  "compile_check": "11/11 files py_compile OK",
+  "test_function_count_verified": 46,
+  "fixtures_used_from_conftest": [
+    "pg_container (session)",
+    "db_session (function)",
+    "client (function \u2014 FastAPI TestClient with get_db override)"
+  ],
+  "files_modified_outside_tests": [],
+  "next": "/ases-test-run S3",
+  "final_run_verdict": "PASS",
+  "final_run_pass_count": 158,
+  "final_run_total": 158,
+  "fix_attempts_used": {
+    "TC-142": 1,
+    "TC-122": 1
+  }
+}

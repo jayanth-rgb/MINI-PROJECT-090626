@@ -1,0 +1,1 @@
+{"task_id": "T-058", "test_case_refs": [], "priority": "n/a", "notes": "test_required=false per LLD files[4]. Schema correctness verified transitively via T-062 (TC-133, TC-143) and T-065 (TC-140, TC-147)."}

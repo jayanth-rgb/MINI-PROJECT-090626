@@ -1,0 +1,17 @@
+{
+  "task_id": "T-061",
+  "title": "DashboardService.list_as_of — F-010 orchestration",
+  "module_ref": "M-004",
+  "output_files": ["backend/src/application/services/dashboard_service.py"],
+  "scope": "M-004 use case. Single class DashboardService with one public method list_as_of(as_of_date: date) → list[DashboardRow]. Composes DesignGradeMapRepository.list_active_all (T-060), LedgerAggregatesRepository.sum_deltas_by_source_type (T-059), and domain.stock.opening_balance + closing_balance (S2 T-045). Asserts the formula invariant opening + inward − outward + adjust == closing per row. Result ordered by design_name ASC, grade_code ASC.",
+  "do_not_touch": ["backend/src/domain/stock.py", "backend/src/infrastructure/db/repositories/*", "backend/src/presentation/schemas/dashboard.py", "any other service", "any test file"],
+  "depends_on": ["T-057", "T-059", "T-060"],
+  "test_case_refs": ["TC-115", "TC-116", "TC-118", "TC-119", "TC-120", "TC-121", "TC-122", "TC-127", "TC-128", "TC-129", "TC-156"],
+  "decisions_referenced": ["DS-002", "DS-003", "DS-004", "DS-015", "DS-016"],
+  "success_criteria": {
+    "manual": "Seed 3 active pairs + a mix of inward/sale/adjustment ledger rows across June 2026. Call list_as_of(date(2026,6,30)) → exactly 3 DashboardRow with all 10 fields populated, sorted by design_name ASC then grade_code ASC, with opening + inward − outward + adjust == closing per row.",
+    "automated": "All 11 TCs pass (TC-122 performance < 500ms p95 over 10 runs).",
+    "definition_of_done": "Single class, single public method. Single DB round-trip for the aggregate (T-059) + O(N) latest_as_of lookups for opening/closing. AssertionError raised if invariant fails. NO direct SQL — composition only."
+  },
+  "checkout_prompt": "DashboardService.list_as_of implemented. Composes list_active_all + sum_deltas_by_source_type + opening/closing_balance, asserts the formula invariant, returns sorted DashboardRows. Ready for router wiring in T-064."
+}

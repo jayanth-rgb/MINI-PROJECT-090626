@@ -1,0 +1,195 @@
+{
+  "$schema": "ases/v3.0/sprint_summary",
+  "document": "sprint_summary",
+  "produced_by": "/ases-sprint-close",
+  "consumed_by": ["/ases-test-impl", "/ases-final-audit", "/ases-release"],
+  "sprint_id": "S3",
+  "closed_on": "2026-06-26",
+  "sprint_goal": "Read-side completion: Stock Dashboard (F-010), Sales Report (F-011), and end-to-end carry-forward verification (F-012) backed by zero new tables/migrations/dependencies. Single-query GROUP BY aggregation for the dashboard (DS-016) and shared filter-predicate for the dual-payload sales report (DS-017) — both built on the materialized stock ledger and denormalized place snapshots delivered by S2.",
+  "scope_features": ["F-010", "F-011", "F-012"],
+  "scope_modules": ["M-004", "M-005"],
+
+  "task_summary": {
+    "total_backend_tasks": 10,
+    "completed_count": 10,
+    "deferred_count": 0,
+    "escalated_count": 0,
+    "in_progress_count": 0,
+    "iteration_count_max": 1,
+    "iteration_count_avg": 1.0,
+    "batch_outcome": "/ases-batch-exec 10/10 CHECKOUT; /ases-batch-critique 10/10 CLEAN on iteration 1",
+    "ui_track": "deferred to /ases-ui-design S3 → /ases-ui-review S3 → /ases-ui-scaffold S3 — backend API surface (GET /api/v1/dashboard, GET /api/v1/reports/sales) is complete and critiqued; UI track can start in parallel with Phase 3 ship"
+  },
+
+  "completed_tasks": [
+    { "id": "T-057", "title": "DashboardRow Pydantic v2 schema",                   "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-058", "title": "Sales Report schemas (Consolidation/Transaction/Response)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-059", "title": "LedgerAggregatesRepository (single CASE-aggregated GROUP BY — DS-016)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-060", "title": "DesignGradeMapRepository.list_active_all MODIFY (M-001)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-061", "title": "DashboardService.list_as_of orchestration (F-010 core)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-062", "title": "SalesReportService.generate — shared filter predicate (F-011 core, DS-017)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-063", "title": "dependencies.py — 2 new DI factories (M-002)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-064", "title": "GET /dashboard router", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-065", "title": "GET /reports/sales router (multi-select filters)", "iterations": 1, "verdict": "CLEAN" },
+    { "id": "T-066", "title": "main.py MODIFY — mount 2 new routers", "iterations": 1, "verdict": "CLEAN" }
+  ],
+
+  "deferred_tasks": [],
+  "escalated_tasks": [],
+
+  "features_shipped": [
+    {
+      "feature_id": "F-010",
+      "name": "Stock Dashboard",
+      "ac_count": 5,
+      "ac_refs": ["AC-041", "AC-042", "AC-043", "AC-044", "AC-045"],
+      "backend_tasks": ["T-057", "T-059", "T-060", "T-061", "T-063", "T-064", "T-066"],
+      "ui_components": ["DashboardPage (deferred to /ases-ui-scaffold S3)"]
+    },
+    {
+      "feature_id": "F-011",
+      "name": "Sales Report (Consolidation + Transactions)",
+      "ac_count": 5,
+      "ac_refs": ["AC-046", "AC-047", "AC-048", "AC-049", "AC-050"],
+      "backend_tasks": ["T-058", "T-062", "T-063", "T-065", "T-066"],
+      "ui_components": ["SalesReportPage (deferred to /ases-ui-scaffold S3)"]
+    },
+    {
+      "feature_id": "F-012",
+      "name": "Monthly Carry-Forward (verification only — no new code)",
+      "ac_count": 3,
+      "ac_refs": ["AC-051", "AC-052", "AC-053"],
+      "backend_tasks": [],
+      "verification": "Phase 3 integration tests TC-153/154/155/156 exercise existing S2 domain.stock.opening_balance + closing_balance + _recompute_forward to confirm carry-forward semantics survive end-to-end through the new dashboard + report paths.",
+      "ui_components": []
+    }
+  ],
+
+  "new_decisions": [
+    {
+      "id": "DS-015",
+      "topic": "Stock-ledger write contract MUST acquire pg_advisory_xact_lock(design_id, grade_id) BEFORE SELECT ... FOR UPDATE LIMIT 1 (amends DS-002)",
+      "status_in_decisions_json": "already present from /ases-lld S3 (documents the TD-011 fix from S2 as canonical pattern)",
+      "amends": ["DS-002"]
+    },
+    {
+      "id": "DS-016",
+      "topic": "Stock Dashboard aggregation uses a SINGLE CASE-aggregated GROUP BY query — not per-(design, grade) sub-queries",
+      "status_in_decisions_json": "already present from /ases-lld S3",
+      "verified_by": ["T-059", "T-061", "critique_T-059", "critique_T-061"]
+    },
+    {
+      "id": "DS-017",
+      "topic": "Sales Report consolidation + transactions queries SHARE a single filter-predicate builder — guarantees AC-050 reconciliation by construction",
+      "status_in_decisions_json": "already present from /ases-lld S3",
+      "verified_by": ["T-062", "critique_T-062"]
+    }
+  ],
+
+  "new_tech_debt": [],
+
+  "closed_tech_debt": [],
+
+  "tech_debt": [],
+
+  "carry_forward": [
+    {
+      "id": "CF-001",
+      "description": "W5: PO bring-up of PostgreSQL container + alembic upgrade head + seed run. Carried from S1 → S2 → S3; still pending. Phase 3 verification uses testcontainers so this is not blocking /ases-test-impl, /ases-test-run, or /ases-integration-test. Only required for manual API smoke testing the new /dashboard + /reports/sales endpoints out-of-band.",
+      "source_sprint": "S1",
+      "still_pending": true,
+      "action_owner": "PO (Jayanth)",
+      "next_due": "Before any S3 manual API smoke test; otherwise can persist into S4"
+    },
+    {
+      "id": "TD-001",
+      "description": "shadcn calendar.tsx classNames patch (target_sprint=S3) — surface at /ases-ui-scaffold S3 not /ases-tasks. UI-track item.",
+      "source_sprint": "scaffold",
+      "still_pending": true,
+      "action_owner": "/ases-ui-scaffold S3",
+      "next_due": "When the UI track produces the dashboard date-picker"
+    },
+    {
+      "id": "TD-010",
+      "description": "Radix UI Select/Popover jsdom incompatibility — 7 frontend TCs deferred from S2. target_sprint='S3 or V2'. PO decision pending (mock @radix-ui shim, Playwright E2E, or accept-as-scaffold-coverage).",
+      "source_sprint": "S2",
+      "still_pending": true,
+      "action_owner": "PO + /ases-ui-scaffold S3 (if chosen now)",
+      "next_due": "/ases-ui-design S3 will surface a recommendation"
+    }
+  ],
+
+  "test_case_refs_to_verify_in_phase_3": {
+    "total": 46,
+    "backend": {
+      "count": 46,
+      "id_range": "TC-115..TC-160",
+      "framework": "pytest",
+      "highlights": [
+        "TC-115/118/119/120/156 — Dashboard column math + carry-forward through month boundary (critical)",
+        "TC-122 — Dashboard p95 < 500ms perf gate (DS-016 / AC-045)",
+        "TC-123..126 — LedgerAggregatesRepository correctness (testcontainers-backed)",
+        "TC-141/142/145 — AC-050 reconciliation under varied filter combinations (DS-017)",
+        "TC-150/151/152 — DesignGradeMap cascade through list_active_all (AC-012/AC-017)",
+        "TC-153/154/155 — F-012 carry-forward verification against existing S2 domain.stock (zero new code path)",
+        "TC-158 — SQL-injection security gate at /reports/sales (load-bearing)",
+        "TC-159/160 — DI integration smoke for both new endpoints"
+      ]
+    },
+    "frontend": {
+      "count": 0,
+      "note": "S3 frontend TCs land in /ases-ui-design S3 → /ases-ui-scaffold S3, not in this sprint."
+    }
+  },
+
+  "next_sprint_inputs": {
+    "sprint_id": "V2 (or S4 if scoped differently)",
+    "scope_hint": "Post-V1 candidates from PRD deferred_items: user authentication & RBAC, pricing/invoicing/payment, Inward Report, PDF/Excel export, manufacturing tiles. Also worth re-evaluating: dashboard date-range picker (currently single as_of_date), and pagination on /reports/sales (currently returns the full filtered set).",
+    "carry_forward_tasks": ["CF-001", "TD-001", "TD-010", "TD-008"],
+    "known_constraints": [
+      "Dashboard target p95 < 500ms locked at DS-016 — any future caching layer must respect cache-invalidation when ledger rows arrive (especially back-dated rows that trigger _recompute_forward).",
+      "Sales Report filters all .in_() parameter-bound — TC-158 verifies SQL-injection safety; any new filter must follow the shared _build_filters helper pattern (DS-017).",
+      "TD-008 first-row insert race still V2-deferred — any new write path on the ledger MUST go through domain.stock._apply with pg_advisory_xact_lock-first (DS-015).",
+      "Read endpoints return AssertionError → 500 on invariant breach (DS-016 ledger-corruption signal). Any observability layer must surface those 500s loudly rather than swallow them."
+    ],
+    "suggested_prd_updates": [
+      "AC-045 dashboard latency was numeric in S3 spec (p95 < 500ms over 10 runs at 6 pairs × 12 months). Confirm this stays the contract in V2 or relax if production hardware differs.",
+      "PRD currently has no AC for pagination on /reports/sales or /sales — set a row-count threshold (e.g. 'response > 10,000 rows triggers warning' or 'reports paginated at 500/page') before V2 if reports grow large.",
+      "Consider documenting the F-012 carry-forward correctness as a first-class AC (not just verification) so it lands in test_spec for future sprints that touch domain.stock.",
+      "Frontend Dashboard + Sales Report ACs live in PRD scope but no UI ACs exist for chart-vs-table layouts — clarify at /ases-ui-design S3."
+    ],
+    "carry_forward_from_S3": ["CF-001 (PG bring-up still pending)", "TD-001 (shadcn calendar)", "TD-010 (Radix jsdom)"],
+    "decisions_to_revisit": []
+  },
+
+  "phase_transition": {
+    "from": "SPRINT_EXECUTION",
+    "to": "SPRINT_SHIP",
+    "next_skill": "/ases-test-impl S3",
+    "phase_3_sequence": [
+      "/ases-test-impl S3",
+      "/ases-test-run S3",
+      "/ases-integration-test S3",
+      "/ases-system-test S3",
+      "/ases-uat S3 (PO gate)",
+      "/ases-devops S3",
+      "/ases-final-audit S3 (PO gate)",
+      "/ases-release S3"
+    ],
+    "parallel_track": "/ases-ui-design S3 may begin immediately — backend surface frozen + critiqued"
+  },
+
+  "graphify_refreshed": {
+    "ran_at": "2026-06-26",
+    "node_count_before": 8442,
+    "node_count_after": 11895,
+    "edge_count_before": 8939,
+    "edge_count_after": 12900,
+    "communities_before": 834,
+    "communities_after": 1106,
+    "note": "Graph now reflects S2 transactions/ledger + S3 dashboard/reports code. Closes NB-S3-001."
+  },
+
+  "produced_at": "2026-06-26",
+  "produced_by": "/ases-sprint-close S3"
+}

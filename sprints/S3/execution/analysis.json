@@ -1,0 +1,105 @@
+{
+  "$schema": "ases/v3.0/analysis",
+  "sprint_id": "S3",
+  "verdict": "READY",
+  "produced_by": "/ases-analyze S3",
+  "timestamp": "2026-06-26T00:00:00Z",
+  "graph_assisted": false,
+  "graph_assisted_reason": "graphify-out/GRAPH_REPORT.md exists but was built at commit 91d39423 (post-S1 release, pre-S2). Current HEAD is df03a51 (S2 release). The graph predates S2 transactions/ledger code that S3 reads against — running /ases-graphify before /ases-tasks would refresh it. Not a sprint-blocking gap because /ases-analyze does not depend on the graph for the structural diffs performed in this run.",
+  "scope_under_test": {
+    "lld_files_total": 10,
+    "lld_files_new": 7,
+    "lld_files_modified": 3,
+    "modules": ["M-004 (new)", "M-005 (new)", "M-001 (modify)", "M-002 (modify)"],
+    "features": ["F-010", "F-011", "F-012"]
+  },
+  "checks_performed": [
+    {
+      "check": "deps_manifest_packages_vs_installed",
+      "status": "pass",
+      "details": "deps_manifest.packages=[] (zero new backend Python packages). Backend venv at backend/.venv reports: fastapi=0.115.6, sqlalchemy=2.0.36, pydantic=2.10.4, alembic=1.14.0, psycopg=3.2.3, pytest=8.3.4, uvicorn=0.34.0, httpx=0.28.1 — all match scaffold.installed_packages. All S3 LLD imports (SQLAlchemy case/func.sum/select/.in_, Pydantic BaseModel/ConfigDict, FastAPI APIRouter/Query/Depends, datetime) resolve against the existing stack."
+    },
+    {
+      "check": "deps_manifest_migrations_vs_alembic_versions",
+      "status": "pass",
+      "details": "deps_manifest.migrations=[]. S3 is read-only at the schema layer — no alembic revision file is expected or required. Existing versions (0001_baseline.sql + 0002_master_tables.py + 0003_transaction_and_ledger_tables.py) intact."
+    },
+    {
+      "check": "lld_files_new_do_not_pre_exist",
+      "status": "pass",
+      "details": "All 7 LLD-new files are absent from the codebase: backend/src/presentation/schemas/dashboard.py, backend/src/infrastructure/db/repositories/ledger_aggregates.py, backend/src/application/services/dashboard_service.py, backend/src/presentation/api/routers/dashboard.py, backend/src/presentation/schemas/sales_report.py, backend/src/application/services/sales_report_service.py, backend/src/presentation/api/routers/sales_report.py. No collisions; safe to create in /ases-dev."
+    },
+    {
+      "check": "lld_files_modified_exist_with_expected_surface",
+      "status": "pass",
+      "details": "All 3 LLD-modify files exist and present the surface the LLD expects to extend (not replace): (a) backend/src/infrastructure/db/repositories/master.py — DesignGradeMapRepository exists with list_active_by_design (S1); LLD adds sibling list_active_all method. (b) backend/src/presentation/api/dependencies.py — 10 existing DI factories present (supplier, staff, dealer, grade, design, design_grade_map, inward, sales, adjustment, design_grade_cb); LLD adds 2 (get_dashboard_service, get_sales_report_service). (c) backend/src/main.py — 9 existing include_router calls present (suppliers, staff, dealers, grades, designs, design_grade_map, inward, sales, adjustments); LLD adds 2 (dashboard, sales_report). All three are purely additive — no shared-line edits."
+    },
+    {
+      "check": "lld_depends_on_resolves_to_existing_code",
+      "status": "pass",
+      "details": "Cross-checked each LLD file's depends_on[] against the working tree: backend/src/infrastructure/db/models/transactions.py (S2) present; backend/src/infrastructure/db/repositories/base.py (S1) present; backend/src/domain/stock.py (S2) present with opening_balance + closing_balance + pg_advisory_xact_lock pattern at lines 23/123/134; backend/src/infrastructure/db/models/master.py (S1) present; backend/src/infrastructure/db/session.py (S1) present with get_db. No dangling depends_on edges."
+    },
+    {
+      "check": "s2_composite_indexes_present",
+      "status": "pass",
+      "details": "DS-016 requires ix_stock_ledger_dgt(design_id, grade_id, txn_date DESC, ledger_id DESC) for the dashboard SUM-over-window plan. DS-017 / RULE-019 / RULE-020 require ix_sales_header_sales_date, ix_sales_header_dealer, ix_sales_line_dgd for the sales-report joins/filters. All four indexes confirmed in backend/src/infrastructure/db/models/transactions.py and backend/db/migrations/versions/0003_transaction_and_ledger_tables.py (T-042). Query planner support for S3 hot paths is in place."
+    },
+    {
+      "check": "env_vars_present_in_env_example",
+      "status": "pass",
+      "details": "deps_manifest.env_vars: DATABASE_URL (required) — present at backend/.env.example line 4 with the exact postgresql+psycopg DSN shape the manifest documents. NEXT_PUBLIC_API_URL (required) — present at frontend/.env.example line 5 with http://localhost:8000/api/v1. Both inherited unchanged from S1; no new env vars needed for S3."
+    },
+    {
+      "check": "no_drift_from_previous_sprints",
+      "status": "pass",
+      "details": "S1 master CRUD surface (10 service factories, 9 routers, DesignGradeMapRepository.list_active_by_design) intact at scaffold-spec versions. S2 transactions surface (StockLedgerModel + 7 new tables + 4 composite indexes + domain.stock advisory-lock-first write contract per DS-015) intact at TD-011 fix level. No file from a closed sprint has unexplained modifications since commit 68a675e."
+    },
+    {
+      "check": "carry_forward_items_acknowledged",
+      "status": "pass",
+      "details": "context.open_issues W5 / CF-001 (PO PG bring-up) acknowledged — not blocking S3 dev because backend/tests/conftest.py uses testcontainers (ephemeral PG) for the test layer. TD-001 + TD-010 target_sprint=S3 acknowledged — both belong to the UI track (calendar.tsx shadcn patch, Radix Select/Popover jsdom incompatibility); will be revisited at /ases-ui-scaffold S3 per their own logic, not /ases-tasks."
+    }
+  ],
+  "blocking_gaps": [],
+  "non_blocking_gaps": [
+    {
+      "id": "NB-S3-001",
+      "description": "Knowledge graph (graphify-out/) is stale: built from commit 91d39423 (S1 era), but current HEAD is df03a51 (S2 release). The graph does not yet reflect S2 transactions/ledger code that S3 reads from. /ases-analyze and /ases-tasks do not depend on the graph for structural correctness, but /ases-critique benefits from a fresh graph for cross-file consistency checks.",
+      "impact": "low",
+      "resolution": "Run /ases-graphify before /ases-tasks (no LLM cost — AST-only)."
+    },
+    {
+      "id": "NB-S3-002",
+      "description": "Carry-forward W5 / CF-001 (long-lived PostgreSQL bring-up by PO + alembic upgrade head + seed run) still pending from S1. S3 unit + integration test layers use testcontainers and do not require a long-lived PG, so this does not block /ases-dev or /ases-test-run. It remains a precondition for any out-of-band manual API smoke test of the new /dashboard and /reports/sales endpoints.",
+      "impact": "low",
+      "resolution": "PO action — `cd backend && docker-compose up -d db && alembic upgrade head` then `python -m scripts.seed_master` (mirrors S1 W5 instructions). Independent of S3 task execution."
+    },
+    {
+      "id": "NB-S3-003",
+      "description": "TD-001 (shadcn calendar.tsx classNames patch) and TD-010 (Radix Select/Popover jsdom incompatibility, 7 TCs deferred from S2) both list target_sprint='S3'. They belong to the UI track and will surface at /ases-ui-scaffold S3 (not /ases-tasks). No action required at /ases-analyze.",
+      "impact": "negligible",
+      "resolution": "Address in UI track per their target_sprint when /ases-ui-design S3 begins."
+    }
+  ],
+  "codebase_drift": [],
+  "graph_summary": {
+    "graph_built_at_commit": "91d39423",
+    "current_head_commit": "df03a51",
+    "drift": "graph is 2 sprints behind code (missing S2 transactions/ledger)",
+    "recommendation": "run /ases-graphify (AST-only, no LLM cost) before /ases-critique S3 — not required for /ases-tasks"
+  },
+  "scope_summary": {
+    "ac_coverage_at_sprint_gate": "13/13 ACs (100%)",
+    "test_cases_total": 46,
+    "new_backend_packages": 0,
+    "new_migrations": 0,
+    "new_env_vars": 0,
+    "files_to_create": 7,
+    "files_to_modify": 3,
+    "modules_new": ["M-004", "M-005"],
+    "modules_modified": ["M-001", "M-002"]
+  },
+  "next_command_on_READY": "/ases-sprint-scaffold S3",
+  "po_approval_required": false,
+  "summary_one_line": "S3 design is internally consistent and aligns with the current codebase: zero new backend packages, zero new migrations, zero new env vars, 7 net-new files do not collide, 3 modify-targets exist with stable surfaces, all S2 indexes and domain primitives that S3 reads against are in place."
+}

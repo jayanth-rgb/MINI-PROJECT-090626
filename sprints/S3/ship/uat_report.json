@@ -1,0 +1,55 @@
+{
+  "$schema": "ases/v3.0/uat_report",
+  "sprint_id": "S3",
+  "reviewer": "Jayanth (PO)",
+  "reviewed_at": "2026-06-29",
+  "verdict": "APPROVED",
+  "ac_review": {
+    "total_acs": 13,
+    "accepted": 13,
+    "accepted_with_notes": 0,
+    "rejected": 0,
+    "details": [
+      { "ac_id": "AC-041", "feature": "F-010", "status": "accepted", "tests": ["TC-115", "TC-117", "TC-129", "TC-130", "TC-150", "IS-009", "ST-012"] },
+      { "ac_id": "AC-042", "feature": "F-010", "status": "accepted", "tests": ["TC-118", "TC-154"] },
+      { "ac_id": "AC-043", "feature": "F-010", "status": "accepted", "tests": ["TC-119", "TC-127", "TC-153", "IS-012"] },
+      { "ac_id": "AC-044", "feature": "F-010", "status": "accepted", "tests": ["TC-120", "TC-121", "TC-128", "IS-009"] },
+      { "ac_id": "AC-045", "feature": "F-010", "status": "accepted", "tests": ["TC-122", "ST-008"], "perf_evidence": "ST-008 p95=33.1ms (p50=24.8ms) over 30 HTTP samples; ~24x headroom" },
+      { "ac_id": "AC-046", "feature": "F-011", "status": "accepted", "tests": ["TC-133", "TC-134", "TC-135", "TC-136", "TC-143", "TC-144", "TC-147", "TC-148", "IS-010"] },
+      { "ac_id": "AC-047", "feature": "F-011", "status": "accepted", "tests": ["TC-137", "TC-138", "TC-146", "IS-010"] },
+      { "ac_id": "AC-048", "feature": "F-011", "status": "accepted", "tests": ["TC-139", "IS-010"] },
+      { "ac_id": "AC-049", "feature": "F-011", "status": "accepted", "tests": ["TC-140"], "ui_note": "Backend dual-payload contract verified; UI layer to ship via /ases-ui-scaffold S3 — not a UAT blocker for backend sprint" },
+      { "ac_id": "AC-050", "feature": "F-011", "status": "accepted", "tests": ["TC-141", "TC-142", "TC-145", "IS-010"], "structural_evidence": "DS-017 shared filter predicate + runtime assertion" },
+      { "ac_id": "AC-051", "feature": "F-012", "status": "accepted", "tests": ["TC-153", "IS-012"] },
+      { "ac_id": "AC-052", "feature": "F-012", "status": "accepted", "tests": ["TC-154"] },
+      { "ac_id": "AC-053", "feature": "F-012", "status": "accepted", "tests": ["TC-155", "TC-156"], "supporting_evidence": "S2 IS-008 verified _recompute_forward; S3 TC-155 confirms cross-month case end-to-end" }
+    ]
+  },
+  "cross_cutting_review": [
+    { "id": "DS-015", "status": "accepted", "note": "Advisory-lock-first stock-ledger writes (amends DS-002) — inherited from S2; not re-exercised in S3 (read-only sprint)" },
+    { "id": "DS-016", "status": "accepted", "note": "Single CASE-aggregated GROUP BY for dashboard — verified via TC-123/124/125/126 + ST-008 perf" },
+    { "id": "DS-017", "status": "accepted", "note": "Shared filter predicate for sales-report dual-payload — AC-050 verified structurally + at runtime" },
+    { "id": "ST-008 perf", "status": "accepted", "note": "Dashboard p95=33.1ms — ~24x headroom under 'sub-second' PRD target" },
+    { "id": "ST-009 perf", "status": "accepted", "note": "Sales Report p95=715.7ms over 10,800 sales lines — ~2.8x headroom under 2s PRD target" },
+    { "id": "ST-010 security", "status": "accepted", "note": "SQL-injection neutralized across all 3 list-type filters; tbl_sales_header intact" },
+    { "id": "ST-011 security", "status": "accepted", "note": "V1 no-auth posture verified for both new endpoints (intentional V1 contract per DS-005)" },
+    { "id": "ST-012 boundary", "status": "accepted", "note": "Soft-delete cascade R-005 — dashboard hides deactivated pair; sales report retains historical FK joins" }
+  ],
+  "tech_debt_observed": [
+    { "id": "CF-001", "status": "open", "severity": "minor", "target": "PO action (no longer blocking S3)", "note": "Long-lived PG bring-up + alembic upgrade + seed still pending. Testcontainers covered all S3 tests. Required only for manual API smoke; not a UAT blocker." },
+    { "id": "TD-001", "status": "open", "severity": "minor", "target": "/ases-ui-scaffold S3", "note": "shadcn calendar.tsx classNames patch — UI-track item." },
+    { "id": "TD-010", "status": "open", "severity": "minor", "target": "/ases-ui-design S3", "note": "Radix Select/Popover jsdom incompatibility (7 frontend TCs deferred from S2); decision pending at UI design." },
+    { "id": "TD-008", "status": "open_v2", "severity": "minor", "target": "V2", "note": "First-row insert race — theoretical, acceptable for V1." }
+  ],
+  "phase_3_test_totals": {
+    "unit_plus_integration_pytest": "158/158 PASS",
+    "integration_scenarios_IS-005_to_IS-012": "8/8 PASS",
+    "system_test_scenarios_ST-001_to_ST-012": "12/12 PASS",
+    "grand_total": "178/178 PASS",
+    "regressions": 0,
+    "fix_iterations_during_phase_3": 2,
+    "fix_iterations_location": "Both were test-side seed bugs (TC-142, TC-122, IS-011, IS-012) — production source untouched throughout Phase 3"
+  },
+  "notes": "All 13 ACs accepted on first PO review. 0 rejected, 0 conditional. Zero new tech debt introduced by S3 itself; the 4 open debt items are all pre-existing carry-forwards (CF-001 from S1 W5, TD-001 from /ases-scaffold, TD-010 from S2 UI scaffold, TD-008 from S2 critique). 178 tests green across the full project history with substantial perf and security headroom. Ready for /ases-devops S3.",
+  "next": "/ases-devops S3"
+}

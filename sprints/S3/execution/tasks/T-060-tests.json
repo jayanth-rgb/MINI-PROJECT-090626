@@ -1,0 +1,1 @@
+{"task_id": "T-060", "test_case_refs": ["TC-150", "TC-151", "TC-152"], "priority": "critical", "notes": "3 TCs (1 unit/critical + 2 edge/critical). TC-151 and TC-152 verify the AC-012/AC-017 cascade (deactivated map OR deactivated grade → row excluded), which is the load-bearing correctness property for the dashboard's row-set."}

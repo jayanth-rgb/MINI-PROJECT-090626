@@ -1,0 +1,56 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-batch-critique",
+  "consumed_by": ["/ases-batch-exec", "/ases-sprint-close", "/ases-final-audit"],
+  "task_id": "T-064",
+  "sprint_id": "S3",
+  "module_ref": "M-004",
+  "target_file": "backend/src/presentation/api/routers/dashboard.py",
+  "verdict": "CLEAN",
+  "iteration": 1,
+  "summary": "Pure-delegation GET /dashboard router. APIRouter(prefix='/dashboard', tags=['dashboard']) with one endpoint at '' (empty path) — required as_of_date Query(...), response_model=list[DashboardRow], Depends(get_dashboard_service), single-return body with no try/except. Matches plan, LLD interfaces[3], and dependency contracts byte-for-byte.",
+  "decisions_consulted": [
+    {
+      "id": "DS-016",
+      "module_refs": ["M-004"],
+      "relevance": "DS-016 documents the ledger-corruption signaling pattern. The router intentionally does NOT trap AssertionError from DashboardService.list_as_of — letting it surface as a 500 is the deliberate signal. Confirmed present in the implementation (no try/except)."
+    },
+    {
+      "id": "DS-007",
+      "module_refs": ["M-001", "M-002", "M-003", "M-004", "M-005", "M-007"],
+      "relevance": "Four-layer architecture: router belongs to presentation, must route through application service. Implementation respects this — router imports DashboardService (application) via Depends, never reaches into infrastructure/repositories directly."
+    },
+    {
+      "id": "DS-010",
+      "module_refs": ["M-001", "M-002", "M-003", "M-004", "M-005", "M-006"],
+      "relevance": "API versioning under /api/v1. Router prefix is '/dashboard' (correct); the /api/v1 mount is owned by T-066 (main.py) per the do_not_touch boundary. Combined effective path will be /api/v1/dashboard."
+    }
+  ],
+  "findings": [],
+  "lens_results": {
+    "spec": {
+      "passed": true,
+      "notes": "Implementation matches plan exactly: APIRouter(prefix='/dashboard', tags=['dashboard']); single GET '' endpoint; required Query(...) as_of_date: date; Depends(get_dashboard_service); response_model=list[DashboardRow]; body is the single statement `return service.list_as_of(as_of_date)`. Function signature also matches LLD files[3].functions[0] (list_dashboard) — inputs (as_of_date, service) and output (list[DashboardRow])."
+    },
+    "contract": {
+      "passed": true,
+      "notes": "Exports satisfy LLD interfaces.exports — `router` is an APIRouter instance with the prescribed prefix and tags, ready for T-066's include_router. All 3 imports come from depends_on[] members and are used: DashboardService (type-hint), get_dashboard_service (Depends), DashboardRow (response_model). Verified get_dashboard_service exists at backend/src/presentation/api/dependencies.py:59 and DashboardService.list_as_of(as_of_date: date) -> list[DashboardRow] signature matches at dashboard_service.py:37."
+    },
+    "test": {
+      "passed": true,
+      "notes": "TC-117 (200 OK with rows) — pure delegation returns whatever the service produces; FastAPI serializes via response_model. TC-130 (sort order in response) — order is established by the service (rows.sort at dashboard_service.py:104); router preserves it because response_model serialization preserves list order. TC-131 (missing as_of_date → 422) — satisfied by FastAPI's default behavior for Query(...) (Ellipsis = required), no manual validation needed. TC-132 (malformed date → 422) — FastAPI's date type-coercion rejects at parse time before the endpoint body runs, so service is never invoked (matches TC-132 expected_output). All 4 referenced test cases are structurally satisfiable by the implementation."
+    },
+    "security": {
+      "passed": true,
+      "notes": "No secrets exposed. Input validation delegated to FastAPI's type system (date Query) — appropriate for this endpoint. No injection vector: as_of_date is parsed to datetime.date before reaching the service, which uses parameterized SQLAlchemy queries downstream. No try/except hides errors. Per DS-005 (V1 no-auth), absence of auth dependency is policy-conformant, not a defect."
+    },
+    "structural": {
+      "passed": true,
+      "notes": "graphify-out/graph.json not consulted (lens skipped per instructions if file absent in run context). Manual reachability check: `router` is the export consumed by T-066's include_router in main.py; the endpoint function `list_dashboard` is reachable via FastAPI route registration; both imported names (DashboardService, get_dashboard_service, DashboardRow) are used."
+    }
+  },
+  "do_not_touch_violations": [],
+  "next_action": "proceed",
+  "timestamp": "2026-06-26"
+}

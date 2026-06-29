@@ -1,0 +1,1 @@
+{"task_id": "T-063", "test_case_refs": ["TC-159", "TC-160"], "priority": "high", "notes": "2 integration TCs verifying end-to-end DI resolution through FastAPI's dependency graph. These TCs effectively double as smoke tests for T-066's router mounts because they exercise the full request pipeline."}

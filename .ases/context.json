@@ -5,10 +5,10 @@
   "updated_by": "every_command",
   "project": "Jayanth Trading Tiles System",
   "sprint": "S3",
-  "phase": "SPRINT_DESIGN",
-  "stage": "release_S2_SHIPPED_ready_for_S3_design",
-  "last_completed": "/ases-release S2",
-  "next": "/ases-prd-update S3 (optional) → /ases-lld S3",
+  "phase": "SPRINT_SHIP",
+  "stage": "uat_S3_APPROVED",
+  "last_completed": "/ases-uat S3",
+  "next": "/ases-devops S3",
   "blockers": [],
   "prd_version": 1,
   "project_id": "jayanth-trading-tiles",
@@ -57,7 +57,22 @@
     "uat:S2:APPROVED",
     "devops:S2:committed:68a675e",
     "final_audit:S2:SHIP",
-    "release:S2:SHIPPED"
+    "release:S2:SHIPPED",
+    "lld:S3",
+    "schema:S3",
+    "test_spec:S3",
+    "sprint_gate:S3:PASS",
+    "analyze:S3:READY",
+    "sprint_scaffold:S3",
+    "tasks:S3",
+    "batch_exec:S3:10/10_CHECKOUT",
+    "batch_critique:S3:10/10_CLEAN",
+    "sprint_close:S3",
+    "test_impl:S3:46/46_written",
+    "test_run:S3:158/158_PASS",
+    "integration_test:S3:4/4_PASS",
+    "system_test:S3:5/5_PASS",
+    "uat:S3:APPROVED"
   ],
   "open_issues": [
     "W1: deps_manifest missing jest + @testing-library/* (resolve before /ases-test-impl S1)",
@@ -95,6 +110,39 @@
     { "id": "TD-011", "description": "DS-002 race discovered + closed by /ases-system-test S2 ST-007. Root cause: PG SELECT ... LIMIT 1 ORDER BY ... FOR UPDATE does NOT re-resolve LIMIT after waiting on a row lock — the waiter re-reads the originally-identified row, missing the newly-inserted latest row from the holder. Fixed by adding pg_advisory_xact_lock(design_id, grade_id) BEFORE the FOR UPDATE in src/domain/stock.py::_apply. DS-002 spec text could be amended in S3 to mandate the advisory-lock-first pattern.", "severity": "documented", "source": "/ases-system-test S2 ST-007", "target_sprint": "S2", "status": "closed_by_advisory_lock_in_T-045 (one-line addition)" }
   ],
   "sprint_history": [
+    {
+      "sprint_id": "S3",
+      "closed_on": "2026-06-26",
+      "shipped_on": null,
+      "completed_count": 10,
+      "deferred_count": 0,
+      "escalated_count": 0,
+      "iteration_max": 1,
+      "iteration_avg": 1.0,
+      "new_tech_debt": [],
+      "closed_tech_debt": [],
+      "new_decisions": ["DS-015", "DS-016", "DS-017"],
+      "carry_forward": [
+        "CF-001 (PG bring-up — still pending from S1)",
+        "TD-001 (shadcn calendar — UI-track item)",
+        "TD-010 (Radix jsdom — UI-track decision pending)",
+        "TD-008 (first-row insert race — V2)"
+      ],
+      "test_cases_to_verify_in_phase_3": 46,
+      "tcs_passed": null,
+      "integration_scenarios": "pending /ases-integration-test S3",
+      "system_tests": "pending /ases-system-test S3",
+      "uat_verdict": "pending /ases-uat S3",
+      "final_audit_verdict": "pending /ases-final-audit S3",
+      "commit": null,
+      "features_shipped": ["F-010", "F-011", "F-012"],
+      "ui_tracks_status": "deferred to /ases-ui-design S3 → /ases-ui-scaffold S3; backend API surface frozen + critiqued",
+      "summary_ref": "sprints/S3/ship/sprint_summary.json",
+      "release_ref": null,
+      "batch_exec_outcome": "10/10 CHECKOUT",
+      "batch_critique_outcome": "10/10 CLEAN iteration 1",
+      "graphify_refreshed_at_close": true
+    },
     {
       "sprint_id": "S2",
       "closed_on": "2026-06-23",
@@ -141,7 +189,7 @@
       "release_ref": "sprints/S1/ship/release.json"
     }
   ],
-  "decisions_count": 14,
-  "last_updated": "2026-06-23",
-  "last_updated_by": "/ases-release S2"
+  "decisions_count": 17,
+  "last_updated": "2026-06-29",
+  "last_updated_by": "/ases-uat S3"
 }

@@ -1,0 +1,45 @@
+{
+  "sprint_id": "S3",
+  "produced_by": "/ases-batch-exec S3",
+  "timestamp": "2026-06-26T00:00:00Z",
+  "verdict": "ALL_TASKS_IMPLEMENTED",
+  "totals": {
+    "tasks_total": 10,
+    "checkout": 10,
+    "hold": 0,
+    "escalate": 0,
+    "error": 0
+  },
+  "group_outcomes": [
+    {"group": "A", "tasks": ["T-057", "T-058", "T-059", "T-060"], "result": "4/4 CHECKOUT (parallel)"},
+    {"group": "B", "tasks": ["T-061", "T-062"], "result": "2/2 CHECKOUT (parallel)"},
+    {"group": "C", "tasks": ["T-063"], "result": "1/1 CHECKOUT"},
+    {"group": "D", "tasks": ["T-064", "T-065"], "result": "2/2 CHECKOUT (T-065 re-dispatched once after a user interrupt)"},
+    {"group": "E", "tasks": ["T-066"], "result": "1/1 CHECKOUT"}
+  ],
+  "tasks": [
+    {"id": "T-057", "status": "in_progress", "file": "backend/src/presentation/schemas/dashboard.py",                     "result": "CHECKOUT", "notes": "DashboardRow created — 10 fields, ConfigDict(from_attributes=True)."},
+    {"id": "T-058", "status": "in_progress", "file": "backend/src/presentation/schemas/sales_report.py",                  "result": "CHECKOUT", "notes": "ConsolidationRow, TransactionRow, SalesReportResponse — place: str per DS-013."},
+    {"id": "T-059", "status": "in_progress", "file": "backend/src/infrastructure/db/repositories/ledger_aggregates.py",   "result": "CHECKOUT", "notes": "Single CASE-aggregated GROUP BY; outward_sum inverted to read positive; coalesce(...,0) guards."},
+    {"id": "T-060", "status": "in_progress", "file": "backend/src/infrastructure/db/repositories/master.py",              "result": "CHECKOUT", "notes": "list_active_all appended at line 59; 6 existing repos + 2 existing methods byte-identical."},
+    {"id": "T-061", "status": "in_progress", "file": "backend/src/application/services/dashboard_service.py",             "result": "CHECKOUT", "notes": "list_as_of composes list_active_all + sum_deltas_by_source_type + opening/closing_balance; FORMULA-001 invariant asserted; (design_name, grade_code) sort."},
+    {"id": "T-062", "status": "in_progress", "file": "backend/src/application/services/sales_report_service.py",          "result": "CHECKOUT", "notes": "_build_filters shared between consolidation + transactions queries (DS-017); AC-050 assertion present. Worker auto-corrected place_snapshot → place to match S2 model column (transactions.py:96)."},
+    {"id": "T-063", "status": "in_progress", "file": "backend/src/presentation/api/dependencies.py",                       "result": "CHECKOUT", "notes": "get_dashboard_service + get_sales_report_service appended (lines 59/63); 10 existing factories byte-identical."},
+    {"id": "T-064", "status": "in_progress", "file": "backend/src/presentation/api/routers/dashboard.py",                  "result": "CHECKOUT", "notes": "APIRouter(prefix='/dashboard', tags=['dashboard']); GET '' with required Query as_of_date; response_model=list[DashboardRow]; pure delegation."},
+    {"id": "T-065", "status": "in_progress", "file": "backend/src/presentation/api/routers/sales_report.py",               "result": "CHECKOUT", "notes": "APIRouter(prefix='/reports/sales', tags=['reports']); 5 optional Query params with native repeat-key list parsing; response_model=SalesReportResponse; pure delegation. Re-dispatched once after first attempt was user-interrupted."},
+    {"id": "T-066", "status": "in_progress", "file": "backend/src/main.py",                                                "result": "CHECKOUT", "notes": "dashboard + sales_report added to tuple-import (alphabetically) and mounted at lines 44/45; CORS/error_handlers/9 prior mounts/health byte-identical."}
+  ],
+  "post_batch_smoke": {
+    "py_compile_all_10_files": "PASS",
+    "full_app_boot_with_dummy_env": "PASS (DATABASE_URL stubbed)",
+    "registered_route_count": {
+      "S1_S2_existing": 30,
+      "S3_new": 2,
+      "S3_routes": ["GET /api/v1/dashboard", "GET /api/v1/reports/sales"],
+      "health": "GET /health"
+    }
+  },
+  "graphify_refreshed": false,
+  "graphify_skip_reason": "Optional per NB-S3-001 — graph rebuild deferred to before /ases-critique S3 (user may run /ases-graphify manually).",
+  "next": "/ases-batch-critique S3"
+}

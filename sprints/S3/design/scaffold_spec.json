@@ -1,0 +1,41 @@
+{
+  "$schema": "ases/v3.0/scaffold_spec",
+  "sprint_id": "S3",
+  "produced_by": "/ases-sprint-scaffold Step A (Opus)",
+  "consumed_by": ["/ases-sprint-scaffold Step B (Sonnet)", "/ases-tasks", "/ases-validate"],
+  "analysis_summary": "S3 LLD declares 7 new backend files and 3 modifications to S1/S2 files. All 7 new files land in directories that already exist from /ases-scaffold + /ases-sprint-scaffold S1 (backend/src/{presentation/schemas, infrastructure/db/repositories, application/services, presentation/api/routers}). The 3 modify targets (master.py, dependencies.py, main.py) exist with stable surfaces — extension only, no shared-line edits. New test files for S3 will be placed at /ases-test-impl time and all land under existing test directories: backend/tests/unit/application/services/ (for dashboard_service + sales_report_service unit tests), backend/tests/integration/api/ (for dashboard + sales_report API tests), backend/tests/integration/db/ (for ledger_aggregates + master.list_active_all DB-backed tests — following the S1 precedent that repository tests are testcontainers-backed integration tests rather than pure unit tests), and backend/tests/unit/domain/ (already exists, for any AC-053 carry-forward additions to test_stock.py). NO new test subdirectory is needed. Therefore: zero new structural files. Zero new dependencies (deps_manifest.packages=[]). Zero new migrations (S3 is read-only at the schema layer). Zero new env vars (DATABASE_URL + NEXT_PUBLIC_API_URL both inherited unchanged from S1).",
+  "files_to_create": [],
+  "files_not_in_scope": {
+    "explanation": "These are CREATED by /ases-dev tasks (each task plan's output_files[] lists exactly which file the dev step writes). Listing here for transparency only — Step B does NOT create them.",
+    "files": [
+      "backend/src/presentation/schemas/dashboard.py",
+      "backend/src/infrastructure/db/repositories/ledger_aggregates.py",
+      "backend/src/application/services/dashboard_service.py",
+      "backend/src/presentation/api/routers/dashboard.py",
+      "backend/src/presentation/schemas/sales_report.py",
+      "backend/src/application/services/sales_report_service.py",
+      "backend/src/presentation/api/routers/sales_report.py",
+      "backend/src/infrastructure/db/repositories/master.py (MODIFY — add DesignGradeMapRepository.list_active_all)",
+      "backend/src/presentation/api/dependencies.py (MODIFY — add 2 DI factories)",
+      "backend/src/main.py (MODIFY — mount 2 routers)"
+    ]
+  },
+  "dependency_changes": {
+    "backend": {
+      "add": [],
+      "remove": [],
+      "bump": []
+    },
+    "frontend": {
+      "add": [],
+      "remove": [],
+      "bump": []
+    },
+    "rationale": "S3 deps_manifest.packages = []. Every Python import in S3 LLD is from the existing installed dependency set verified at /ases-analyze S3: fastapi 0.115.6, sqlalchemy 2.0.36 (case, func.sum, select, .in_, joined-load), pydantic 2.10.4 (BaseModel, ConfigDict), alembic 1.14.0, psycopg 3.2.3, pytest 8.3.4. Frontend dependency decisions for the dashboard / sales-report UI (e.g. recharts or visx if a chart panel is adopted, multi-select component if not already present) are deferred to /ases-ui-design S3 — they land in the UI track's own scaffold spec, not this one. Sprint-gate already verified deps_manifest_complete=PASS at the design stage."
+  },
+  "frontend_ui_track_note": "Frontend directories for the 2 new pages (frontend/src/app/admin/dashboard/, frontend/src/app/admin/reports/sales/, plus supporting components/api/types) are NOT created here. They are materialized by /ases-ui-scaffold S3, which is its own pipeline step downstream of /ases-tasks S3. UI track will also revisit TD-001 (shadcn calendar patch) and TD-010 (Radix Select/Popover jsdom incompatibility) per their target_sprint='S3'.",
+  "migrations_to_apply": [],
+  "migrations_to_apply_rationale": "S3 is read-only at the persistence layer — schema.json marks all 7 entities as modification=read_only_reuse_from_S1 or read_only_reuse_from_S2. deps_manifest.migrations = []. Step B.5 skipped.",
+  "ready_for_step_b": true,
+  "next": "Step B (Sonnet): no-op file creation (zero files in scope); Step C: append sprint_S3 block to contracts/scaffold.json documenting the zero-add outcome; Step B.6: refresh graphify."
+}
