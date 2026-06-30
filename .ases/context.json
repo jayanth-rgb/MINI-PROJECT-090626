@@ -6,9 +6,9 @@
   "project": "Jayanth Trading Tiles System",
   "sprint": "S3",
   "phase": "SPRINT_SHIP",
-  "stage": "uat_S3_APPROVED",
-  "last_completed": "/ases-uat S3",
-  "next": "/ases-devops S3",
+  "stage": "ui_integration_S3_done",
+  "last_completed": "/ases-dev S3 (UI integration pass — IP-S3-001 + IP-S3-002 swapped)",
+  "next": "PO choice: /ases-test-impl S3 (UI track tests) OR resume V2 scoping",
   "blockers": [],
   "prd_version": 1,
   "project_id": "jayanth-trading-tiles",
@@ -72,7 +72,15 @@
     "test_run:S3:158/158_PASS",
     "integration_test:S3:4/4_PASS",
     "system_test:S3:5/5_PASS",
-    "uat:S3:APPROVED"
+    "uat:S3:APPROVED",
+    "devops:S3:committed:d9715d5",
+    "final_audit:S3:SHIP",
+    "release:S3:SHIPPED",
+    "v1:FEATURE_COMPLETE",
+    "ui_design:S3",
+    "ui_review:S3:APPROVED",
+    "ui_scaffold:S3:LOCKED",
+    "ui_integration:S3:IP-S3-001+IP-S3-002_swapped"
   ],
   "open_issues": [
     "W1: deps_manifest missing jest + @testing-library/* (resolve before /ases-test-impl S1)",
@@ -113,7 +121,9 @@
     {
       "sprint_id": "S3",
       "closed_on": "2026-06-26",
-      "shipped_on": null,
+      "shipped_on": "2026-06-29",
+      "commit": "d9715d5eeabebfa63f8f142b659bf1800b95a36c",
+      "commit_short": "d9715d5",
       "completed_count": 10,
       "deferred_count": 0,
       "escalated_count": 0,
@@ -129,19 +139,20 @@
         "TD-008 (first-row insert race — V2)"
       ],
       "test_cases_to_verify_in_phase_3": 46,
-      "tcs_passed": null,
-      "integration_scenarios": "pending /ases-integration-test S3",
-      "system_tests": "pending /ases-system-test S3",
-      "uat_verdict": "pending /ases-uat S3",
-      "final_audit_verdict": "pending /ases-final-audit S3",
-      "commit": null,
+      "tcs_passed": "158/158 backend + 4/4 IS + 5/5 ST = 178/178 across S1+S2+S3 with 0 regressions",
+      "integration_scenarios": "4/4 PASS — IS-009..IS-012 (2 fix iterations, both test-side seed bugs)",
+      "system_tests": "5/5 PASS — ST-008..ST-012",
+      "uat_verdict": "APPROVED",
+      "final_audit_verdict": "SHIP",
       "features_shipped": ["F-010", "F-011", "F-012"],
       "ui_tracks_status": "deferred to /ases-ui-design S3 → /ases-ui-scaffold S3; backend API surface frozen + critiqued",
       "summary_ref": "sprints/S3/ship/sprint_summary.json",
-      "release_ref": null,
+      "release_ref": "sprints/S3/ship/release.json",
       "batch_exec_outcome": "10/10 CHECKOUT",
       "batch_critique_outcome": "10/10 CLEAN iteration 1",
-      "graphify_refreshed_at_close": true
+      "graphify_refreshed_at_close": true,
+      "perf_at_ship": {"dashboard_p95_ms": 33.1, "sales_report_p95_ms": 715.7},
+      "po_signoff_final_audit": "APPROVED 2026-06-29"
     },
     {
       "sprint_id": "S2",
@@ -191,5 +202,5 @@
   ],
   "decisions_count": 17,
   "last_updated": "2026-06-29",
-  "last_updated_by": "/ases-uat S3"
+  "last_updated_by": "/ases-dev S3 (UI integration pass)"
 }

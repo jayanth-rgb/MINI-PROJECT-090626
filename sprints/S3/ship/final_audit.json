@@ -1,0 +1,153 @@
+{
+  "$schema": "ases/v3.0/final_audit",
+  "sprint_id": "S3",
+  "timestamp": "2026-06-29T15:30:00+05:30",
+  "produced_by": "/ases-final-audit S3",
+  "verdict": "SHIP",
+  "block_reason": "",
+  "surgical_reentry_target": "",
+  "summary_one_line": "S3 ships cleanly: 46/46 TCs covered (33/33 critical), 4/4 integration scenarios pass, 5/5 system test scenarios pass with substantial NFR headroom, 13/13 UAT ACs accepted on first review, zero spec drift (10/10 LLD files shipped exactly), all 5 HLD risks have verified mitigations and no new risks discovered.",
+  "lenses": {
+    "test_coverage": {
+      "total_test_cases": 46,
+      "covered": 46,
+      "uncovered": [],
+      "coverage_percent": 100.0,
+      "critical_tcs_total": 33,
+      "critical_tcs_covered": 33,
+      "critical_tcs_uncovered": [],
+      "ac_coverage": "13/13 S3 ACs (AC-041..AC-053) covered by ≥1 TC each; bonus regression coverage for AC-012 (TC-152) and AC-017 (TC-151) through DesignGradeMapRepository.list_active_all",
+      "status": "pass"
+    },
+    "integration_integrity": {
+      "scenarios_run": 4,
+      "scenarios_passed": 4,
+      "scenarios_failed": 0,
+      "violations": [],
+      "module_contract_violations": [],
+      "fix_iterations": {"IS-009": 0, "IS-010": 0, "IS-011": 1, "IS-012": 1},
+      "fix_iteration_notes": "Both IS-011/012 fix iterations were test-side seed bugs (absolute Step-A dates fell outside AC-021's 7-day window at run time) — production code untouched. Both fixes use date.today()-relative arithmetic and now survive any execution time.",
+      "regression_check": "Full integration suite re-ran after fixes: 63/63 PASS including IS-005..IS-012 (no S1/S2 regressions)",
+      "status": "pass"
+    },
+    "system_test": {
+      "scenarios_run": 5,
+      "scenarios_passed": 5,
+      "critical_failures": [],
+      "thresholds_met": {
+        "ST-008_dashboard_p95": "33.1ms vs 800ms threshold (~24x headroom)",
+        "ST-009_sales_report_p95": "715.7ms vs 2000ms threshold (~2.8x headroom)",
+        "ST-010_sql_injection": "3/3 payloads neutralized; tbl_sales_header intact",
+        "ST-011_no_auth_posture": "4/4 GETs return 200 — V1 contract verified",
+        "ST-012_soft_delete_cascade": "3/3 phases verified — R-005 mitigation end-to-end"
+      },
+      "fix_iterations_total": 0,
+      "status": "pass"
+    },
+    "uat_alignment": {
+      "accepted": 13,
+      "conditional": 0,
+      "rejected": 0,
+      "total_acs": 13,
+      "conditional_notes_as_debt": [],
+      "ui_track_note": "AC-049 has an internal note that the UI-layer 'both sections render together' visual contract will be verified at /ases-ui-scaffold S3 — this is not a UAT blocker for the backend sprint; the dual-payload JSON contract (consolidation + transactions in one body) is already accepted at the API level (TC-140)",
+      "status": "pass"
+    },
+    "spec_conformance": {
+      "files_audited": 10,
+      "lld_files_declared": 10,
+      "lld_files_shipped": 10,
+      "drift_detected": [],
+      "additive_modifications_verified": ["master.py (+13 lines, list_active_all appended)", "dependencies.py (+10 lines, 2 DI factories appended)", "main.py (+4 lines, 2 router mounts appended)"],
+      "byte_identical_existing_methods": "Critique lens-2 (contract) confirmed during /ases-batch-critique — existing 6 master repos + 2 DesignGradeMap methods + 10 DI factories + 9 router mounts unchanged",
+      "out_of_scope_writes": [],
+      "commit_diff_matches_plan": true,
+      "commit_sha": "d9715d5eeabebfa63f8f142b659bf1800b95a36c",
+      "status": "pass"
+    },
+    "risk_review": {
+      "risks_encountered": [
+        "R-002 — addressed by ST-008 (dashboard p95 = 33.1ms vs PRD sub-second target; DS-003 materialized ledger + DS-016 single GROUP BY operate well within budget)",
+        "R-004 — addressed by ST-011 (V1 no-auth posture deliberately maintained on new endpoints per DS-005 trusted-network deployment guidance)",
+        "R-005 — addressed by ST-012 (soft-delete of design-grade map post-history correctly hidden from dashboard while sales report retains historical FK joins)"
+      ],
+      "risks_not_encountered_in_s3": [
+        "R-001 (concurrent ledger writes) — S3 is read-only at the persistence layer, no new write surface; mitigation lives in S2 domain.stock.apply_* and DS-015 amends DS-002 to canonize the advisory-lock-first pattern that closed TD-011",
+        "R-003 (back-dated cross-month writes) — read-side coverage verified via IS-012 + TC-155/156 but no NEW write code path introduced"
+      ],
+      "mitigations_applied": [
+        "DS-003 materialized running_balance — confirmed in production read code at ledger_aggregates.py + dashboard_service.opening/closing calls",
+        "DS-016 single CASE-aggregated GROUP BY — verified in ledger_aggregates.sum_deltas_by_source_type (TC-123..126)",
+        "DS-017 shared filter predicate — verified in sales_report_service._build_filters (TC-141/142)",
+        "AC-021 7-day window — write-side validator caught both IS-011/012 misconfigured tests, demonstrating the defense"
+      ],
+      "new_risks_discovered": [],
+      "status": "pass"
+    }
+  },
+  "findings": [
+    {
+      "id": "FA-S3-001",
+      "lens": "integration_integrity",
+      "severity": "minor",
+      "description": "IS-011 + IS-012 (test scenarios I authored at /ases-integration-test Step A) used absolute dates (2026-06-05, 2026-05-28) that fell outside AC-021's 7-day backdate window when executed 24+ days later. The bug was 100% test-side and was caught by InwardService's AC-021 422 response — exactly the right behavior. Fixed in 1 iteration each by switching to date.today()-relative arithmetic with month-boundary handling.",
+      "resolution": "accept",
+      "lessons_learned": "Future Step-A scenario designers should default to relative-date arithmetic; absolute dates in test fixtures are fragile across run dates.",
+      "process_improvement": "Could add a scenario-design lint that flags absolute dates in integration_scenarios.json file paths — not a sprint blocker."
+    },
+    {
+      "id": "FA-S3-002",
+      "lens": "test_coverage",
+      "severity": "warning",
+      "description": "TC-122 (dashboard perf gate) was initially miscoded — synthetic ledger seed used `running_balance = 500 + month_offset * 10` per-month reset + day_offset % 28 modulo, producing non-cumulative balances that violated FORMULA-001 on every read. Production code's invariant assertion correctly caught it. Fixed at /ases-test-run iteration 1.",
+      "resolution": "accept",
+      "lessons_learned": "Production-level invariants (FORMULA-001 server-side assert) successfully caught a test-side data corruption. This is the defense-in-depth pattern working as designed; in fact, DS-016 ledger-corruption signal documentation was on point. The fix went into the test seed, not the SUT."
+    },
+    {
+      "id": "FA-S3-003",
+      "lens": "uat_alignment",
+      "severity": "minor",
+      "description": "AC-049 ('both sections render together on the same screen') was accepted as a backend dual-payload contract; the full visual verification of 'no toggle, no tab, Consolidation first' awaits /ases-ui-scaffold S3. This is by design — backend sprint scope ends at the JSON contract level.",
+      "resolution": "carry_forward",
+      "ownership": "/ases-ui-design S3 + /ases-ui-scaffold S3",
+      "blocks_release": false
+    }
+  ],
+  "tech_debt": [
+    {"id": "CF-001", "status": "open", "severity": "minor", "target": "PO action (post-release optional)", "note": "Long-lived PG bring-up + alembic upgrade + seed. Carried since S1 W5. Not blocking — testcontainers covered all 178 tests. Only required for manual API smoke on the bare-metal app."},
+    {"id": "TD-001", "status": "open", "severity": "minor", "target": "/ases-ui-scaffold S3", "note": "shadcn calendar.tsx classNames patch — UI-track item; surfaces when UI builds the dashboard date picker."},
+    {"id": "TD-010", "status": "open", "severity": "minor", "target": "/ases-ui-design S3", "note": "Radix UI Select/Popover jsdom incompatibility (7 frontend TCs deferred from S2); decision pending."},
+    {"id": "TD-008", "status": "open_v2", "severity": "minor", "target": "V2", "note": "First-row insert race (theoretical) — acceptable for V1 per S2 critique."}
+  ],
+  "no_new_tech_debt_from_s3": true,
+  "phase_3_totals_at_audit": {
+    "pytest_total": 178,
+    "pytest_passed": 178,
+    "regressions": 0,
+    "integration_scenarios": "8/8 PASS (IS-005..IS-012)",
+    "system_test_scenarios": "12/12 PASS (ST-001..ST-012 across S1+S2+S3)",
+    "fix_iterations_during_phase_3": 2,
+    "fix_iterations_location": "100% test-side (TC-122/142 perf+reconciliation seeds, IS-011/012 absolute dates); 0 production source changes during Phase 3"
+  },
+  "decisions_audited": [
+    {"id": "DS-002", "status": "honored", "evidence": "S2 domain.stock.apply_* + DS-015 amendment — inherited unchanged into S3 read-only paths"},
+    {"id": "DS-003", "status": "honored", "evidence": "ledger_aggregates.sum_deltas_by_source_type + dashboard_service.closing_balance use materialized running_balance — verified TC-115/118/120, ST-008"},
+    {"id": "DS-004", "status": "honored", "evidence": "dashboard_service.list_as_of uses opening_balance(month_first) = closing_balance(month_first − 1 day) — verified TC-119/153, IS-012"},
+    {"id": "DS-013", "status": "honored", "evidence": "TransactionRow.place reads from SalesHeaderModel.place snapshot (S2 column) — verified TC-136, ST-012"},
+    {"id": "DS-015", "status": "honored", "evidence": "Advisory-lock-first write contract preserved (S3 introduces no new write paths)"},
+    {"id": "DS-016", "status": "honored", "evidence": "ledger_aggregates.sum_deltas_by_source_type uses single CASE-aggregated GROUP BY — verified TC-123/124/125/126, ST-008"},
+    {"id": "DS-017", "status": "honored", "evidence": "sales_report_service._build_filters is the SINGLE source of WHERE predicates for both queries — verified TC-141/142/145, IS-010, ST-010"}
+  ],
+  "perf_signals": {
+    "dashboard_p95_ms": 33.1,
+    "dashboard_p95_threshold_ms": 800,
+    "dashboard_headroom_factor": "~24x under PRD 'sub-second' target",
+    "sales_report_p95_ms": 715.7,
+    "sales_report_p95_threshold_ms": 2000,
+    "sales_report_headroom_factor": "~2.8x under PRD 2s target with 10,800 sales_line rows",
+    "note": "Both measurements are on testcontainers (localhost network) — production deployment will add network latency but stays comfortably under PRD bars based on the 24x and 2.8x margins"
+  },
+  "po_approval_required": true,
+  "release_unlocked_on_po_approval": true,
+  "next": "/ases-release S3 (after PO approval of this SHIP verdict)"
+}

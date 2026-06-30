@@ -74,7 +74,10 @@
       "Bash('e:/MY NEW MINI PROJECT/MINI PROJECT 090626/backend/.venv/Scripts/python.exe' -c \"import importlib.metadata as m; pkgs=['fastapi','sqlalchemy','pydantic','alembic','psycopg','pytest','uvicorn','httpx']; [print\\(f'{p}={m.version\\(p\\)}'\\) for p in pkgs]\")",
       "Bash(python .claude/hooks/validate_schema.py sprints/S3/execution/analysis.json format/json/analysis.schema.json)",
       "Bash(python .claude/hooks/validate_schema.py sprints/S3/execution/analysis.json analysis)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"exit=$?\")",
+      "Bash(npm run *)"
     ],
     "deny": [
       "Write(./.env)",

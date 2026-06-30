@@ -1,0 +1,113 @@
+{
+  "$schema": "ases/v3.0/ui_review",
+  "document": "ui_review",
+  "produced_by": "/ases-ui-review S3",
+  "consumed_by": ["/ases-ui-scaffold"],
+  "sprint_id": "S3",
+  "reviewed_at": "2026-06-29",
+  "reviewer": "Critic (Opus)",
+  "verdict": "APPROVED",
+  "scope_features": ["F-010", "F-011"],
+  "checks": {
+    "ac_coverage": {
+      "status": "pass",
+      "details": "All UI-related ACs are addressed by at least one named component in the spec.",
+      "ac_map": [
+        {"ac": "AC-041", "components": ["DashboardView", "DashboardTable"], "note": "Single date input → list rows with 5 movement columns; sort handled server-side and preserved by table."},
+        {"ac": "AC-042", "components": ["DashboardTable"], "note": "Renders whatever the API returns; for the first month case opening=0 displays naturally."},
+        {"ac": "AC-043", "components": ["DashboardTable"], "note": "Same — UI is a pass-through for the server-computed value."},
+        {"ac": "AC-044", "components": ["DashboardTable"], "note": "Numeric columns right-aligned + tabular-nums for predictable scanning of the closing math."},
+        {"ac": "AC-045", "components": ["DashboardView (react-query, no client transform)"], "note": "UI doesn't add latency on top of the backend's sub-second response (zero post-load processing other than skeleton swap)."},
+        {"ac": "AC-046", "components": ["SalesReportFilterBar", "MultiSelectCombobox"], "note": "5 filters all optional, 3 are multi-select via the reusable Combobox; Apply-button batching prevents per-keystroke refetches."},
+        {"ac": "AC-047", "components": ["ConsolidationTable"], "note": "Renders consolidation[] in server-sorted order; component does not re-sort."},
+        {"ac": "AC-048", "components": ["TransactionsTable"], "note": "Renders transactions[] in server-sorted order (sales_date ASC, header_id ASC)."},
+        {"ac": "AC-049", "components": ["SalesReportView"], "note": "Both sections render in one scroll; Consolidation FIRST, then Transactions; explicit 'no tabs / no toggle' in the spec text."},
+        {"ac": "AC-050", "components": ["ReconciliationBadge"], "note": "Visible client-side verification of sum(transactions.nos) == sum(consolidation.total_nos); server already asserts so this is defense-in-depth UX feedback."},
+        {"ac": "AC-051", "components": [], "note": "F-012 verification-only — no UI surface; carry-forward shows through normal dashboard rendering."},
+        {"ac": "AC-052", "components": [], "note": "Same as AC-051."},
+        {"ac": "AC-053", "components": [], "note": "Same as AC-051."}
+      ],
+      "ui_acs_total": 13,
+      "ui_acs_with_component": 10,
+      "ui_acs_correctly_no_component": 3
+    },
+    "module_boundary": {
+      "status": "pass",
+      "details": "All components live under frontend/src/{app/admin/, components/, lib/, types/} — within M-006 UI module per HLD §3. No component reaches into backend/ paths or imports backend models. The integration boundary is enforced through lib/api/dashboard.ts + lib/api/reports.ts wrappers; no component imports lib/mocks.ts directly. This mirrors the S2 ui_spec.json pattern for transactions.",
+      "boundary_violations": [],
+      "boundary_observations": [
+        "Place-options for the multi-select filter are DERIVED from the loaded dealers list (lib/api/masters.ts already exposes Dealer.place). The UI does not create a new endpoint or query a new module — it consumes an existing M-001 master endpoint and derives the unique set client-side. Clean."
+      ]
+    },
+    "api_contract": {
+      "status": "pass",
+      "details": "All declared api_deps map exactly to LLD-declared interfaces.exports for S3 routers + S1 existing endpoints. No undeclared endpoints, no misnamed paths, no mismatched query-param shapes.",
+      "endpoint_matches": [
+        {"spec": "GET /api/v1/dashboard?as_of_date=YYYY-MM-DD", "lld_ref": "files[3] backend/src/presentation/api/routers/dashboard.py + T-064 plan", "match": "exact"},
+        {"spec": "GET /api/v1/reports/sales?date_from=&date_to=&dealer_ids=&places=&design_ids=", "lld_ref": "files[6] backend/src/presentation/api/routers/sales_report.py + T-065 plan", "match": "exact"},
+        {"spec": "GET /api/v1/designs", "lld_ref": "S1 existing — lib/api/masters.ts wrapper already calls this", "match": "existing"},
+        {"spec": "GET /api/v1/dealers", "lld_ref": "S1 existing — lib/api/masters.ts wrapper already calls this", "match": "existing"}
+      ],
+      "list_serialization_note_acknowledged": "Spec correctly flags that axios must serialize list params as repeat-key (?dealer_ids=1&dealer_ids=2), NOT comma-joined — FastAPI's native list parsing depends on this. This is a /ases-ui-scaffold S3 implementation responsibility, called out explicitly in the spec under integration_boundary_note."
+    }
+  },
+  "warnings": [
+    {
+      "id": "UR-S3-001",
+      "severity": "minor",
+      "topic": "Frontend type names vs spec text",
+      "description": "Spec text references `DealerRead` and `TradingDesignRead` (backend Pydantic schema names) in the SalesReportView api_deps. The actual frontend type names in frontend/src/types/masters.ts are `Dealer` and `Design` (S1 convention). /ases-ui-scaffold should use the existing frontend type names, not invent new ones to match the spec text verbatim.",
+      "blocks_scaffold": false,
+      "resolution": "scaffold-time clarification only — no spec change required"
+    },
+    {
+      "id": "UR-S3-002",
+      "severity": "minor",
+      "topic": "Places list derivation strategy",
+      "description": "Spec derives the available 'places' multi-select options from the loaded dealers' .place values, deduped. This is correct for V1 scale (single-digit users, small dealer count). At V2 scale this could miss historical place_snapshot values that exist in sales_header but no longer appear on any active dealer (because a dealer was edited or deleted). Not blocking — V1 dealer set is small and stable, but worth tracking.",
+      "blocks_scaffold": false,
+      "resolution": "carry-forward as a V2 consideration; possibly add a GET /api/v1/sales/places-distinct endpoint or expand the derivation source to include sales_header.place values"
+    },
+    {
+      "id": "UR-S3-003",
+      "severity": "minor",
+      "topic": "ReconciliationBadge placement clarity",
+      "description": "The ui_spec.md ASCII layout shows '28 ✓' next to BOTH the Consolidation header AND the Transactions header, but the component definition specifies a single component that receives both sums. /ases-ui-scaffold can render ONE badge (e.g. in the page header next to the filter bar) OR TWO mirrored badges (one per section) — either is consistent with the underlying single component. The .md diagram is illustrative, not prescriptive.",
+      "blocks_scaffold": false,
+      "resolution": "scaffold-time choice; recommend ONE badge near the filter bar for less visual noise (the section headers are already labeled)"
+    },
+    {
+      "id": "UR-S3-004",
+      "severity": "minor",
+      "topic": "URL cleanup when filters are cleared",
+      "description": "Spec URL-syncs filters via Next.js useSearchParams + router.replace. When the user clicks Reset, the URL should drop the now-empty params (e.g. /admin/reports/sales WITHOUT trailing `?` or empty `&dealer_ids=`). Not explicitly stated in the spec but a sensible implementation detail.",
+      "blocks_scaffold": false,
+      "resolution": "scaffold should use URLSearchParams cleanup logic to drop empty params before router.replace"
+    }
+  ],
+  "strengths_noted": [
+    "Integration-boundary pattern faithfully mirrors S2's lib/api/transactions.ts — Sonnet's swap step at /ases-ui-scaffold S3 will be a 1-line change per function, same as S2.",
+    "Apply-button-batched FilterBar avoids the common pitfall of refetching on every keystroke across 5 filter controls.",
+    "URL sync makes deep-linked dashboards (e.g. screenshots in WhatsApp 'show me last Friday's stock') trivially bookmarkable.",
+    "ReconciliationBadge is a thoughtful addition — server already asserts AC-050, but the visible green tick is high-trust UX feedback.",
+    "TD-010 closure path is concretely specified (native-select shim in MultiSelectCombobox test path).",
+    "AC-049 'no tabs, no toggle, Consolidation first' is explicitly encoded in SalesReportView's interactions text — eliminates ambiguity at scaffold time."
+  ],
+  "decisions_consulted": [
+    {"id": "DS-010", "topic": "Multi-device responsive design", "status": "honored — explicit mobile/tablet/desktop breakpoints and patterns documented"},
+    {"id": "DS-013", "topic": "Denormalized place snapshot", "status": "honored — TransactionRow.place renders the snapshot value as-is, no live join"},
+    {"id": "DS-016", "topic": "Single-query dashboard aggregation", "status": "honored — UI does not paginate or re-aggregate; trusts server-side ordering"},
+    {"id": "DS-017", "topic": "Shared filter predicate", "status": "honored — UI sends the 5 filters as one Apply, no separate consolidation/transactions request"}
+  ],
+  "hld_module_coverage": {
+    "M-001 Master": "consumed via existing lib/api/masters.ts (Dealer, Design)",
+    "M-002 API": "consumed via 2 new wrappers (lib/api/dashboard.ts, lib/api/reports.ts)",
+    "M-003 Stock Ledger": "not directly touched — read via M-004 dashboard endpoint",
+    "M-004 Dashboard": "consumed by DashboardView via lib/api/dashboard.ts",
+    "M-005 Reports": "consumed by SalesReportView via lib/api/reports.ts",
+    "M-006 UI": "owned by this spec — all components live here",
+    "M-007 Persistence": "not directly touched — accessed via M-002 API"
+  },
+  "no_redesign_observations": "Per skill rule 'Detection only — do not redesign'. No structural changes required. The 4 minor warnings above are scaffold-time clarifications, not redesign requests.",
+  "next": "/ases-ui-scaffold S3"
+}

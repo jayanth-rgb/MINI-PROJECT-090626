@@ -2,6 +2,59 @@
 
 All notable changes per sprint will land here, written by `/ases-release`.
 
+## Sprint S3 — 2026-06-29 · **V1 FEATURE COMPLETE**
+**Goal:** Reporting & Carry-Forward — Stock Dashboard (date-filtered), Sales Report (Consolidation + Transaction dual-pane with multi-select filters), explicit verification of monthly carry-forward including back-dated transactions across month boundaries.
+**Verdict:** SHIP
+
+### Shipped
+- **F-010 Stock Dashboard** (AC-041..AC-045) — `GET /api/v1/dashboard?as_of_date=YYYY-MM-DD` returns one row per active (design, grade) pair with Opening, Inward, Outward, Adjust, Closing columns; single CASE-aggregated GROUP BY query (DS-016) over `tbl_stock_ledger` using the `ix_stock_ledger_dgt` composite index; opening/closing are O(1) `latest_as_of` lookups (DS-003/004); server asserts FORMULA-001 invariant per row.
+- **F-011 Sales Report** (AC-046..AC-050) — `GET /api/v1/reports/sales` returns dual payload `{consolidation, transactions}` with 5 optional multi-select filters (date_from/to, dealer_ids, places, design_ids); shared `_build_filters` predicate (DS-017) makes AC-050 reconciliation structurally impossible to violate; RULE-019 sort on consolidation, RULE-020 on transactions.
+- **F-012 Monthly Carry-Forward verification** (AC-051..AC-053) — read-only sprint at the persistence layer; verified end-to-end via integration TCs (TC-153/154/155/156) + IS-012 cross-month HTTP scenario against existing S2 `domain.stock.opening_balance` + `_recompute_forward` primitives — no new code path.
+
+### Verified
+- **178 / 178 backend tests pass** (S1+S2 regression 132 + S3 new 46) — zero regressions across all 3 sprints
+- **4 / 4 S3 integration scenarios pass** (IS-009..IS-012) — including cross-sprint flow S2-writes-to-S3-reads (IS-011) and cross-month carry-forward through full HTTP (IS-012)
+- **5 / 5 S3 system test scenarios pass** (ST-008..ST-012):
+  - Dashboard p95 = **33.1 ms** vs PRD "sub-second" target (~24× headroom)
+  - Sales Report p95 = **715.7 ms** over 10,800 sales_line rows vs PRD < 2s target (~2.8× headroom)
+  - SQL-injection across all 3 list-type filters neutralized; `tbl_sales_header` intact
+  - V1 no-auth posture verified for 2 new endpoints (intentional contract per DS-005)
+  - Soft-delete cascade R-005 — dashboard hides deactivated pair; sales report retains historical FK joins
+- **13 / 13 UAT ACs accepted** on first review (no conditional, no rejected)
+- **10 / 10 critique lenses CLEAN** on iteration 1 (cleanest sprint to date)
+
+### Architectural decisions added
+- **DS-015** — Stock-ledger writes MUST acquire `pg_advisory_xact_lock(design_id, grade_id)` BEFORE `SELECT ... FOR UPDATE LIMIT 1` (amends DS-002 to canonize the TD-011 fix from S2 — the FOR UPDATE alone is insufficient because PG doesn't re-resolve LIMIT after waiting on a row lock).
+- **DS-016** — Stock Dashboard aggregation uses a SINGLE CASE-aggregated GROUP BY query (not per-pair sub-queries) for sub-second performance at PRD scale.
+- **DS-017** — Sales Report consolidation + transactions queries share a SINGLE filter-predicate builder, guaranteeing AC-050 reconciliation by construction (divergent filter logic is structurally impossible).
+
+### Tech Debt
+- **No NEW tech debt introduced by S3.**
+- Carry-forwards (none blocking S3):
+  - **CF-001** (open, PO action) — Long-lived PG bring-up; testcontainers covered all 178 tests
+  - **TD-001** (open, S3) — shadcn calendar patch; UI-track item (`/ases-ui-scaffold S3`)
+  - **TD-010** (open, S3) — Radix UI Select/Popover jsdom incompatibility; UI-design decision pending
+  - **TD-008** (open, V2) — First-row insert race (theoretical; acceptable for V1)
+
+### Deferred / Carry-Forward
+- **AC-049 visual verification** — backend dual-payload JSON contract accepted; the "no toggle, no tab, Consolidation first" visual UX deferred to `/ases-ui-scaffold S3`.
+- **UI track** — frontend pages for Dashboard + Sales Report deferred to the parallel-eligible UI track (backend API surface is frozen and critiqued).
+
+### Phase 3 Fix Iterations
+- **2 fix iterations during Phase 3, 100% test-side** — TC-122/142 (perf and reconciliation test seeds) at `/ases-test-run`, IS-011/012 (absolute-date scenario authoring) at `/ases-integration-test`. **Production source was not modified at any point during Phase 3.** In every case, the production code's own invariant assertions (AC-021 7-day window, FORMULA-001 ledger invariant, AC-050 reconciliation) caught the test bug — defense-in-depth working exactly as designed.
+
+### V1 Status
+**FEATURE COMPLETE.** All 12 V1 features (F-001..F-012) across 6 modules (M-001..M-005, M-007) are shipped. Master CRUD (S1) + Transaction forms with ledger writes (S2) + Reports & carry-forward (S3) = the complete trading-tiles V1 system.
+
+### Commit
+`d9715d5eeabebfa63f8f142b659bf1800b95a36c` on `develop` (131 files, +11,594/-10).
+
+### Next
+- `/ases-ui-design S3` — UI track (parallel-eligible) for the 2 new pages
+- V2 design when scoped — sprint design begins with `/ases-prd-update` (if PRD changes) or `/ases-lld` (if PRD stable)
+
+---
+
 ## Sprint S2 — 2026-06-23
 **Goal:** Transaction Forms + Stock Ledger — Inward, Sales, and Adjustment forms with grade-row auto-population, atomic header+lines+ledger writes, row-level locking on (design_id, grade_id), and basic ledger read API.
 **Verdict:** SHIP

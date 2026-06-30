@@ -1,0 +1,139 @@
+{
+  "$schema": "ases/v3.0/ui_scaffold_manifest",
+  "document": "ui_scaffold_manifest",
+  "produced_by": "/ases-ui-scaffold S3",
+  "consumed_by": ["/ases-dev", "/ases-critique", "/ases-final-audit"],
+  "sprint_id": "S3",
+  "scaffolded_at": "2026-06-29",
+  "executed_by": "developer agent (Sonnet 4.6) — Gemini fallback in this Claude Code session",
+  "verdict": "LOCKED",
+  "lock_policy": "Sonnet may ONLY edit the function bodies in `frontend/src/lib/api/dashboard.ts` and `frontend/src/lib/api/reports.ts` during the integration pass. Any structural change (new component, new route, layout change) requires a new ui-design → ui-review → ui-scaffold cycle.",
+  "build_verification": {
+    "typescript": {
+      "command": "cd frontend && npx tsc --noEmit",
+      "exit_code": 0,
+      "result": "zero errors"
+    },
+    "next_build": {
+      "command": "cd frontend && npm run build",
+      "exit_code": 0,
+      "result": "all 15 routes generated successfully",
+      "new_routes_size": {
+        "/admin/dashboard": "6.5 kB",
+        "/admin/reports/sales": "7.54 kB"
+      }
+    }
+  },
+  "files_created": [
+    {"path": "frontend/src/types/dashboard.ts", "loc": 16, "purpose": "DashboardRow type (10 fields matching backend schema)"},
+    {"path": "frontend/src/types/reports.ts", "loc": 39, "purpose": "ConsolidationRow, TransactionRow, SalesReportResponse, SalesReportFilters"},
+    {"path": "frontend/src/lib/api/dashboard.ts", "loc": 34, "purpose": "INTEGRATION POINT 1 — getDashboard(asOfDate)"},
+    {"path": "frontend/src/lib/api/reports.ts", "loc": 100, "purpose": "INTEGRATION POINT 2 — getSalesReport(filters); header comment documents repeat-key serialization for Sonnet's swap"},
+    {"path": "frontend/src/app/admin/dashboard/page.tsx", "loc": 36, "purpose": "Server-component page; <Suspense> wrapper required by Next.js 15 for useSearchParams"},
+    {"path": "frontend/src/app/admin/reports/sales/page.tsx", "loc": 37, "purpose": "Server-component page; <Suspense> wrapper"},
+    {"path": "frontend/src/components/admin/dashboard/DashboardView.tsx", "loc": 108, "purpose": "Container; URL-synced asOfDate; react-query; toast on error"},
+    {"path": "frontend/src/components/admin/dashboard/DashboardDatePicker.tsx", "loc": 28, "purpose": "Single-date picker; reuses existing DatePicker + shadcn calendar"},
+    {"path": "frontend/src/components/admin/dashboard/DashboardTable.tsx", "loc": 108, "purpose": "8-column data table; skeleton; sticky first column on mobile; tabular-nums numerics"},
+    {"path": "frontend/src/components/admin/dashboard/EmptyDashboardState.tsx", "loc": 26, "purpose": "No-active-pairs CTA → /admin/design-grade-map"},
+    {"path": "frontend/src/components/admin/reports/SalesReportView.tsx", "loc": 192, "purpose": "Container; URL-sync (UR-S3-004); places derived (UR-S3-002); ONE ReconciliationBadge (UR-S3-003)"},
+    {"path": "frontend/src/components/admin/reports/SalesReportFilterBar.tsx", "loc": 169, "purpose": "5-control form; draft state local; Apply batches; Reset clears+emits"},
+    {"path": "frontend/src/components/ui/MultiSelectCombobox.tsx", "loc": 218, "purpose": "Reusable multi-select with chip pills; ALSO exports MultiSelectComboboxFallback (native select shim for jsdom — TD-010 closure)"},
+    {"path": "frontend/src/components/admin/reports/ConsolidationTable.tsx", "loc": 104, "purpose": "4-column table; <TableFooter> total; skeleton; empty state"},
+    {"path": "frontend/src/components/admin/reports/TransactionsTable.tsx", "loc": 124, "purpose": "7-column table; Place + Size hidden on mobile; <TableFooter> total"},
+    {"path": "frontend/src/components/admin/reports/ReconciliationBadge.tsx", "loc": 36, "purpose": "aria-live='polite'; green/red states; one instance per page"},
+    {"path": "frontend/src/components/admin/reports/EmptyReportState.tsx", "loc": 29, "purpose": "Clear-filters button; aria-labeled"}
+  ],
+  "files_modified": [
+    {
+      "path": "frontend/src/lib/mocks.ts",
+      "loc_after": 344,
+      "change": "Appended MOCK_DASHBOARD_ROWS (6 rows) + MOCK_SALES_REPORT_ROWS (7 rows). Existing S1+S2 exports byte-identical."
+    }
+  ],
+  "integration_points": [
+    {
+      "id": "IP-S3-001",
+      "file": "frontend/src/lib/api/dashboard.ts",
+      "function": "getDashboard(asOfDate: string): Promise<DashboardRow[]>",
+      "current_impl": "returns from MOCK_DASHBOARD_ROWS in lib/mocks.ts",
+      "target_impl": "await apiClient.get('/dashboard', { params: { as_of_date: asOfDate } }).then(r => r.data)",
+      "swap_step": "/ases-dev integration pass (single function-body swap)",
+      "endpoint_lld_ref": "files[3] backend/src/presentation/api/routers/dashboard.py + T-064"
+    },
+    {
+      "id": "IP-S3-002",
+      "file": "frontend/src/lib/api/reports.ts",
+      "function": "getSalesReport(filters: SalesReportFilters): Promise<SalesReportResponse>",
+      "current_impl": "applies filters client-side against MOCK_SALES + MOCK_SALES_REPORT_ROWS; verifies AC-050 reconciliation",
+      "target_impl": "URLSearchParams.append() for repeat-key list serialization (?dealer_ids=1&dealer_ids=2), then apiClient.get('/reports/sales', { params }).then(r => r.data)",
+      "swap_step": "/ases-dev integration pass — header comment in the file contains the exact replacement code",
+      "critical_note": "Must use URLSearchParams.append() or paramsSerializer for repeat-key serialization. FastAPI's native list parser rejects comma-joined values.",
+      "endpoint_lld_ref": "files[6] backend/src/presentation/api/routers/sales_report.py + T-065"
+    }
+  ],
+  "review_warnings_honored": [
+    {"id": "UR-S3-001", "status": "resolved", "evidence": "All imports use frontend type names `Dealer` + `Design` (verified in SalesReportView and FilterBar imports)"},
+    {"id": "UR-S3-002", "status": "resolved", "evidence": "SalesReportView derives places via `[...new Set(dealers.map(d => d.place))].sort()`"},
+    {"id": "UR-S3-003", "status": "resolved", "evidence": "One <ReconciliationBadge /> in SalesReportView near the FilterBar — not duplicated in section headers"},
+    {"id": "UR-S3-004", "status": "resolved", "evidence": "filtersToSearchParams() helper in SalesReportView builds URLSearchParams skipping undefined/empty fields; Reset passes empty params to router"}
+  ],
+  "tech_debt_addressed": [
+    {
+      "id": "TD-001",
+      "status": "no_new_action_needed",
+      "evidence": "Existing shadcn calendar.tsx patch (table → month_grid) already in place; DashboardDatePicker reuses it without modification."
+    },
+    {
+      "id": "TD-010",
+      "status": "scaffold_provides_closure_path",
+      "evidence": "MultiSelectCombobox.tsx exports MultiSelectComboboxFallback (native <select multiple>) for jsdom tests. The 7 deferred S2 frontend TCs (TC-092/093/095/097/099/101/102) can now be tested via the fallback. Closure happens at /ases-test-impl S3 (UI track)."
+    }
+  ],
+  "tcs_to_be_implemented_in_test_impl_s3_ui_track": "TBD — UI track currently has no /ases-test-impl step in flight. When invoked, expected scope ~8-12 TCs covering: dashboard render with seeded rows, dashboard empty state, dashboard date picker URL sync, sales-report dual payload render, sales-report multi-filter URL sync, sales-report reconciliation badge, sales-report empty state, multi-select combobox toggle behavior, multi-select fallback (jsdom path for TD-010 closure).",
+  "deviations_from_spec_with_rationale": [
+    {
+      "deviation": "No shadcn Alert component installed in this project — error states use inline <div role='alert'> with destructive Tailwind classes",
+      "rationale": "Functionally identical; the spec didn't require Alert specifically. Avoids adding a new shadcn install mid-Phase-3.",
+      "blocking": false
+    },
+    {
+      "deviation": "<Suspense> wrappers on both page.tsx files",
+      "rationale": "Next.js 15 platform requirement: useSearchParams() callers must be inside a Suspense boundary or the build fails. Not a design change.",
+      "blocking": false
+    },
+    {
+      "deviation": "TransactionsTable footer uses CSS `hidden sm:table-cell` duplication instead of colspan arithmetic",
+      "rationale": "Avoids JS-side colspan bugs when mobile hides Place + Size columns; both footer cells are semantically correct.",
+      "blocking": false
+    }
+  ],
+  "responsive_breakpoints_implemented": {
+    "mobile": "< 640px — tables overflow-x-auto; FilterBar collapses to Sheet/Drawer; cards stack",
+    "tablet": "640-1023px — FilterBar 2-column grid",
+    "desktop": "≥ 1024px — FilterBar single row + flex-wrap; sticky at top"
+  },
+  "accessibility_implemented": {
+    "keyboard_navigation": "All form controls native or shadcn-wrapped (keyboard-accessible)",
+    "aria_live": "ReconciliationBadge announces changes via aria-live='polite'",
+    "aria_labels": "DatePicker, MultiSelectCombobox chips, Reset/Apply/Clear buttons all aria-labeled",
+    "semantic_html": "<section>, <h1>, <h2>, <table>/<thead>/<tbody>/<tfoot>, <button> throughout",
+    "tabular_numerics": "All numeric cells right-aligned + tabular-nums"
+  },
+  "post_scaffold_state": {
+    "locked": true,
+    "locked_components": 17,
+    "locked_pages": 2,
+    "unlockable_files": ["frontend/src/lib/api/dashboard.ts (1 function body)", "frontend/src/lib/api/reports.ts (1 function body)"],
+    "deletable_after_full_integration": ["frontend/src/lib/mocks.ts (only after all integration_points swapped — currently used by both api wrappers AND existing S1+S2 wrappers, so will outlast S3 integration)"]
+  },
+  "phase_transition": {
+    "from": "ui_review_S3_APPROVED",
+    "to": "ui_scaffold_S3_LOCKED",
+    "next_options": [
+      "/ases-test-impl S3 (UI track — implement frontend TCs)",
+      "/ases-dev S3 (integration pass — swap 2 api wrappers from mocks to real backend calls)",
+      "or treat this as a separate post-release UI deliverable and pursue V2 scoping"
+    ]
+  },
+  "next": "/ases-dev S3 (integration pass for IP-S3-001 + IP-S3-002) OR /ases-test-impl S3 (UI track tests)"
+}

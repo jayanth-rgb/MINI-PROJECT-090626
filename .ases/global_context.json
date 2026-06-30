@@ -2,8 +2,17 @@
   "$schema": "ases/v3.0/global_context",
   "document": "global_context",
   "produced_by": "/ases-init",
-  "updated_by": ["/ases-release", "/ases-prd-update", "/ases-sprint-close", "/ases-inject"],
-  "consumed_by": ["/ases-inject", "/ases-context", "/ases-gc"],
+  "updated_by": [
+    "/ases-release",
+    "/ases-prd-update",
+    "/ases-sprint-close",
+    "/ases-inject"
+  ],
+  "consumed_by": [
+    "/ases-inject",
+    "/ases-context",
+    "/ases-gc"
+  ],
   "version": 1,
   "entries": [
     {
@@ -13,7 +22,12 @@
       "summary": "Data Foundation shipped: 6 master entities (Supplier/Staff/Dealer/Grade/Design/Design-Grade Map) with CRUD admin + soft-delete + UNIQUE constraints; 40 tasks complete; 46/46 TCs pass; 4/4 IS scenarios; 3/3 STs executed (2 deferred to S3); UAT 19/19 accepted; final audit SHIP.",
       "verdict": "SHIP",
       "date": "2026-06-20",
-      "tags": ["S1", "shipped", "M-001", "M-007"],
+      "tags": [
+        "S1",
+        "shipped",
+        "M-001",
+        "M-007"
+      ],
       "full_ref": "sprints/S1/ship/sprint_summary.json"
     },
     {
@@ -22,11 +36,20 @@
       "feature_id": "F-001",
       "name": "Supplier Master",
       "sprint": "S1",
-      "ac_refs": ["AC-001", "AC-002", "AC-003"],
+      "ac_refs": [
+        "AC-001",
+        "AC-002",
+        "AC-003"
+      ],
       "ac_count": 3,
       "ac_passed": 3,
       "date": "2026-06-20",
-      "tags": ["F-001", "S1", "M-001", "supplier"]
+      "tags": [
+        "F-001",
+        "S1",
+        "M-001",
+        "supplier"
+      ]
     },
     {
       "id": "FT-002",
@@ -34,11 +57,20 @@
       "feature_id": "F-002",
       "name": "Staff Master",
       "sprint": "S1",
-      "ac_refs": ["AC-004", "AC-005", "AC-006"],
+      "ac_refs": [
+        "AC-004",
+        "AC-005",
+        "AC-006"
+      ],
       "ac_count": 3,
       "ac_passed": 3,
       "date": "2026-06-20",
-      "tags": ["F-002", "S1", "M-001", "staff"]
+      "tags": [
+        "F-002",
+        "S1",
+        "M-001",
+        "staff"
+      ]
     },
     {
       "id": "FT-003",
@@ -46,11 +78,20 @@
       "feature_id": "F-003",
       "name": "Dealer Master",
       "sprint": "S1",
-      "ac_refs": ["AC-007", "AC-008", "AC-009"],
+      "ac_refs": [
+        "AC-007",
+        "AC-008",
+        "AC-009"
+      ],
       "ac_count": 3,
       "ac_passed": 3,
       "date": "2026-06-20",
-      "tags": ["F-003", "S1", "M-001", "dealer"]
+      "tags": [
+        "F-003",
+        "S1",
+        "M-001",
+        "dealer"
+      ]
     },
     {
       "id": "FT-004",
@@ -58,11 +99,21 @@
       "feature_id": "F-004",
       "name": "Grade Master (with UNIQUE(grade_code))",
       "sprint": "S1",
-      "ac_refs": ["AC-010", "AC-011", "AC-012"],
+      "ac_refs": [
+        "AC-010",
+        "AC-011",
+        "AC-012"
+      ],
       "ac_count": 3,
       "ac_passed": 3,
       "date": "2026-06-20",
-      "tags": ["F-004", "S1", "M-001", "grade", "unique-constraint"]
+      "tags": [
+        "F-004",
+        "S1",
+        "M-001",
+        "grade",
+        "unique-constraint"
+      ]
     },
     {
       "id": "FT-005",
@@ -70,11 +121,20 @@
       "feature_id": "F-005",
       "name": "Trading Design Master",
       "sprint": "S1",
-      "ac_refs": ["AC-013", "AC-014", "AC-015"],
+      "ac_refs": [
+        "AC-013",
+        "AC-014",
+        "AC-015"
+      ],
       "ac_count": 3,
       "ac_passed": 3,
       "date": "2026-06-20",
-      "tags": ["F-005", "S1", "M-001", "design"]
+      "tags": [
+        "F-005",
+        "S1",
+        "M-001",
+        "design"
+      ]
     },
     {
       "id": "FT-006",
@@ -82,11 +142,22 @@
       "feature_id": "F-006",
       "name": "Design-Grade Mapping (DF-006 contract delivered)",
       "sprint": "S1",
-      "ac_refs": ["AC-016", "AC-017", "AC-018", "AC-019"],
+      "ac_refs": [
+        "AC-016",
+        "AC-017",
+        "AC-018",
+        "AC-019"
+      ],
       "ac_count": 4,
       "ac_passed": 4,
       "date": "2026-06-20",
-      "tags": ["F-006", "S1", "M-001", "design-grade-map", "DF-006"]
+      "tags": [
+        "F-006",
+        "S1",
+        "M-001",
+        "design-grade-map",
+        "DF-006"
+      ]
     },
     {
       "id": "TD-005",
@@ -97,7 +168,12 @@
       "target_sprint": "S1",
       "closes_on": "W5",
       "status": "open",
-      "tags": ["S1", "alembic", "migration", "W5"]
+      "tags": [
+        "S1",
+        "alembic",
+        "migration",
+        "W5"
+      ]
     },
     {
       "id": "TD-006",
@@ -108,7 +184,11 @@
       "target_sprint": "S1",
       "closes_on": "W5",
       "status": "open",
-      "tags": ["S1", "seed", "W5"]
+      "tags": [
+        "S1",
+        "seed",
+        "W5"
+      ]
     },
     {
       "id": "TD-007",
@@ -118,8 +198,17 @@
       "sprint_introduced": "S1",
       "target_sprint": "S2",
       "status": "closed_in_S2",
-      "closed_by": ["DS-014", "T-041 (ORM)", "T-044 (migration ALTERs 4 S1 columns)"],
-      "tags": ["S2", "schema", "timezone", "ORM"]
+      "closed_by": [
+        "DS-014",
+        "T-041 (ORM)",
+        "T-044 (migration ALTERs 4 S1 columns)"
+      ],
+      "tags": [
+        "S2",
+        "schema",
+        "timezone",
+        "ORM"
+      ]
     },
     {
       "id": "CF-001",
@@ -129,7 +218,12 @@
       "sprint_introduced": "S1",
       "blocks": null,
       "blocks_release": false,
-      "tags": ["S1", "W5", "po-action", "infra"]
+      "tags": [
+        "S1",
+        "W5",
+        "po-action",
+        "infra"
+      ]
     },
     {
       "id": "RI-001",
@@ -139,7 +233,11 @@
       "description": "ORM TimestampMixin emits plain TIMESTAMP; LLD prose mentions TIMESTAMPTZ. Materializes only if deployment timezone differs from PG container's timezone. Mitigation plan: TIMESTAMPTZ migration in S2 (TD-007).",
       "sprint_introduced": "S1",
       "mitigation_ref": "TD-007",
-      "tags": ["S1", "timezone", "schema"]
+      "tags": [
+        "S1",
+        "timezone",
+        "schema"
+      ]
     },
     {
       "id": "RI-002",
@@ -149,7 +247,11 @@
       "description": "PO has not yet completed W5 (live PG bring-up). Entirely PO-side; documented; does not block release. IS-002's ephemeral PG container covers artifact correctness for the dev cycle.",
       "sprint_introduced": "S1",
       "mitigation_ref": "CF-001",
-      "tags": ["S1", "infra", "W5"]
+      "tags": [
+        "S1",
+        "infra",
+        "W5"
+      ]
     },
     {
       "id": "SP-002",
@@ -158,7 +260,14 @@
       "summary": "Transaction Forms + Stock Ledger shipped: F-007 Inward + F-008 Sales + F-009 Adjustment (21 ACs across 3 features). 16 backend tasks CLEAN on iteration 1; 7 ORM models + 4 repositories + domain.stock arithmetic + Alembic 0003 + 4 services + DI wiring + 4 routers; UI scaffold locked with 6 integration points. 112/112 backend tests pass; 4/4 IS; 4/4 ST (TD-011 discovered + closed in-step via pg_advisory_xact_lock); UAT 21/21; final audit SHIP. TD-007 closed by DS-014.",
       "verdict": "SHIP",
       "date": "2026-06-23",
-      "tags": ["S2", "shipped", "M-002", "M-003", "M-007", "stock-ledger"],
+      "tags": [
+        "S2",
+        "shipped",
+        "M-002",
+        "M-003",
+        "M-007",
+        "stock-ledger"
+      ],
       "full_ref": "sprints/S2/ship/sprint_summary.json"
     },
     {
@@ -167,11 +276,26 @@
       "feature_id": "F-007",
       "name": "Inward Entry",
       "sprint": "S2",
-      "ac_refs": ["AC-020", "AC-021", "AC-022", "AC-023", "AC-024", "AC-025", "AC-026", "AC-027"],
+      "ac_refs": [
+        "AC-020",
+        "AC-021",
+        "AC-022",
+        "AC-023",
+        "AC-024",
+        "AC-025",
+        "AC-026",
+        "AC-027"
+      ],
       "ac_count": 8,
       "ac_passed": 8,
       "date": "2026-06-23",
-      "tags": ["F-007", "S2", "M-002", "inward", "stock-ledger"]
+      "tags": [
+        "F-007",
+        "S2",
+        "M-002",
+        "inward",
+        "stock-ledger"
+      ]
     },
     {
       "id": "FT-008",
@@ -179,11 +303,24 @@
       "feature_id": "F-008",
       "name": "Sales Entry",
       "sprint": "S2",
-      "ac_refs": ["AC-028", "AC-029", "AC-030", "AC-031", "AC-032", "AC-033"],
+      "ac_refs": [
+        "AC-028",
+        "AC-029",
+        "AC-030",
+        "AC-031",
+        "AC-032",
+        "AC-033"
+      ],
       "ac_count": 6,
       "ac_passed": 6,
       "date": "2026-06-23",
-      "tags": ["F-008", "S2", "M-002", "sales", "stock-ledger"]
+      "tags": [
+        "F-008",
+        "S2",
+        "M-002",
+        "sales",
+        "stock-ledger"
+      ]
     },
     {
       "id": "FT-009",
@@ -191,11 +328,26 @@
       "feature_id": "F-009",
       "name": "Stock Adjustment (incl. DF-003 contract)",
       "sprint": "S2",
-      "ac_refs": ["AC-034", "AC-035", "AC-036", "AC-037", "AC-038", "AC-039", "AC-040"],
+      "ac_refs": [
+        "AC-034",
+        "AC-035",
+        "AC-036",
+        "AC-037",
+        "AC-038",
+        "AC-039",
+        "AC-040"
+      ],
       "ac_count": 7,
       "ac_passed": 7,
       "date": "2026-06-23",
-      "tags": ["F-009", "S2", "M-002", "adjustment", "stock-ledger", "DF-003"]
+      "tags": [
+        "F-009",
+        "S2",
+        "M-002",
+        "adjustment",
+        "stock-ledger",
+        "DF-003"
+      ]
     },
     {
       "id": "TD-008",
@@ -205,7 +357,12 @@
       "sprint_introduced": "S2",
       "target_sprint": "V2",
       "status": "open_likely_subsumed",
-      "tags": ["S2", "concurrency", "DS-002", "V2"]
+      "tags": [
+        "S2",
+        "concurrency",
+        "DS-002",
+        "V2"
+      ]
     },
     {
       "id": "TD-010",
@@ -215,7 +372,13 @@
       "sprint_introduced": "S2",
       "target_sprint": "S3 or V2",
       "status": "open",
-      "tags": ["S2", "frontend", "jsdom", "radix-ui", "test-infra"]
+      "tags": [
+        "S2",
+        "frontend",
+        "jsdom",
+        "radix-ui",
+        "test-infra"
+      ]
     },
     {
       "id": "TD-011",
@@ -225,8 +388,15 @@
       "sprint_introduced": "S2",
       "target_sprint": "S2",
       "status": "closed_in_S2",
-      "closed_by": ["pg_advisory_xact_lock in domain.stock._apply"],
-      "tags": ["S2", "concurrency", "DS-002", "postgresql"]
+      "closed_by": [
+        "pg_advisory_xact_lock in domain.stock._apply"
+      ],
+      "tags": [
+        "S2",
+        "concurrency",
+        "DS-002",
+        "postgresql"
+      ]
     },
     {
       "id": "RI-003",
@@ -236,7 +406,107 @@
       "description": "TD-011 implementation (advisory-lock-first) is correct, but DS-002 spec text still describes only 'SELECT FOR UPDATE on latest row' without mentioning the advisory lock requirement. Risk: future contributor implements a new write path mirroring DS-002 text and re-introduces the LIMIT-1 race. Mitigation: amend DS-002 text in S3 /ases-lld.",
       "sprint_introduced": "S2",
       "mitigation_ref": "FA-S2-002",
-      "tags": ["S2", "spec-drift", "concurrency", "DS-002"]
+      "tags": [
+        "S2",
+        "spec-drift",
+        "concurrency",
+        "DS-002"
+      ]
+    },
+    {
+      "id": "SP-003",
+      "type": "sprint_digest",
+      "sprint": "S3",
+      "summary": "Reporting & Carry-Forward shipped: F-010 Stock Dashboard + F-011 Sales Report (dual payload with multi-select filters) + F-012 carry-forward verification. 10 tasks complete (T-057..T-066) with 10/10 CLEAN on critique iteration 1. 178/178 tests across S1+S2+S3 (46 new S3 TCs + 4 IS + 5 ST). 0 regressions. Perf headroom: dashboard p95=33.1ms (~24x), sales-report p95=715.7ms over 10800 rows (~2.8x). 0 new tech debt. UAT 13/13 accepted first-review. V1 FEATURE COMPLETE.",
+      "verdict": "SHIP",
+      "date": "2026-06-29",
+      "tags": [
+        "S3",
+        "shipped",
+        "M-004",
+        "M-005",
+        "v1-complete"
+      ],
+      "full_ref": "sprints/S3/ship/sprint_summary.json"
+    },
+    {
+      "id": "FT-010",
+      "type": "feature",
+      "feature_id": "F-010",
+      "name": "Stock Dashboard",
+      "sprint": "S3",
+      "ac_refs": [
+        "AC-041",
+        "AC-042",
+        "AC-043",
+        "AC-044",
+        "AC-045"
+      ],
+      "ac_count": 5,
+      "ac_passed": 5,
+      "endpoint": "GET /api/v1/dashboard?as_of_date=YYYY-MM-DD",
+      "perf": "p95=33.1ms vs 800ms (24x headroom)",
+      "date": "2026-06-29",
+      "tags": [
+        "F-010",
+        "S3",
+        "M-004",
+        "dashboard",
+        "DS-003",
+        "DS-016"
+      ]
+    },
+    {
+      "id": "FT-011",
+      "type": "feature",
+      "feature_id": "F-011",
+      "name": "Sales Report (Consolidation + Transactions)",
+      "sprint": "S3",
+      "ac_refs": [
+        "AC-046",
+        "AC-047",
+        "AC-048",
+        "AC-049",
+        "AC-050"
+      ],
+      "ac_count": 5,
+      "ac_passed": 5,
+      "endpoint": "GET /api/v1/reports/sales (5 multi-select filters)",
+      "perf": "p95=715.7ms vs 2000ms over 10800 sales_line rows (2.8x headroom)",
+      "date": "2026-06-29",
+      "tags": [
+        "F-011",
+        "S3",
+        "M-005",
+        "sales-report",
+        "DS-013",
+        "DS-017"
+      ]
+    },
+    {
+      "id": "FT-012",
+      "type": "feature",
+      "feature_id": "F-012",
+      "name": "Monthly Stock Carry-Forward (verification only)",
+      "sprint": "S3",
+      "ac_refs": [
+        "AC-051",
+        "AC-052",
+        "AC-053"
+      ],
+      "ac_count": 3,
+      "ac_passed": 3,
+      "implementation_note": "Zero new code path. Verified end-to-end via integration TCs against existing S2 domain.stock.opening_balance + _recompute_forward primitives.",
+      "date": "2026-06-29",
+      "tags": [
+        "F-012",
+        "S3",
+        "M-003",
+        "carry-forward",
+        "DS-004"
+      ]
     }
-  ]
+  ],
+  "last_updated": "2026-06-29",
+  "last_updated_by": "/ases-release S3"
 }

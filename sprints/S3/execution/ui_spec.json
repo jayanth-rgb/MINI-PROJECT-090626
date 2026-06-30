@@ -1,0 +1,343 @@
+{
+  "$schema": "ases/v3.0/ui_spec",
+  "document": "ui_spec",
+  "produced_by": "/ases-ui-design S3",
+  "consumed_by": ["/ases-ui-review", "/ases-ui-scaffold"],
+  "sprint_id": "S3",
+  "designed_at": "2026-06-29",
+  "designer_note": "Designed by Opus running the /ases-ui-design role because no Gemini agent is available in this Claude Code session. Spec is platform-neutral and re-runnable by Gemini if/when integrated.",
+  "scope_features": ["F-010", "F-011"],
+  "scope_excludes": ["F-012 — verification-only feature, no UI surface (its semantics are verified by integration tests against the dashboard)"],
+  "framework": {
+    "next_version": "15.1.x (App Router)",
+    "react_version": "19.x",
+    "ui_kit": "shadcn radix-nova (existing from /ases-scaffold)",
+    "css": "Tailwind",
+    "data_fetching": "@tanstack/react-query (existing from S1)",
+    "http": "axios via lib/api/client.ts (existing from S1)",
+    "validation": "zod (existing from S1)",
+    "notifications": "sonner toast (existing from S1)"
+  },
+  "integration_points": [
+    "GET /api/v1/dashboard?as_of_date=YYYY-MM-DD → list[DashboardRow]   (T-064 — new S3)",
+    "GET /api/v1/reports/sales?date_from=&date_to=&dealer_ids=&places=&design_ids= → {consolidation, transactions}   (T-065 — new S3)",
+    "GET /api/v1/designs → list[TradingDesignRead]   (S1, existing — filter dropdown)",
+    "GET /api/v1/dealers → list[DealerRead]   (S1, existing — filter dropdown + places derivation)"
+  ],
+  "integration_boundary_note": "Two NEW api wrapper files extend the existing pattern: `frontend/src/lib/api/dashboard.ts` and `frontend/src/lib/api/reports.ts`. Components/hooks import only from these wrappers. The wrappers initially read from `mocks.ts`; Sonnet swaps to real `apiClient` calls at /ases-ui-scaffold S3 (one-line change per function) — same pattern as S2's `lib/api/transactions.ts`.",
+  "routes": [
+    {
+      "path": "/admin/dashboard",
+      "page_component": "DashboardPage",
+      "feature_ref": "F-010",
+      "task_refs_implied": ["UI-T-010"]
+    },
+    {
+      "path": "/admin/reports/sales",
+      "page_component": "SalesReportPage",
+      "feature_ref": "F-011",
+      "task_refs_implied": ["UI-T-011"]
+    }
+  ],
+  "new_types": [
+    {
+      "file": "frontend/src/types/dashboard.ts",
+      "exports": ["DashboardRow"],
+      "shape": "{ design_id: number; design_name: string; size: string; grade_id: number; grade_code: string; opening: number; inward: number; outward: number; adjust: number; closing: number }"
+    },
+    {
+      "file": "frontend/src/types/reports.ts",
+      "exports": ["ConsolidationRow", "TransactionRow", "SalesReportResponse", "SalesReportFilters"],
+      "shape": "ConsolidationRow: { design_id, design_name, size, grade_id, grade_code, total_nos: number }\nTransactionRow: { sales_date: string (YYYY-MM-DD), dealer_id, dealer_name, place: string, design_id, design_name, size, grade_id, grade_code, nos: number }\nSalesReportResponse: { consolidation: ConsolidationRow[]; transactions: TransactionRow[] }\nSalesReportFilters: { dateFrom?: string; dateTo?: string; dealerIds?: number[]; places?: string[]; designIds?: number[] }"
+    }
+  ],
+  "new_api_wrappers": [
+    {
+      "file": "frontend/src/lib/api/dashboard.ts",
+      "exports": ["getDashboard(asOfDate: string): Promise<DashboardRow[]>"],
+      "during_scaffold": "imports MOCK_DASHBOARD_ROWS from mocks.ts and filters/projects synthetically based on asOfDate",
+      "during_integration": "Sonnet replaces with `await apiClient.get('/dashboard', { params: { as_of_date: asOfDate } }).then(r => r.data)`"
+    },
+    {
+      "file": "frontend/src/lib/api/reports.ts",
+      "exports": ["getSalesReport(filters: SalesReportFilters): Promise<SalesReportResponse>"],
+      "during_scaffold": "imports MOCK_SALES + MOCK_DESIGNS + MOCK_DEALERS and applies the filter set client-side to build both arrays + verify AC-050 reconciliation",
+      "during_integration": "Sonnet replaces with `await apiClient.get('/reports/sales', { params: <repeat-key list serialization> }).then(r => r.data)`. CRITICAL: must use axios `paramsSerializer` (or URLSearchParams) that emits repeat-key form for list params (`?dealer_ids=1&dealer_ids=2`), NOT comma-joined. FastAPI's native list parsing depends on this."
+    }
+  ],
+  "mock_additions": [
+    {
+      "file": "frontend/src/lib/mocks.ts",
+      "additions": [
+        "MOCK_DASHBOARD_ROWS: DashboardRow[] — 6 rows covering 2 designs × 3 grades (the S1 seed combinatorics) with varied opening/inward/outward/adjust/closing so the UI can render every column non-trivially",
+        "Existing MOCK_SALES is sufficient for the Sales Report (already shipped in S2 ui-scaffold); just extend MOCK_SALES with a few extra lines to make the consolidation grouping visible (≥2 sales per (design, grade) pair so total_nos > nos)"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "name": "DashboardPage",
+      "type": "page (server component)",
+      "file": "frontend/src/app/admin/dashboard/page.tsx",
+      "feature_ref": "F-010",
+      "purpose": "Server component wrapper hosting the DashboardView client component. Sets page title 'Stock Dashboard' + breadcrumb 'Admin / Dashboard'.",
+      "props": [],
+      "state": "stateless (server component)",
+      "interactions": ["renders <DashboardView />"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "responsive_note": "inherits the existing app/admin/layout.tsx shell — no page-level responsive concerns",
+      "a11y_note": "<h1>Stock Dashboard</h1> at the top sets the page landmark"
+    },
+    {
+      "name": "DashboardView",
+      "type": "client component",
+      "file": "frontend/src/components/admin/dashboard/DashboardView.tsx",
+      "feature_ref": "F-010",
+      "purpose": "Container client component. Owns the as_of_date state (URL-synced via Next.js search params), drives the date picker, and renders DashboardTable + states (loading / empty / error).",
+      "props": [],
+      "state": "asOfDate: string (YYYY-MM-DD, defaults to today; persisted to URL `?as_of_date=...`)",
+      "interactions": [
+        "On mount + on asOfDate change: useQuery(['dashboard', asOfDate], () => getDashboard(asOfDate))",
+        "DateRangePicker single-date variant (or single DatePicker) updates asOfDate; URL syncs via router.replace",
+        "Refetch button calls queryClient.invalidateQueries(['dashboard', asOfDate])"
+      ],
+      "api_deps": ["GET /api/v1/dashboard?as_of_date=<asOfDate>"],
+      "mocks_ref": "MOCK_DASHBOARD_ROWS via lib/api/dashboard.ts",
+      "child_components": ["DashboardDatePicker", "DashboardTable", "EmptyDashboardState", "ErrorState (shared, S1)"],
+      "responsive_note": "header (title + picker + refetch) stacks vertically on mobile (< 640px), inline on tablet+ (≥ 640px). Padding scales: px-4 (mobile) / px-6 (tablet) / px-8 (desktop).",
+      "a11y_note": "DatePicker has aria-label='Dashboard as-of date'; refetch button is a real <button> with aria-label='Refresh dashboard'."
+    },
+    {
+      "name": "DashboardDatePicker",
+      "type": "client component",
+      "file": "frontend/src/components/admin/dashboard/DashboardDatePicker.tsx",
+      "feature_ref": "F-010",
+      "purpose": "Calendar-popover input for selecting the as-of date. Reuses the existing shadcn calendar.tsx (TD-001 patch still applies).",
+      "props": "{ value: string (YYYY-MM-DD); onChange: (newDate: string) => void }",
+      "state": "internal popover-open boolean only",
+      "interactions": ["Click button → popover opens → select date → format to YYYY-MM-DD → call onChange(newValue) → popover closes"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "responsive_note": "button width: w-full sm:w-[240px]. Popover content uses align='start' on desktop, align='center' on mobile.",
+      "a11y_note": "aria-haspopup='dialog' on the trigger button; arrow keys navigate the calendar grid (react-day-picker default)"
+    },
+    {
+      "name": "DashboardTable",
+      "type": "client component",
+      "file": "frontend/src/components/admin/dashboard/DashboardTable.tsx",
+      "feature_ref": "F-010",
+      "purpose": "Renders DashboardRow[] in a shadcn Table. 10 columns matching the LLD: Design Name, Size, Grade, Opening, Inward, Outward, Adjust, Closing (+ design_id, grade_id hidden for keying). Sorted by (design_name ASC, grade_code ASC) — server already sorts; component does NOT re-sort.",
+      "props": "{ rows: DashboardRow[]; isLoading: boolean }",
+      "state": "none (controlled by parent)",
+      "interactions": [
+        "While isLoading: renders 6 skeleton rows (mobile shows 3) via shadcn <Skeleton />",
+        "On rows.length === 0 && !isLoading: render <EmptyDashboardState />",
+        "Numeric columns (Opening/Inward/Outward/Adjust/Closing) right-aligned via Tailwind tabular-nums text-right",
+        "Outward column is positive integer per the API contract (no minus sign)"
+      ],
+      "api_deps": [],
+      "mocks_ref": null,
+      "responsive_note": "On mobile (< 640px), the table horizontally scrolls inside an overflow-x-auto wrapper — keeps all 8 columns visible without truncation. On tablet+ (≥ 640px), table fills container width. Sticky column 1 (Design Name) on mobile so users always see the row identity while scrolling movements.",
+      "a11y_note": "<table> with proper <thead>/<tbody>; first cell of each row is <th scope='row'> for Design Name + Grade combo; tabular-nums on numeric cells for monospace alignment"
+    },
+    {
+      "name": "EmptyDashboardState",
+      "type": "client component",
+      "file": "frontend/src/components/admin/dashboard/EmptyDashboardState.tsx",
+      "feature_ref": "F-010",
+      "purpose": "Renders when GET /dashboard returns []. Provides a clear message + CTA: 'No active design-grade pairs yet — create one in Admin → Design-Grade Mapping' (links to /admin/design-grade-map).",
+      "props": [],
+      "state": "stateless",
+      "interactions": ["Link to /admin/design-grade-map via next/link"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "responsive_note": "centers vertically + horizontally; max-width 480px",
+      "a11y_note": "<p> with semantic text; CTA is a real anchor"
+    },
+    {
+      "name": "SalesReportPage",
+      "type": "page (server component)",
+      "file": "frontend/src/app/admin/reports/sales/page.tsx",
+      "feature_ref": "F-011",
+      "purpose": "Server component wrapper hosting SalesReportView. Sets title 'Sales Report' + breadcrumb 'Admin / Reports / Sales'.",
+      "props": [],
+      "state": "stateless",
+      "interactions": ["renders <SalesReportView />"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "responsive_note": "inherits app/admin/layout.tsx shell",
+      "a11y_note": "<h1>Sales Report</h1>"
+    },
+    {
+      "name": "SalesReportView",
+      "type": "client component",
+      "file": "frontend/src/components/admin/reports/SalesReportView.tsx",
+      "feature_ref": "F-011",
+      "purpose": "Container. Owns the 5-filter form state (URL-synced), drives the FilterBar, and renders the dual-payload result. Per AC-049: Consolidation FIRST, then Transactions, both on the same screen — no tabs, no toggle.",
+      "props": [],
+      "state": "filters: SalesReportFilters (date_from, date_to, dealer_ids: number[], places: string[], design_ids: number[]); all optional; URL-synced",
+      "interactions": [
+        "useQuery(['sales-report', filters], () => getSalesReport(filters)) — re-runs on every filter change",
+        "FilterBar's 'Apply' button triggers a single batched update (avoids 5 round-trips per typing event)",
+        "'Reset' clears all filters and triggers a refetch with no filters (full dataset per RULE-018)",
+        "Sum reconciliation badge (defense-in-depth): displays 'Reconciled: 28 / 28 ✓' or red-X if mismatch — the server has already asserted AC-050; this is a visible sanity tick for the PO"
+      ],
+      "api_deps": [
+        "GET /api/v1/reports/sales (T-065)",
+        "GET /api/v1/dealers — for the dealer multi-select options",
+        "GET /api/v1/designs — for the design multi-select options",
+        "(places list is DERIVED from the loaded dealers' .place values, deduped — no new endpoint)"
+      ],
+      "mocks_ref": "via lib/api/reports.ts + lib/api/masters.ts",
+      "child_components": ["SalesReportFilterBar", "ConsolidationTable", "TransactionsTable", "ReconciliationBadge", "EmptyReportState", "ErrorState"],
+      "responsive_note": "On mobile: FilterBar collapses to a single 'Filters (N active)' button → opens a Sheet/Drawer with the full form. Consolidation table renders FIRST (sticky on scroll), then Transactions below. On desktop: FilterBar sticks to the top of the content area; Consolidation and Transactions tables render in two stacked cards.",
+      "a11y_note": "<section aria-labelledby='consolidation-h'><h2 id='consolidation-h'>Consolidation</h2>... section per AC-049"
+    },
+    {
+      "name": "SalesReportFilterBar",
+      "type": "client component",
+      "file": "frontend/src/components/admin/reports/SalesReportFilterBar.tsx",
+      "feature_ref": "F-011",
+      "purpose": "5-control filter form. All controls multi-select OR optional single fields (date range is 2 single dates). Applies as a single 'Apply' click to avoid filter-noise re-fetches.",
+      "props": "{ initialFilters: SalesReportFilters; onApply: (filters: SalesReportFilters) => void; onReset: () => void; dealers: DealerRead[]; designs: TradingDesignRead[]; places: string[] }",
+      "state": "draftFilters (local; not propagated until Apply clicked)",
+      "interactions": [
+        "Date From + Date To: two DashboardDatePicker instances (clearable via 'X' icon)",
+        "Dealers: MultiSelectCombobox over dealers list, returns dealer_ids: number[]",
+        "Places: MultiSelectCombobox over derived places list",
+        "Designs: MultiSelectCombobox over designs list, returns design_ids: number[]",
+        "Apply button (primary): emits draftFilters via onApply",
+        "Reset button (ghost): clears draftFilters AND emits empty filters via onReset"
+      ],
+      "api_deps": [],
+      "mocks_ref": null,
+      "responsive_note": "5 controls + 2 buttons arrange responsively: mobile = stack vertically; tablet = 2-column grid; desktop = single row of 5 fields + 2 buttons with flex-wrap. Apply/Reset right-aligned on desktop, full-width on mobile.",
+      "a11y_note": "All controls wrapped in <Label htmlFor=...>; Apply button has type='submit' inside a <form onSubmit={preventDefault → onApply}>"
+    },
+    {
+      "name": "MultiSelectCombobox",
+      "type": "client component (REUSABLE)",
+      "file": "frontend/src/components/ui/MultiSelectCombobox.tsx",
+      "feature_ref": "F-011 (reusable utility)",
+      "purpose": "shadcn Combobox-pattern multi-select with check-mark chips. Used by 3 of the 5 filter controls. Reusable for future V2 multi-selects.",
+      "props": "{ options: Array<{ value: string | number; label: string }>; value: Array<string | number>; onChange: (next: Array<string | number>) => void; placeholder: string; emptyMessage?: string; searchable?: boolean (default true) }",
+      "state": "internal popover-open boolean + search input value",
+      "interactions": [
+        "Click → popover with searchable list",
+        "Click an option → toggles its presence in value",
+        "Selected items render as chips below the trigger with 'x' to remove",
+        "Search input filters the list (case-insensitive substring)",
+        "TD-010 NOTE: jsdom can't drive Radix Combobox internals — UI scaffold tests will mock this component with a native <select multiple> shim per TD-010's recommended option (a)"
+      ],
+      "api_deps": [],
+      "mocks_ref": null,
+      "responsive_note": "Trigger button width: w-full on mobile, w-[180px] on tablet+. Popover uses Radix Popover responsive defaults.",
+      "a11y_note": "aria-haspopup='listbox'; aria-multiselectable='true'; chips are <button aria-label='Remove X'>"
+    },
+    {
+      "name": "ConsolidationTable",
+      "type": "client component",
+      "file": "frontend/src/components/admin/reports/ConsolidationTable.tsx",
+      "feature_ref": "F-011",
+      "purpose": "Renders ConsolidationRow[]. 6 columns: Design Name, Size, Grade, Total Nos. (server pre-sorted by design_name ASC, grade_code ASC per RULE-019). Sum-of-total_nos row at the bottom (computed client-side from rendered rows).",
+      "props": "{ rows: ConsolidationRow[]; isLoading: boolean }",
+      "state": "none",
+      "interactions": [
+        "Skeleton rows on isLoading",
+        "Empty state shows 'No matching sales' when rows.length === 0 && !isLoading",
+        "Footer row: 'Total' label spanning Design+Size+Grade cells, total_nos sum right-aligned"
+      ],
+      "api_deps": [],
+      "mocks_ref": null,
+      "responsive_note": "Same overflow-x-auto + sticky design-name pattern as DashboardTable",
+      "a11y_note": "<tfoot> for the total row; <th scope='row'> on first cell"
+    },
+    {
+      "name": "TransactionsTable",
+      "type": "client component",
+      "file": "frontend/src/components/admin/reports/TransactionsTable.tsx",
+      "feature_ref": "F-011",
+      "purpose": "Renders TransactionRow[]. 7 visible columns (sales_date, dealer_name, place, design_name+size, grade_code, nos). Server pre-sorted by (sales_date ASC, header_id ASC) per RULE-020. Footer row shows sum-of-nos for client-side AC-050 verification badge.",
+      "props": "{ rows: TransactionRow[]; isLoading: boolean }",
+      "state": "none",
+      "interactions": ["Skeleton, Empty state, Footer total — same pattern as ConsolidationTable"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "responsive_note": "Mobile: hide place + size columns by default; reveal via expand toggle in a row's last cell. Desktop: all 7 visible.",
+      "a11y_note": "tabular-nums on numeric column; sales_date in ISO YYYY-MM-DD with abbr title='ISO date' if shown"
+    },
+    {
+      "name": "ReconciliationBadge",
+      "type": "client component",
+      "file": "frontend/src/components/admin/reports/ReconciliationBadge.tsx",
+      "feature_ref": "F-011",
+      "purpose": "Visible AC-050 verification: sums consolidation.total_nos and transactions.nos and renders 'Reconciled: 28 / 28 ✓' when equal, '⚠ Mismatch' otherwise. Server has already asserted AC-050 (will 500 if violated); this badge gives the PO a visible green-tick for confidence.",
+      "props": "{ consolidationSum: number; transactionsSum: number }",
+      "state": "none",
+      "interactions": ["Computes once per render; visual-only"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "responsive_note": "Inline badge near the section header; wraps to its own line on mobile",
+      "a11y_note": "aria-live='polite' so screen readers announce when the value changes after filter changes"
+    },
+    {
+      "name": "EmptyReportState",
+      "type": "client component",
+      "file": "frontend/src/components/admin/reports/EmptyReportState.tsx",
+      "feature_ref": "F-011",
+      "purpose": "Renders when both consolidation and transactions are empty. Message: 'No sales match the current filters. Try clearing filters or widening the date range.' + a 'Clear filters' button.",
+      "props": "{ onClear: () => void }",
+      "state": "stateless",
+      "interactions": ["Clear-filters button calls onClear()"],
+      "api_deps": [],
+      "mocks_ref": null,
+      "responsive_note": "centered, max-width 480px",
+      "a11y_note": "Clear button is a real <button> with aria-label='Clear all filters'"
+    }
+  ],
+  "shared_state_strategy": {
+    "url_sync": "Both pages use Next.js useSearchParams + router.replace to keep the current dashboard date / sales filters in the URL. This makes deep-linked dashboards bookmarkable (e.g. /admin/dashboard?as_of_date=2026-06-15) and supports back-button.",
+    "react_query_keys": [
+      "['dashboard', asOfDate]",
+      "['sales-report', filters]   // filters object serialized via JSON.stringify in the key",
+      "['dealers']   // existing S1",
+      "['designs']   // existing S1"
+    ],
+    "stale_time": "60 seconds for masters (dealers/designs); 0 (always refetch) for dashboard + sales report — reports must reflect latest data"
+  },
+  "responsive_breakpoints": {
+    "mobile": "< 640px (Tailwind sm- prefix)",
+    "tablet": "640-1023px (sm: through md:)",
+    "desktop": "≥ 1024px (lg:)",
+    "patterns": [
+      "Tables: overflow-x-auto wrapper on mobile to preserve all columns",
+      "Filter bar: vertical stack on mobile, single row with flex-wrap on desktop",
+      "Sticky elements: first table column sticky on mobile to retain row identity",
+      "Multi-selects: full-width chip area on mobile, fixed-width 240px on desktop"
+    ]
+  },
+  "accessibility_checklist": [
+    "All forms keyboard-navigable (PRD non_functional.accessibility)",
+    "Tab order: from top (date picker / filter bar) to bottom (tables)",
+    "All numeric columns right-aligned + tabular-nums for predictable scanning",
+    "Empty + error states have semantic <p> with role-appropriate aria",
+    "Toast notifications via sonner for error states (auto-dismiss, but also aria-live for screen readers)",
+    "Color contrast: shadcn radix-nova defaults meet WCAG AA"
+  ],
+  "loading_strategy": "react-query's isLoading drives shadcn <Skeleton /> components inside the tables (6 skeleton rows for dashboard, 10 for sales report tables). Empty states only render when isLoading === false AND rows.length === 0.",
+  "error_strategy": "react-query's isError drives a shared <ErrorState /> component (reused from S1) inside the table area. Toast via sonner for the actual error message. Retry button calls queryClient.refetchQueries.",
+  "future_concerns_not_in_s3_scope": [
+    "Pagination on /reports/sales (currently returns full filtered set; flagged in sprint_summary suggested_prd_updates for V2)",
+    "CSV / PDF export on either page (PRD V2 deferred)",
+    "Chart panel on dashboard (LLD frontend_ui_track_note marked optional; table-only ships in S3)",
+    "Date-range picker on dashboard (single date only per AC-041; V2 might add ranges)"
+  ],
+  "tech_debt_addressed": {
+    "TD-001": "shadcn calendar.tsx patch already in place from /ases-scaffold; DashboardDatePicker + SalesReportFilterBar both reuse the existing component without re-patching",
+    "TD-010": "MultiSelectCombobox replaces Radix Combobox internals with a thin native-select shim during jsdom testing — closes 7 deferred S2 frontend TCs via the shim path"
+  },
+  "tcs_deferred_to_test_impl": [],
+  "tcs_to_be_implemented_in_scaffold": "TBD — /ases-ui-design produces spec only. /ases-ui-scaffold S3 will identify TCs against the spec; expected scope ~6-10 TCs (dashboard rendering, filter-bar apply/reset, multi-select toggle behavior, sum reconciliation badge, empty/error states, URL sync).",
+  "next": "/ases-ui-review S3"
+}

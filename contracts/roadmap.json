@@ -40,9 +40,24 @@
       "modules": ["M-004", "M-005"],
       "scope_notes": "Read-side completion of the system. Dashboard reads from materialised stock_ledger (DS-003); Sales Report executes the dual-payload query in M-005. Carry-forward is exercised via integration tests using back-dated transactions per AC-053.",
       "dependencies_on": ["S1", "S2"],
-      "status": "planned"
+      "status": "shipped",
+      "shipped_at": "2026-06-29",
+      "final_audit_verdict": "SHIP",
+      "commit": "d9715d5eeabebfa63f8f142b659bf1800b95a36c",
+      "commit_short": "d9715d5",
+      "summary_ref": "sprints/S3/ship/sprint_summary.json",
+      "release_ref": "sprints/S3/ship/release.json",
+      "new_decisions": ["DS-015", "DS-016", "DS-017"],
+      "ship_findings": [
+        "FA-S3-001 minor (IS-011/012 absolute-date seed bug — test-side fix only)",
+        "FA-S3-002 warning (TC-122 seed bug caught by FORMULA-001 server-side invariant — defense-in-depth working as designed)",
+        "FA-S3-003 minor (AC-049 visual verification carry-forward to UI track)"
+      ],
+      "perf_at_ship": {"dashboard_p95_ms": 33.1, "sales_report_p95_ms": 715.7},
+      "ui_track_status": "deferred to /ases-ui-design S3 (parallel-eligible — backend API surface frozen + critiqued)"
     }
   ],
+  "v1_status": "FEATURE COMPLETE — all 12 V1 features (F-001..F-012) shipped across S1/S2/S3. V2 backlog tracked in `deferred` below; next sprint design (S4 / V2 scoping) starts with /ases-prd-update or /ases-lld depending on scope.",
   "deferred": [
     {
       "item": "User authentication and RBAC",

@@ -1,0 +1,100 @@
+{
+  "$schema": "ases/v3.0/release",
+  "sprint_id": "S3",
+  "produced_by": "/ases-release S3",
+  "released_at": "2026-06-29T16:00:00+05:30",
+  "verdict": "SHIPPED",
+  "v1_status": "FEATURE COMPLETE",
+  "po_approval_of_final_audit": "APPROVED 2026-06-29",
+  "sprint_goal": "Reporting & Carry-Forward — Stock Dashboard (date-filtered), Sales Report (Consolidation + Transaction dual-pane with multi-select filters), explicit verification of monthly carry-forward including back-dated transactions across month boundaries.",
+  "scope_features": ["F-010", "F-011", "F-012"],
+  "scope_modules": ["M-004", "M-005"],
+  "shipped_artifacts": {
+    "commit": "d9715d5eeabebfa63f8f142b659bf1800b95a36c",
+    "commit_short": "d9715d5",
+    "branch": "develop",
+    "files_changed": 131,
+    "insertions": 11594,
+    "deletions": 10,
+    "ahead_of_origin": 1,
+    "co_authored_by": "Claude Opus 4.7 <noreply@anthropic.com>"
+  },
+  "shipped_features": [
+    {
+      "feature_id": "F-010",
+      "name": "Stock Dashboard",
+      "ac_count": 5,
+      "ac_passed": 5,
+      "ac_range": "AC-041..AC-045",
+      "endpoint": "GET /api/v1/dashboard?as_of_date=YYYY-MM-DD",
+      "backend_tasks": ["T-057", "T-059", "T-060", "T-061", "T-063", "T-064", "T-066"],
+      "key_decisions": ["DS-003", "DS-004", "DS-016"],
+      "ui_status": "deferred to /ases-ui-scaffold S3"
+    },
+    {
+      "feature_id": "F-011",
+      "name": "Sales Report (Consolidation + Transactions)",
+      "ac_count": 5,
+      "ac_passed": 5,
+      "ac_range": "AC-046..AC-050",
+      "endpoint": "GET /api/v1/reports/sales",
+      "backend_tasks": ["T-058", "T-062", "T-063", "T-065", "T-066"],
+      "key_decisions": ["DS-013", "DS-017"],
+      "ui_status": "deferred to /ases-ui-scaffold S3"
+    },
+    {
+      "feature_id": "F-012",
+      "name": "Monthly Stock Carry-Forward (verification only — no new code)",
+      "ac_count": 3,
+      "ac_passed": 3,
+      "ac_range": "AC-051..AC-053",
+      "backend_tasks": [],
+      "key_decisions": ["DS-004"],
+      "verification_evidence": "TC-153/154/155/156 + IS-012 against existing S2 domain.stock primitives"
+    }
+  ],
+  "new_decisions": ["DS-015", "DS-016", "DS-017"],
+  "test_totals_at_ship": {
+    "unit_plus_integration": "158/158 PASS",
+    "integration_scenarios_s1_s2_s3": "8/8 PASS (IS-005..IS-012)",
+    "system_test_scenarios_s1_s2_s3": "12/12 PASS (ST-001..ST-012)",
+    "grand_total": "178/178 PASS",
+    "regressions": 0,
+    "phase_3_fix_iterations": 2,
+    "phase_3_fix_iterations_location": "100% test-side — production source not modified during Phase 3"
+  },
+  "perf_at_ship": {
+    "dashboard": {"p50_ms": 24.8, "p95_ms": 33.1, "threshold_ms": 800, "headroom_factor": "~24x"},
+    "sales_report": {"p50_ms": 363.2, "p95_ms": 715.7, "threshold_ms": 2000, "headroom_factor": "~2.8x"}
+  },
+  "tech_debt_open_at_ship": [
+    {"id": "CF-001", "severity": "minor", "target": "PO action (post-release optional)", "note": "Long-lived PG bring-up; not blocking — testcontainers covered everything."},
+    {"id": "TD-001", "severity": "minor", "target": "/ases-ui-scaffold S3", "note": "shadcn calendar.tsx patch"},
+    {"id": "TD-010", "severity": "minor", "target": "/ases-ui-design S3", "note": "Radix UI jsdom incompatibility — 7 frontend TCs deferred from S2"},
+    {"id": "TD-008", "severity": "minor", "target": "V2", "note": "First-row insert race (theoretical)"}
+  ],
+  "tech_debt_closed_in_s3": [],
+  "tech_debt_introduced_in_s3": [],
+  "v1_completion": {
+    "features_shipped_total": 12,
+    "features_planned_total": 12,
+    "modules_shipped": ["M-001", "M-002", "M-003", "M-004", "M-005", "M-007"],
+    "module_M-006_status": "deferred to UI tracks (/ases-ui-scaffold per sprint)",
+    "sprints_in_v1": ["S1", "S2", "S3"],
+    "v1_first_commit": "571c601",
+    "v1_last_commit": "d9715d5",
+    "total_test_count_v1": 178,
+    "open_carry_forwards_to_v2": ["CF-001 (operational)", "TD-001 (UI)", "TD-010 (UI)", "TD-008 (V2)"]
+  },
+  "next_sprint_options": [
+    {"path": "ui-track-continuation", "command": "/ases-ui-design S3", "rationale": "Backend API surface frozen + critiqued; UI track is parallel-eligible. Closes TD-001 + TD-010 + AC-049 visual verification."},
+    {"path": "v2-design", "command": "/ases-prd-update [new-sprint-id] or /ases-lld [new-sprint-id]", "rationale": "V2 scope (auth/RBAC, pricing, Inward Report, exports) drawn from roadmap.deferred[]. Sprint-design phase starts here."}
+  ],
+  "phase_transition": {
+    "from": "SPRINT_SHIP",
+    "to": "SPRINT_DESIGN (next sprint)",
+    "current_sprint_set_to": "S3 (closed; next sprint id to be assigned at /ases-lld invocation)"
+  },
+  "summary_one_line": "S3 shipped 13/13 ACs across F-010/F-011/F-012 with zero new tech debt, ~24x dashboard headroom, ~2.8x sales-report headroom; V1 is now FEATURE COMPLETE (12/12 features, 178/178 tests, 3 sprints).",
+  "next": "PO chooses: /ases-ui-design S3 (UI track) OR /ases-prd-update / /ases-lld [next-sprint-id] (V2 design)"
+}

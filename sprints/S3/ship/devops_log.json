@@ -1,0 +1,80 @@
+{
+  "$schema": "ases/v3.0/devops_log",
+  "sprint_id": "S3",
+  "produced_by": "/ases-devops S3",
+  "executed_at": "2026-06-29T14:57:29+05:30",
+  "verdict": "COMMITTED",
+  "pre_check": {
+    "uat_verdict": "APPROVED",
+    "uat_report_ref": "sprints/S3/ship/uat_report.json",
+    "current_phase": "SPRINT_SHIP",
+    "guard_commit_gate": "PASS"
+  },
+  "commit": {
+    "sha": "d9715d5eeabebfa63f8f142b659bf1800b95a36c",
+    "short_sha": "d9715d5",
+    "branch": "develop",
+    "iso_timestamp": "2026-06-29T14:57:29+05:30",
+    "ahead_of_origin_develop": 1,
+    "files_changed": 131,
+    "insertions": 11594,
+    "deletions": 10,
+    "co_authored_by": "Claude Opus 4.7 <noreply@anthropic.com>"
+  },
+  "staging_strategy": "Explicit per-file `git add` — no `git add -A`. 36 paths staged: .ases/{context,decisions}.json, .claude/settings*.json, contracts/scaffold.json, 10 backend/src files (3 modify + 7 new), 17 backend/tests files (11 from /ases-test-impl + 4 from /ases-integration-test + 5 from /ases-system-test minus the 3 perf/sec files already produced at /ases-test-impl that were merged into the same paths), the entire sprints/S3/ tree.",
+  "files_committed": {
+    "backend_src": [
+      {"path": "backend/src/presentation/schemas/dashboard.py", "type": "create"},
+      {"path": "backend/src/presentation/schemas/sales_report.py", "type": "create"},
+      {"path": "backend/src/infrastructure/db/repositories/ledger_aggregates.py", "type": "create"},
+      {"path": "backend/src/infrastructure/db/repositories/master.py", "type": "modify (additive — list_active_all appended)"},
+      {"path": "backend/src/application/services/dashboard_service.py", "type": "create"},
+      {"path": "backend/src/application/services/sales_report_service.py", "type": "create"},
+      {"path": "backend/src/presentation/api/dependencies.py", "type": "modify (additive — 2 DI factories appended)"},
+      {"path": "backend/src/presentation/api/routers/dashboard.py", "type": "create"},
+      {"path": "backend/src/presentation/api/routers/sales_report.py", "type": "create"},
+      {"path": "backend/src/main.py", "type": "modify (additive — 2 router mounts appended)"}
+    ],
+    "backend_tests": [
+      "backend/tests/unit/application/services/test_dashboard_service.py",
+      "backend/tests/unit/application/services/test_sales_report_service.py",
+      "backend/tests/integration/db/test_ledger_aggregates.py",
+      "backend/tests/integration/db/test_design_grade_map_list_active_all.py",
+      "backend/tests/integration/api/test_dashboard_api.py",
+      "backend/tests/integration/api/test_sales_report_api.py",
+      "backend/tests/integration/test_carry_forward.py",
+      "backend/tests/integration/test_integration_is009_dashboard_read_path.py",
+      "backend/tests/integration/test_integration_is010_sales_report_dual_payload.py",
+      "backend/tests/integration/test_integration_is011_s2_writes_to_s3_dashboard.py",
+      "backend/tests/integration/test_integration_is012_cross_month_carry_forward_http.py",
+      "backend/tests/system/test_perf_dashboard.py",
+      "backend/tests/system/test_perf_sales_report.py",
+      "backend/tests/system/test_security_dashboard.py",
+      "backend/tests/system/test_security_sales_report.py",
+      "backend/tests/system/test_system_st008_dashboard_http_latency.py",
+      "backend/tests/system/test_system_st009_sales_report_http_latency.py",
+      "backend/tests/system/test_system_st010_sales_report_injection.py",
+      "backend/tests/system/test_system_st011_s3_endpoints_no_auth.py",
+      "backend/tests/system/test_system_st012_soft_delete_post_history.py"
+    ],
+    "sprint_artifacts": "sprints/S3/{design,execution,ship}/* — all S3 ASES documents",
+    "ases_state": [".ases/context.json", ".ases/decisions.json"],
+    "harness_config": [".claude/settings.json", ".claude/settings.local.json"],
+    "manifest": ["contracts/scaffold.json (sprint_S3 block appended)"]
+  },
+  "files_explicitly_excluded": [
+    {"path": ".env", "reason": "secrets — never committed (skill rule)"},
+    {"path": "backend/.env", "reason": "secrets — never committed"},
+    {"path": "frontend/.env*", "reason": "secrets — never committed"},
+    {"path": "graphify-out/cache/*", "reason": "build artifact — gitignored"},
+    {"path": "**/__pycache__", "reason": "build artifact — gitignored"}
+  ],
+  "commit_message": "feat(S3): Stock Dashboard + Sales Report + carry-forward — UAT APPROVED\n\nRead-side completion on top of S2's materialized stock ledger and DS-013 denormalized place snapshots. Zero new tables, zero new migrations, zero new backend packages — leverages existing ix_stock_ledger_dgt + ix_sales_* composite indexes from S2 T-042.\n\nFeatures: F-010 Stock Dashboard, F-011 Sales Report, F-012 Monthly Carry-Forward\nTasks: 10 completed (T-057..T-066), 0 deferred, 0 escalated\nCritique: 10/10 CLEAN on iteration 1 (cleanest sprint to date)\nUAT: APPROVED — 13/13 ACs accepted on first review\nTech debt: 0 new entries introduced\n\nPhase 3 test totals (across S1+S2+S3): 178/178 PASS, 0 regressions.\nPerf headroom: dashboard p95=33.1ms (~24x under PRD), sales-report p95=715.7ms over 10,800 rows (~2.8x under PRD).\n\nKey decisions written at LLD: DS-015 (advisory-lock-first stock-ledger writes, amends DS-002), DS-016 (single CASE-aggregated GROUP BY for dashboard), DS-017 (shared filter predicate for sales-report dual payload — makes AC-050 reconciliation structurally impossible to violate).\n\nASES-Sprint: S3",
+  "future_hooks_not_implemented": ["branch_strategy", "pr_creation", "ci_trigger", "deploy_pipeline"],
+  "post_commit_state": {
+    "working_tree": "clean",
+    "branch_position": "develop is 1 commit ahead of origin/develop",
+    "next_push_required": "not until release per ASES policy (devops never pushes; release does if configured)"
+  },
+  "next": "/ases-final-audit S3"
+}

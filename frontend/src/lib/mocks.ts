@@ -4,6 +4,8 @@
 //
 // Seed contents mirror PRD AC-003/006/009/010/014/018 so the scaffold matches
 // what /backend/scripts/seed_master_data.py will populate in the real DB.
+//
+// S3 additions (appended below): MOCK_DASHBOARD_ROWS + extended MOCK_SALES_REPORT_ROWS
 
 import type {
   Supplier,
@@ -167,3 +169,176 @@ export function projectGradesWithCb(designId: number): DesignGradeReadWithCb[] {
     })
     .filter((r): r is DesignGradeReadWithCb => r !== null);
 }
+
+// ============================================================================
+// S3 — Dashboard + Sales Report mock data (appended; do not remove S1/S2 data)
+// ============================================================================
+
+import type { DashboardRow } from "@/types/dashboard";
+import type { TransactionRow } from "@/types/reports";
+
+// 6 rows: design 1 (16X10 Ridges) × grades 1+2, design 2 (12X8 Ridges) × grades 1+OB,
+// design 3 (11X7 Ridges) × grades 1+2. Varied numbers so every column renders non-trivially.
+export const MOCK_DASHBOARD_ROWS: DashboardRow[] = [
+  {
+    design_id: 1,
+    design_name: "16X10 Ridges",
+    size: "16X10",
+    grade_id: 1,
+    grade_code: "1",
+    opening: 120,
+    inward: 200,
+    outward: 150,
+    adjust: -10,
+    closing: 160,
+  },
+  {
+    design_id: 1,
+    design_name: "16X10 Ridges",
+    size: "16X10",
+    grade_id: 2,
+    grade_code: "2",
+    opening: 80,
+    inward: 100,
+    outward: 60,
+    adjust: 0,
+    closing: 120,
+  },
+  {
+    design_id: 2,
+    design_name: "12X8 Ridges",
+    size: "12X8",
+    grade_id: 1,
+    grade_code: "1",
+    opening: 0,
+    inward: 300,
+    outward: 200,
+    adjust: 5,
+    closing: 105,
+  },
+  {
+    design_id: 2,
+    design_name: "12X8 Ridges",
+    size: "12X8",
+    grade_id: 8,
+    grade_code: "OB",
+    opening: 50,
+    inward: 0,
+    outward: 30,
+    adjust: 0,
+    closing: 20,
+  },
+  {
+    design_id: 3,
+    design_name: "11X7 Ridges",
+    size: "11X7",
+    grade_id: 1,
+    grade_code: "1",
+    opening: 200,
+    inward: 150,
+    outward: 180,
+    adjust: -5,
+    closing: 165,
+  },
+  {
+    design_id: 3,
+    design_name: "11X7 Ridges",
+    size: "11X7",
+    grade_id: 2,
+    grade_code: "2",
+    opening: 60,
+    inward: 40,
+    outward: 20,
+    adjust: 0,
+    closing: 80,
+  },
+];
+
+// Flat transaction rows for sales report mock. Multiple rows per (design, grade) pair
+// so the consolidation grouping renders total_nos > any single row's nos (AC-050).
+export const MOCK_SALES_REPORT_ROWS: TransactionRow[] = [
+  {
+    sales_date: "2026-06-10",
+    dealer_id: 1,
+    dealer_name: "Raj Hardwares",
+    place: "Dindivanam",
+    design_id: 1,
+    design_name: "16X10 Ridges",
+    size: "16X10",
+    grade_id: 1,
+    grade_code: "1",
+    nos: 60,
+  },
+  {
+    sales_date: "2026-06-12",
+    dealer_id: 2,
+    dealer_name: "Tiles Mart",
+    place: "Attibelle",
+    design_id: 1,
+    design_name: "16X10 Ridges",
+    size: "16X10",
+    grade_id: 1,
+    grade_code: "1",
+    nos: 90,
+  },
+  {
+    sales_date: "2026-06-13",
+    dealer_id: 1,
+    dealer_name: "Raj Hardwares",
+    place: "Dindivanam",
+    design_id: 1,
+    design_name: "16X10 Ridges",
+    size: "16X10",
+    grade_id: 2,
+    grade_code: "2",
+    nos: 60,
+  },
+  {
+    sales_date: "2026-06-14",
+    dealer_id: 3,
+    dealer_name: "Shanmugam & Co",
+    place: "Coimbatore",
+    design_id: 2,
+    design_name: "12X8 Ridges",
+    size: "12X8",
+    grade_id: 1,
+    grade_code: "1",
+    nos: 100,
+  },
+  {
+    sales_date: "2026-06-15",
+    dealer_id: 2,
+    dealer_name: "Tiles Mart",
+    place: "Attibelle",
+    design_id: 2,
+    design_name: "12X8 Ridges",
+    size: "12X8",
+    grade_id: 1,
+    grade_code: "1",
+    nos: 100,
+  },
+  {
+    sales_date: "2026-06-16",
+    dealer_id: 3,
+    dealer_name: "Shanmugam & Co",
+    place: "Coimbatore",
+    design_id: 3,
+    design_name: "11X7 Ridges",
+    size: "11X7",
+    grade_id: 1,
+    grade_code: "1",
+    nos: 180,
+  },
+  {
+    sales_date: "2026-06-17",
+    dealer_id: 1,
+    dealer_name: "Raj Hardwares",
+    place: "Dindivanam",
+    design_id: 3,
+    design_name: "11X7 Ridges",
+    size: "11X7",
+    grade_id: 2,
+    grade_code: "2",
+    nos: 20,
+  },
+];
