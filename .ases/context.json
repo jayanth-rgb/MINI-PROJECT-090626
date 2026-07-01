@@ -81,7 +81,9 @@
     "ui_review:S3:APPROVED",
     "ui_scaffold:S3:LOCKED",
     "ui_integration:S3:IP-S3-001+IP-S3-002_swapped",
-    "test_impl:S3:ui_track:10/10_written:TC-161..TC-170:TD-010_closed"
+    "test_impl:S3:ui_track:10/10_written:TC-161..TC-170:TD-010_closed",
+    "uat:S3:ui_track:APPROVED",
+    "devops:S3:ui_track:committed:56bd4b7"
   ],
   "open_issues": [
     "W1: deps_manifest missing jest + @testing-library/* (resolve before /ases-test-impl S1)",
@@ -153,7 +155,11 @@
       "batch_critique_outcome": "10/10 CLEAN iteration 1",
       "graphify_refreshed_at_close": true,
       "perf_at_ship": {"dashboard_p95_ms": 33.1, "sales_report_p95_ms": 715.7},
-      "po_signoff_final_audit": "APPROVED 2026-06-29"
+      "po_signoff_final_audit": "APPROVED 2026-06-29",
+      "ui_track_commit": "56bd4b7",
+      "ui_track_uat_verdict": "APPROVED 2026-07-01",
+      "td_010_closed_in_ui_track": true,
+      "jest_tests_passing": "10/10 (TC-161..TC-170)"
     },
     {
       "sprint_id": "S2",
