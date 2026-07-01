@@ -186,6 +186,61 @@
       "skip_reason": "",
       "run_cmd": "pytest backend/tests/system/test_security_sales_report.py -v",
       "run_output": "all listed test_case_refs PASS in final run (see sprints/S3/ship/test_run_report.json)"
+    },
+    {
+      "path": "frontend/src/components/admin/dashboard/__tests__/DashboardTable.test.tsx",
+      "task_ref": "UI-T-010 (S3 UI track)",
+      "test_case_refs": ["TC-161", "TC-162", "TC-163"],
+      "type": "unit+edge",
+      "framework": "jest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "cd frontend && npx jest --config jest.config.js src/components/admin/dashboard/__tests__/DashboardTable.test.tsx --no-coverage",
+      "run_output": "3 passed in 4.345s (fix-attempt-1: getByText('120') → getAllByText('120').toHaveLength(2) — 120 appears for opening row-1 and closing row-2)"
+    },
+    {
+      "path": "frontend/src/components/admin/reports/__tests__/ReconciliationBadge.test.tsx",
+      "task_ref": "UI-T-011 (S3 UI track)",
+      "test_case_refs": ["TC-164", "TC-165"],
+      "type": "unit+edge",
+      "framework": "jest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "cd frontend && npx jest --config jest.config.js src/components/admin/reports/__tests__/ReconciliationBadge.test.tsx --no-coverage",
+      "run_output": "2 passed on first run"
+    },
+    {
+      "path": "frontend/src/components/admin/reports/__tests__/EmptyReportState.test.tsx",
+      "task_ref": "UI-T-011 (S3 UI track)",
+      "test_case_refs": ["TC-166"],
+      "type": "unit",
+      "framework": "jest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "cd frontend && npx jest --config jest.config.js src/components/admin/reports/__tests__/EmptyReportState.test.tsx --no-coverage",
+      "run_output": "1 passed on first run"
+    },
+    {
+      "path": "frontend/src/components/admin/reports/__tests__/ConsolidationTable.test.tsx",
+      "task_ref": "UI-T-011 (S3 UI track)",
+      "test_case_refs": ["TC-167", "TC-168"],
+      "type": "unit+edge",
+      "framework": "jest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "cd frontend && npx jest --config jest.config.js src/components/admin/reports/__tests__/ConsolidationTable.test.tsx --no-coverage",
+      "run_output": "2 passed on first run"
+    },
+    {
+      "path": "frontend/src/components/ui/__tests__/MultiSelectComboboxFallback.test.tsx",
+      "task_ref": "TD-010 closure (S3 UI track)",
+      "test_case_refs": ["TC-169", "TC-170"],
+      "type": "unit",
+      "framework": "jest",
+      "status": "passed",
+      "skip_reason": "",
+      "run_cmd": "cd frontend && npx jest --config jest.config.js src/components/ui/__tests__/MultiSelectComboboxFallback.test.tsx --no-coverage",
+      "run_output": "2 passed on first run — closes TD-010"
     }
   ],
   "coverage_map": {
@@ -234,11 +289,22 @@
     "TC-157": "backend/tests/system/test_perf_sales_report.py::test_tc157_sales_report_p95_latency",
     "TC-158": "backend/tests/system/test_security_sales_report.py::test_tc158_sql_injection_via_places_returns_empty",
     "TC-159": "backend/tests/integration/api/test_dashboard_api.py::test_tc159_di_factory_smoke_real_session",
-    "TC-160": "backend/tests/integration/api/test_sales_report_api.py::test_tc160_integration_smoke_di_factory_wired"
+    "TC-160": "backend/tests/integration/api/test_sales_report_api.py::test_tc160_integration_smoke_di_factory_wired",
+    "TC-161": "frontend/src/components/admin/dashboard/__tests__/DashboardTable.test.tsx::test_tc161_renders_data_rows_with_all_8_display_columns",
+    "TC-162": "frontend/src/components/admin/dashboard/__tests__/DashboardTable.test.tsx::test_tc162_empty_dashboard_state_shown_when_rows_empty_and_not_loading",
+    "TC-163": "frontend/src/components/admin/dashboard/__tests__/DashboardTable.test.tsx::test_tc163_skeleton_shown_during_loading_no_data_or_empty_state_visible",
+    "TC-164": "frontend/src/components/admin/reports/__tests__/ReconciliationBadge.test.tsx::test_tc164_reconciled_badge_displayed_when_sums_equal",
+    "TC-165": "frontend/src/components/admin/reports/__tests__/ReconciliationBadge.test.tsx::test_tc165_mismatch_badge_displayed_when_sums_differ",
+    "TC-166": "frontend/src/components/admin/reports/__tests__/EmptyReportState.test.tsx::test_tc166_clear_filters_button_invokes_on_clear_callback",
+    "TC-167": "frontend/src/components/admin/reports/__tests__/ConsolidationTable.test.tsx::test_tc167_renders_consolidation_rows_and_footer_total_nos_sum",
+    "TC-168": "frontend/src/components/admin/reports/__tests__/ConsolidationTable.test.tsx::test_tc168_empty_message_rendered_when_rows_empty_and_not_loading",
+    "TC-169": "frontend/src/components/ui/__tests__/MultiSelectComboboxFallback.test.tsx::test_tc169_selects_numeric_option_and_emits_number_in_array",
+    "TC-170": "frontend/src/components/ui/__tests__/MultiSelectComboboxFallback.test.tsx::test_tc170_selects_string_option_and_emits_string_value_unchanged"
   },
   "run_all_cmd": "pytest backend/tests/ -v",
   "run_s3_only_cmd": "pytest backend/tests/unit/application/services/test_dashboard_service.py backend/tests/unit/application/services/test_sales_report_service.py backend/tests/integration/db/test_ledger_aggregates.py backend/tests/integration/db/test_design_grade_map_list_active_all.py backend/tests/integration/api/test_dashboard_api.py backend/tests/integration/api/test_sales_report_api.py backend/tests/integration/test_carry_forward.py backend/tests/system/test_perf_dashboard.py backend/tests/system/test_perf_sales_report.py backend/tests/system/test_security_dashboard.py backend/tests/system/test_security_sales_report.py -v",
-  "total_cases": 46,
+  "run_frontend_s3_cmd": "cd frontend && npx jest src/components/admin/dashboard/__tests__/DashboardTable.test.tsx src/components/admin/reports/__tests__/ReconciliationBadge.test.tsx src/components/admin/reports/__tests__/EmptyReportState.test.tsx src/components/admin/reports/__tests__/ConsolidationTable.test.tsx src/components/ui/__tests__/MultiSelectComboboxFallback.test.tsx --no-coverage",
+  "total_cases": 56,
   "skipped_cases": 0,
   "compile_check": "11/11 files py_compile OK",
   "test_function_count_verified": 46,
@@ -254,6 +320,7 @@
   "final_run_total": 158,
   "fix_attempts_used": {
     "TC-142": 1,
-    "TC-122": 1
+    "TC-122": 1,
+    "TC-161": 1
   }
 }

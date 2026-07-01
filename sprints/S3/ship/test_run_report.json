@@ -2,29 +2,44 @@
   "$schema": "ases/v3.0/test_run_report",
   "sprint_id": "S3",
   "produced_by": "/ases-test-run S3",
-  "executed_at": "2026-06-27T00:00:00Z",
+  "executed_at": "2026-07-01T00:00:00Z",
   "gate_verdict": "PASS",
-  "run_cmd": "backend/.venv/Scripts/python.exe -m pytest tests/ --tb=line",
+  "run_cmds": {
+    "backend": "backend/.venv/Scripts/python.exe -m pytest tests/ -v --tb=short",
+    "frontend": "cd frontend && npx jest --config jest.config.js <s3-test-files> --no-coverage"
+  },
   "totals": {
-    "total_tests": 158,
-    "passed": 158,
-    "failed": 0,
-    "errors": 0,
-    "skipped": 0,
+    "backend_tests": 167,
+    "backend_passed": 167,
+    "backend_failed": 0,
+    "backend_errors": 0,
+    "frontend_tests": 10,
+    "frontend_passed": 10,
+    "frontend_failed": 0,
+    "grand_total": 177,
+    "grand_passed": 177,
+    "grand_failed": 0,
     "warnings": 7
   },
   "breakdown": {
-    "s1_s2_regression": {
-      "total": 112,
-      "passed": 112,
+    "s1_s2_regression_backend": {
+      "total": 121,
+      "passed": 121,
       "failed": 0,
-      "note": "All prior-sprint tests still green; zero regressions introduced by S3 (read-only sprint at the persistence layer)."
+      "note": "All prior-sprint backend tests green. S3 count increased from 112 (prior run) to 121 — additional integration + system tests introduced by /ases-integration-test S3 and /ases-system-test S3 now included in the test tree."
     },
-    "s3_new": {
+    "s3_new_backend": {
       "total": 46,
       "passed": 46,
       "failed": 0,
       "id_range": "TC-115..TC-160"
+    },
+    "s3_new_frontend": {
+      "total": 10,
+      "passed": 10,
+      "failed": 0,
+      "id_range": "TC-161..TC-170",
+      "note": "First execution of S3 frontend tests. 9 passed on first run; TC-161 required 1 fix (test-side only)."
     }
   },
   "regressions": [],
@@ -36,8 +51,8 @@
       "max_attempts": 3,
       "final_status": "passed",
       "root_cause": "Test-side seed bug: 5-filter intersection (date_from=2026-06-05 + dealer1+Dindivanam+design1) matched zero rows because design1 only appears for dealer1+Dindivanam on 2026-06-01/02/04, all before the window start.",
-      "fix_summary": "Changed date_from from 2026-06-05 to 2026-06-01 in the request URL; preserves all 5 filters being non-trivially exercised. Now yields txn_sum=consol_sum=63 (15+10+20+18). AC-050 invariant holds; sanity check (txn_sum > 0) now passes.",
-      "file_touched": "backend/tests/integration/api/test_sales_report_api.py (test code only — NO production source change)"
+      "fix_summary": "Changed date_from from 2026-06-05 to 2026-06-01 in the request URL; preserves all 5 filters being non-trivially exercised.",
+      "file_touched": "backend/tests/integration/api/test_sales_report_api.py (test code only)"
     },
     {
       "test_ref": "TC-122",
@@ -45,26 +60,36 @@
       "fix_attempts": 1,
       "max_attempts": 3,
       "final_status": "passed",
-      "root_cause": "Test-side seed bug: (a) running_balance was reset at the start of each month (`= 500 + month_offset * 10`), breaking cross-month continuity — opening(month N+1) != closing(month N). (b) 60 rows/month with `day_offset % 28` placed multiple rows per date in non-chronological insertion order; the (txn_date DESC, ledger_id DESC) tie-break picked a mid-stream balance, making FORMULA-001 invariant unsatisfiable.",
-      "fix_summary": "Reduced to 28 rows/month (one per unique day) and replaced per-month reset with a per-pair cumulative `balance_by_pair` dict that persists across months. Total dataset is now 2016 rows (down from 4320) — still substantial; reliably satisfies the FORMULA-001 invariant on every (design, grade) read.",
-      "file_touched": "backend/tests/system/test_perf_dashboard.py (test code only — NO production source change)"
+      "root_cause": "Test-side seed bug: running_balance reset per-month (breaking cross-month continuity) and multiple rows per day with non-chronological insertion order caused FORMULA-001 invariant violations.",
+      "fix_summary": "Reduced to 28 rows/month (one per unique day) with cumulative balance_by_pair dict persisting across months. 2016 rows total, FORMULA-001 satisfied on every pair.",
+      "file_touched": "backend/tests/system/test_perf_dashboard.py (test code only)"
+    },
+    {
+      "test_ref": "TC-161",
+      "task_ref": "UI-T-010 (test code only — production code untouched)",
+      "fix_attempts": 1,
+      "max_attempts": 3,
+      "final_status": "passed",
+      "root_cause": "Test used getByText('120') which throws when multiple elements match. The value 120 appears in two table cells: opening of row-1 AND closing of row-2 (both intentional per the ROWS fixture).",
+      "fix_summary": "Changed line 41 from getByText('120').toBeInTheDocument() to getAllByText('120').toHaveLength(2), asserting both occurrences are present as designed.",
+      "file_touched": "frontend/src/components/admin/dashboard/__tests__/DashboardTable.test.tsx (test code only)"
     }
   ],
   "perf_results": {
     "TC-122_dashboard_p95_ms": "< 500ms (gate)",
-    "TC-157_sales_report_p95_ms": "< 2000ms (gate)",
-    "note": "Exact numeric p95 values printed to stdout via test print statements; not parsed into this report. /ases-system-test S3 may re-measure with stricter conditions."
+    "TC-157_sales_report_p95_ms": "< 2000ms (gate)"
   },
   "critical_tcs_gate": {
     "total_critical": 33,
     "critical_passed": 33,
     "verdict": "PASS",
-    "note": "Counted from test_cases.json priority=='critical' across TC-115..TC-160. All passed."
+    "note": "All critical-priority TCs (TC-115..TC-160 backend) pass. Frontend TCs (TC-161..TC-170) are high priority, not critical — gate unaffected."
   },
   "convention_notes": [
-    "pytest-json-report plugin not installed; results parsed from stdout footer (`158 passed`).",
-    "Initial run wall-clock 66.69s; final re-run wall-clock 42807s reflects laptop sleep mid-suite, not actual CPU time. Real CPU spent ≈ 70s based on the initial successful pass.",
-    "7 SAWarnings logged from `tests/integration/db/` files re: `transaction already deassociated from connection` at conftest.py:84 trans.rollback() — pre-existing from S1/S2, not introduced by S3. Non-blocking; observe at /ases-sprint-close if it grows."
+    "Dual jest.config.js / jest.config.ts conflict resolved by passing --config jest.config.js explicitly. The CJS form (jest.config.js) is the canonical config — jest.config.ts can be removed post-sprint.",
+    "Backend collected 167 tests (up from 158 in prior run at 2026-06-27) — 9 additional integration/system tests added by /ases-integration-test and /ases-system-test runs are now part of the regression baseline.",
+    "7 SAWarnings from tests/integration/db/ (transaction already deassociated) — pre-existing from S1/S2, non-blocking.",
+    "Frontend jsdom + dual-config issue noted for cleanup in next sprint."
   ],
   "next": "/ases-integration-test S3"
 }

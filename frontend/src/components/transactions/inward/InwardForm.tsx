@@ -105,6 +105,7 @@ export function InwardForm() {
         grade_id: l.grade_id,
         nos: l.nos as number,
       }));
+
     mutation.mutate({
       purchase_date: values.purchase_date,
       supplier_id: values.supplier_id,

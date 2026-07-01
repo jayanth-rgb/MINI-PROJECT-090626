@@ -1092,45 +1092,239 @@
         "DI_factory_invoked": true
       },
       "framework": "pytest"
+    },
+
+    {
+      "id": "TC-161",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "UI — DashboardTable renders all 8 display columns (design_name, size, grade_code, opening, inward, outward, adjust, closing) with correct values for 2 seeded DashboardRow objects.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "frontend/src/components/admin/dashboard/DashboardTable.tsx",
+      "function_ref": "DashboardTable",
+      "inputs": {
+        "rows": [
+          {"design_id": 1, "design_name": "16X10 Ridges", "size": "16X10", "grade_id": 1, "grade_code": "1", "opening": 120, "inward": 200, "outward": 150, "adjust": -10, "closing": 160},
+          {"design_id": 1, "design_name": "16X10 Ridges", "size": "16X10", "grade_id": 2, "grade_code": "2", "opening": 80, "inward": 100, "outward": 60, "adjust": 0, "closing": 120}
+        ],
+        "isLoading": false
+      },
+      "expected_output": {
+        "design_name_rendered": "16X10 Ridges (×2)",
+        "size_rendered": "16X10 (×2)",
+        "all_numeric_columns_visible": true,
+        "negative_adjust_rendered": "-10"
+      },
+      "framework": "jest"
+    },
+
+    {
+      "id": "TC-162",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "UI Edge — DashboardTable renders EmptyDashboardState CTA when rows=[] and isLoading=false.",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "frontend/src/components/admin/dashboard/DashboardTable.tsx",
+      "function_ref": "DashboardTable",
+      "inputs": {"rows": [], "isLoading": false},
+      "expected_output": {
+        "text_visible": "No active design-grade pairs yet.",
+        "data_rows_count": 0
+      },
+      "framework": "jest"
+    },
+
+    {
+      "id": "TC-163",
+      "feature_id": "F-010",
+      "ac_ref": "AC-041",
+      "description": "UI Edge — DashboardTable shows skeleton rows during isLoading=true; no data values or empty-state CTA visible.",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "frontend/src/components/admin/dashboard/DashboardTable.tsx",
+      "function_ref": "DashboardTable",
+      "inputs": {"rows": [], "isLoading": true},
+      "expected_output": {
+        "data_values_absent": true,
+        "empty_state_absent": true
+      },
+      "framework": "jest"
+    },
+
+    {
+      "id": "TC-164",
+      "feature_id": "F-011",
+      "ac_ref": "AC-050",
+      "description": "UI — ReconciliationBadge shows 'Reconciled' green state when consolidationSum === transactionsSum (537 === 537). aria-live='polite' present for screen-reader announcement.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "frontend/src/components/admin/reports/ReconciliationBadge.tsx",
+      "function_ref": "ReconciliationBadge",
+      "inputs": {"consolidationSum": 537, "transactionsSum": 537},
+      "expected_output": {
+        "text_contains": "Reconciled",
+        "aria_live": "polite",
+        "role": "status"
+      },
+      "framework": "jest"
+    },
+
+    {
+      "id": "TC-165",
+      "feature_id": "F-011",
+      "ac_ref": "AC-050",
+      "description": "UI Edge — ReconciliationBadge shows 'Mismatch' state when sums differ (537 ≠ 500). Both sums rendered in badge text.",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "frontend/src/components/admin/reports/ReconciliationBadge.tsx",
+      "function_ref": "ReconciliationBadge",
+      "inputs": {"consolidationSum": 537, "transactionsSum": 500},
+      "expected_output": {
+        "text_contains": "Mismatch",
+        "both_sums_visible": true
+      },
+      "framework": "jest"
+    },
+
+    {
+      "id": "TC-166",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "UI — EmptyReportState 'Clear filters' button click invokes the onClear callback exactly once.",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "frontend/src/components/admin/reports/EmptyReportState.tsx",
+      "function_ref": "EmptyReportState",
+      "inputs": {"onClear": "jest.fn()"},
+      "expected_output": {
+        "on_clear_called_times": 1
+      },
+      "framework": "jest"
+    },
+
+    {
+      "id": "TC-167",
+      "feature_id": "F-011",
+      "ac_ref": "AC-047",
+      "description": "UI — ConsolidationTable renders 3 rows and shows the sum of total_nos (7+10+5=22) in the footer row. 'Total' label present.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "frontend/src/components/admin/reports/ConsolidationTable.tsx",
+      "function_ref": "ConsolidationTable",
+      "inputs": {
+        "rows": [
+          {"design_id": 1, "design_name": "16X10 Ridges", "size": "16X10", "grade_id": 1, "grade_code": "1", "total_nos": 7},
+          {"design_id": 1, "design_name": "16X10 Ridges", "size": "16X10", "grade_id": 2, "grade_code": "2", "total_nos": 10},
+          {"design_id": 2, "design_name": "12X8 Ridges",  "size": "12X8",  "grade_id": 1, "grade_code": "1", "total_nos": 5}
+        ],
+        "isLoading": false
+      },
+      "expected_output": {
+        "row_count": 3,
+        "footer_total": 22,
+        "footer_label": "Total"
+      },
+      "framework": "jest"
+    },
+
+    {
+      "id": "TC-168",
+      "feature_id": "F-011",
+      "ac_ref": "AC-047",
+      "description": "UI Edge — ConsolidationTable renders 'No matching sales.' empty message when rows=[] and isLoading=false. Footer must not render.",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "frontend/src/components/admin/reports/ConsolidationTable.tsx",
+      "function_ref": "ConsolidationTable",
+      "inputs": {"rows": [], "isLoading": false},
+      "expected_output": {
+        "empty_message": "No matching sales.",
+        "footer_absent": true
+      },
+      "framework": "jest"
+    },
+
+    {
+      "id": "TC-169",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "UI — MultiSelectComboboxFallback (TD-010 closure): selecting a numeric option emits onChange([number]) — coerces option value string '1' back to number 1 per the component contract.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "frontend/src/components/ui/MultiSelectCombobox.tsx",
+      "function_ref": "MultiSelectComboboxFallback",
+      "inputs": {
+        "options": [{"value": 1, "label": "Raj Hardwares"}, {"value": 2, "label": "Tiles Mart"}, {"value": 3, "label": "Shanmugam & Co"}],
+        "value": [],
+        "select_option_value": "1"
+      },
+      "expected_output": {
+        "onChange_called_with": [1],
+        "value_type": "number (not string)"
+      },
+      "framework": "jest"
+    },
+
+    {
+      "id": "TC-170",
+      "feature_id": "F-011",
+      "ac_ref": "AC-046",
+      "description": "UI — MultiSelectComboboxFallback (TD-010 closure): selecting a string option emits onChange([string]) — string values pass through unchanged (NaN guard prevents numeric coercion).",
+      "type": "unit",
+      "priority": "high",
+      "file_ref": "frontend/src/components/ui/MultiSelectCombobox.tsx",
+      "function_ref": "MultiSelectComboboxFallback",
+      "inputs": {
+        "options": [{"value": "Dindivanam", "label": "Dindivanam"}, {"value": "Attibelle", "label": "Attibelle"}, {"value": "Coimbatore", "label": "Coimbatore"}],
+        "value": [],
+        "select_option_value": "Dindivanam"
+      },
+      "expected_output": {
+        "onChange_called_with": ["Dindivanam"],
+        "value_type": "string (not number)"
+      },
+      "framework": "jest"
     }
 
   ],
 
   "framework_summary": {
     "pytest": 46,
-    "jest": 0,
+    "jest": 10,
     "playwright": 0,
-    "note": "All 46 test cases are backend (pytest). Frontend tests for the dashboard + sales report UI ship via the /ases-ui-design S3 → /ases-test-impl track and will be appended to this file or written into the UI scaffold's own jest suite."
+    "note": "46 backend (pytest) TCs for TC-115..TC-160. 10 frontend (jest) TCs for TC-161..TC-170 added at /ases-test-impl S3 UI track. TD-010 closed by TC-169/TC-170 via MultiSelectComboboxFallback."
   },
 
   "type_summary": {
-    "unit": 8,
+    "unit": 14,
     "integration": 27,
-    "edge": 8,
+    "edge": 12,
     "performance": 2,
     "security": 1
   },
 
   "priority_summary": {
-    "critical": 35,
-    "high": 11,
+    "critical": 39,
+    "high": 17,
     "low": 0
   },
 
   "ac_coverage_detail": {
     "F-010": {
-      "AC-041": ["TC-115", "TC-116", "TC-117", "TC-123", "TC-124", "TC-125", "TC-126", "TC-129", "TC-130", "TC-131", "TC-132", "TC-150", "TC-159"],
+      "AC-041": ["TC-115", "TC-116", "TC-117", "TC-123", "TC-124", "TC-125", "TC-126", "TC-129", "TC-130", "TC-131", "TC-132", "TC-150", "TC-159", "TC-161", "TC-162", "TC-163"],
       "AC-042": ["TC-118"],
       "AC-043": ["TC-119", "TC-127"],
       "AC-044": ["TC-120", "TC-121", "TC-128"],
       "AC-045": ["TC-122"]
     },
     "F-011": {
-      "AC-046": ["TC-133", "TC-134", "TC-135", "TC-136", "TC-143", "TC-144", "TC-147", "TC-148", "TC-149", "TC-157", "TC-158", "TC-160"],
-      "AC-047": ["TC-137", "TC-138", "TC-146"],
+      "AC-046": ["TC-133", "TC-134", "TC-135", "TC-136", "TC-143", "TC-144", "TC-147", "TC-148", "TC-149", "TC-157", "TC-158", "TC-160", "TC-166", "TC-169", "TC-170"],
+      "AC-047": ["TC-137", "TC-138", "TC-146", "TC-167", "TC-168"],
       "AC-048": ["TC-139"],
       "AC-049": ["TC-140"],
-      "AC-050": ["TC-141", "TC-142", "TC-145"]
+      "AC-050": ["TC-141", "TC-142", "TC-145", "TC-164", "TC-165"]
     },
     "F-012": {
       "AC-051": ["TC-153"],
@@ -1140,7 +1334,8 @@
     "regression_coverage_from_S1": {
       "AC-012": ["TC-152"],
       "AC-017": ["TC-151"]
-    }
+    },
+    "td_010_closure": ["TC-169", "TC-170"]
   },
 
   "lld_interface_coverage_check": {

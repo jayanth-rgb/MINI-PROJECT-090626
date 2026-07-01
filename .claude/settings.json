@@ -77,7 +77,20 @@
       "Bash(python -c ' *)",
       "Bash(npx tsc *)",
       "Bash(echo \"exit=$?\")",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Bash(npx next *)",
+      "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); [print\\(s.get\\('sprint_id'\\), s.get\\('status'\\), s.get\\('goal',''\\)[:80]\\) for s in d.get\\('sprints',[]\\)]\")",
+      "Bash(python -m pytest tests/integration/test_integration_is009_dashboard_read_path.py tests/integration/test_integration_is010_sales_report_dual_payload.py tests/integration/test_integration_is011_s2_writes_to_s3_dashboard.py tests/integration/test_integration_is012_cross_month_carry_forward_http.py -v --tb=short)",
+      "Bash(python -m pytest --version)",
+      "Bash(py -m pytest --version)",
+      "Bash(.venv/Scripts/python -m pytest --version)",
+      "Bash(.venv/Scripts/python -m pytest tests/integration/test_integration_is009_dashboard_read_path.py tests/integration/test_integration_is010_sales_report_dual_payload.py tests/integration/test_integration_is011_s2_writes_to_s3_dashboard.py tests/integration/test_integration_is012_cross_month_carry_forward_http.py -v --tb=short)",
+      "Bash(.venv/Scripts/python -m pytest tests/integration/ -v --tb=short)",
+      "Skill(ases-system-test)",
+      "Skill(ases-system-test:*)",
+      "Bash(.venv/Scripts/python.exe -m pytest tests/system/ -v --tb=short)",
+      "Skill(ases-uat)",
+      "Skill(ases-uat:*)"
     ],
     "deny": [
       "Write(./.env)",

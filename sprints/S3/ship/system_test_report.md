@@ -1,6 +1,6 @@
 # Sprint S3 — System Test Report
 
-**Executed:** 2026-06-29 · **Verdict:** **PASS** (5/5)
+**Executed:** 2026-06-29 · **Re-run:** 2026-07-01 · **Verdict:** **PASS** (5/5, 31 tests)
 
 | ID | Type | Threshold | Actual | Result |
 |---|---|---|---|:-:|
@@ -67,6 +67,10 @@ Three-phase end-to-end test of R-005 mitigation:
 
 ## Framework note
 Performance scenarios use `time.perf_counter()` + `statistics.quantiles` (S2 ST-004 idiom) instead of `pytest-benchmark` because the latter isn't installed in the project venv. Adding a backend test dep mid-Phase-3 needs PO approval — and the perf_counter idiom is already established in S2.
+
+## Re-run (2026-07-01)
+
+`pytest tests/system/ -v` collected 31 tests across 17 files — **31 passed, 0 failed** in 51.3s. All 5 S3 scenarios (ST-008..ST-012) remain green. No regressions. 1 pre-existing `asyncio_default_fixture_loop_scope` deprecation warning, non-blocking.
 
 ## Next
 **Gate PASS** → **`/ases-uat S3`** (PO reviews UAT checklist against PRD acceptance criteria).

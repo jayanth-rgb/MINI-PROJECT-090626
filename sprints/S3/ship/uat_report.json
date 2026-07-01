@@ -51,5 +51,20 @@
     "fix_iterations_location": "Both were test-side seed bugs (TC-142, TC-122, IS-011, IS-012) — production source untouched throughout Phase 3"
   },
   "notes": "All 13 ACs accepted on first PO review. 0 rejected, 0 conditional. Zero new tech debt introduced by S3 itself; the 4 open debt items are all pre-existing carry-forwards (CF-001 from S1 W5, TD-001 from /ases-scaffold, TD-010 from S2 UI scaffold, TD-008 from S2 critique). 178 tests green across the full project history with substantial perf and security headroom. Ready for /ases-devops S3.",
-  "next": "/ases-devops S3"
+  "ui_track_supplemental": {
+    "reviewed_at": "2026-07-01",
+    "reviewer": "Jayanth (PO)",
+    "verdict": "APPROVED",
+    "test_totals": "10/10 jest passing (TC-161..TC-170)",
+    "td_010_closed": true,
+    "ac_review": [
+      { "ac_id": "AC-041-UI", "feature": "F-010", "status": "accepted", "tests": ["TC-161", "TC-162", "TC-163"] },
+      { "ac_id": "AC-049-UI", "feature": "F-011", "status": "accepted", "note": "Both Consolidation and Transaction tables visible simultaneously; no tab/toggle" },
+      { "ac_id": "AC-050-UI", "feature": "F-011", "status": "accepted", "tests": ["TC-164", "TC-165"] },
+      { "ac_id": "AC-046-UI", "feature": "F-011", "status": "accepted", "tests": ["TC-166", "TC-169", "TC-170"] },
+      { "ac_id": "AC-047-UI", "feature": "F-011", "status": "accepted", "tests": ["TC-167", "TC-168"] }
+    ],
+    "notes": "UI track completed after original backend UAT (2026-06-29). TD-010 CLOSED — MultiSelectComboboxFallback ships as Radix jsdom-compatible shim. 10/10 frontend jest tests pass. All UI-specific ACs accepted on first PO review."
+  },
+  "next": "/ases-devops S3 (UI track supplemental commit)"
 }

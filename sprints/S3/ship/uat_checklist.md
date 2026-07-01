@@ -25,7 +25,7 @@ curl 'http://localhost:8000/api/v1/reports/sales'
 
 ## F-010 — Stock Dashboard (5 ACs)
 
-[ ] **AC-041** (F-010): Selecting a date returns one row per (active design, active grade combination) with Opening, Inward, Outward, Adjust, Closing columns as defined in FORMULA-001.
+[✓] **AC-041** (F-010): Selecting a date returns one row per (active design, active grade combination) with Opening, Inward, Outward, Adjust, Closing columns as defined in FORMULA-001.
 - How to verify: GET /api/v1/dashboard?as_of_date=YYYY-MM-DD → returns list of objects with the 10 fields; only active pairs included; FORMULA-001 (opening + inward − outward + adjust == closing) holds per row (server asserts; manually verify too).
 - Tests: TC-115, TC-117, TC-129, TC-130, TC-150 · IS-009 (full HTTP) · ST-012 (active/inactive cascade)
 - System test result: **PASS** (5/5 integration, dashboard cascade verified)
@@ -134,3 +134,81 @@ curl 'http://localhost:8000/api/v1/reports/sales'
 
 **Verdict line (PO to fill):** _________ (APPROVED / CONDITIONAL / REJECTED)
 **Signed:** Jayanth · 2026-06-29
+
+---
+
+## UI Track Supplemental Pass — 2026-07-01
+
+> The 13 ACs above were accepted at the **API layer** on 2026-06-29.
+> The S3 UI track (Dashboard + Sales Report) was completed after that UAT.
+> This section covers the UI-specific acceptance items requiring PO eyes-on.
+
+**UI test totals:** 10/10 jest passing (TC-161..TC-170) · TD-010 CLOSED
+
+### UI-specific items for PO review
+
+```
+[✓] AC-041-UI (F-010): Dashboard page renders a table with one row per active (design, grade),
+    all 8 columns correct. Empty state CTA shown when no data for selected date.
+    How to verify:
+      1. Open http://localhost:3000/dashboard
+      2. Select today's date — verify design/grade rows appear with all 8 columns
+      3. Select a future date or a date with no transactions — verify EmptyDashboardState
+         CTA renders (not a blank/broken screen)
+      4. While data loads, verify a loading skeleton is shown (not a blank screen)
+    Jest coverage: TC-161 (render+values), TC-162 (empty state), TC-163 (loading state)
+    Backend UAT 2026-06-29: AC-041 accepted at API level
+```
+
+```
+[✓] AC-049-UI (F-011): Both Consolidation and Transaction sections render simultaneously
+    on the Sales Report page — no toggle, no tab. Consolidation first.
+    How to verify:
+      1. Open http://localhost:3000/reports/sales
+      2. Confirm BOTH Consolidation table AND Transaction table visible at the same time
+      3. Consolidation is above Transaction — no tab / accordion needed
+    Note: This AC was accepted_with_notes in backend UAT (UI layer was pending).
+    It is now shipped via /ases-ui-scaffold S3 + /ases-dev T-065.
+```
+
+```
+[✓] AC-050-UI (F-011): ReconciliationBadge shows "Reconciled ✓" (green) when
+    consolidation sum == transactions sum; "Mismatch" (red) if they differ.
+    How to verify:
+      1. Sales Report page → any filter → ReconciliationBadge shows "Reconciled ✓"
+      2. Badge includes aria-live="polite" for screen-reader accessibility
+    Jest coverage: TC-164 (reconciled), TC-165 (mismatch state)
+    Backend UAT 2026-06-29: AC-050 accepted at API level
+```
+
+```
+[✓] AC-046-UI (F-011): Multi-select filter dropdowns work correctly.
+    How to verify:
+      1. Sales Report → Dealer multi-select → select 2 dealers → results show both
+      2. Sales Report → Place multi-select → select a place string → filters applied
+      3. "Clear filters" button invokes reset (EmptyReportState shows when no results)
+    Note: TD-010 CLOSED — MultiSelectComboboxFallback (native <select> shim) ships
+    as the Radix jsdom-incompatible alternative. Numeric IDs coerce correctly (TC-169).
+    Jest coverage: TC-166 (clear button), TC-169 (numeric onChange), TC-170 (string onChange)
+    Backend UAT 2026-06-29: AC-046 accepted at API level
+```
+
+```
+[✓] AC-047-UI (F-011): ConsolidationTable footer shows "Total" row summing total_nos.
+    How to verify:
+      1. Sales Report → Consolidation section → scroll to footer row
+      2. Footer shows "Total" label + sum of all total_nos values
+      3. Empty state: "No matching sales." renders when rows=[] (not a blank screen)
+    Jest coverage: TC-167 (sum footer), TC-168 (empty state)
+    Backend UAT 2026-06-29: AC-047 accepted at API level
+```
+
+**TD-010 closure confirmation:**
+```
+[✓] TD-010 CLOSED — MultiSelectComboboxFallback replaces Radix Select/Popover
+    for filter dropdowns. Numeric option values coerce correctly (TC-169 PASS).
+    String values pass through unchanged (TC-170 PASS). 10/10 frontend tests green.
+```
+
+**UI Track Verdict line (PO to fill):** APPROVED
+**Signed:** Jayanth · 2026-07-01

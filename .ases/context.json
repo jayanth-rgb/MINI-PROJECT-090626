@@ -7,8 +7,8 @@
   "sprint": "S3",
   "phase": "SPRINT_SHIP",
   "stage": "ui_integration_S3_done",
-  "last_completed": "/ases-dev S3 (UI integration pass — IP-S3-001 + IP-S3-002 swapped)",
-  "next": "PO choice: /ases-test-impl S3 (UI track tests) OR resume V2 scoping",
+  "last_completed": "/ases-test-impl S3 (UI track — 10 jest TCs TC-161..TC-170, TD-010 closed)",
+  "next": "/ases-test-run S3 (run frontend jest suite for TC-161..TC-170)",
   "blockers": [],
   "prd_version": 1,
   "project_id": "jayanth-trading-tiles",
@@ -80,7 +80,8 @@
     "ui_design:S3",
     "ui_review:S3:APPROVED",
     "ui_scaffold:S3:LOCKED",
-    "ui_integration:S3:IP-S3-001+IP-S3-002_swapped"
+    "ui_integration:S3:IP-S3-001+IP-S3-002_swapped",
+    "test_impl:S3:ui_track:10/10_written:TC-161..TC-170:TD-010_closed"
   ],
   "open_issues": [
     "W1: deps_manifest missing jest + @testing-library/* (resolve before /ases-test-impl S1)",
@@ -201,6 +202,6 @@
     }
   ],
   "decisions_count": 17,
-  "last_updated": "2026-06-29",
-  "last_updated_by": "/ases-dev S3 (UI integration pass)"
+  "last_updated": "2026-07-01",
+  "last_updated_by": "/ases-devops S3 (UI track supplemental commit)"
 }

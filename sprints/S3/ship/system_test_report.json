@@ -2,7 +2,7 @@
   "$schema": "ases/v3.0/system_test_report",
   "sprint_id": "S3",
   "produced_by": "/ases-system-test S3 Step B",
-  "executed_at": "2026-06-29T00:00:00Z",
+  "executed_at": "2026-07-01T00:00:00Z",
   "verdict": "pass",
   "critical_failures": [],
   "summary": {
@@ -125,6 +125,21 @@
     "R-005": "covered by ST-012 — soft-delete with historical transactions verified end-to-end"
   },
   "framework_used": "pytest + time.perf_counter() + statistics (project convention; pytest-benchmark deferred — not in venv)",
-  "regression_check": "ST suite ran on top of the green 158/158 test_run baseline; no test outside backend/tests/system/ was touched",
+  "regression_check": "ST suite ran on top of the green 167/167 test_run baseline; no test outside backend/tests/system/ was touched",
+  "rerun": {
+    "run_at": "2026-07-01",
+    "triggered_by": "/ases-system-test S3",
+    "scope": "tests/system/ (all 31 tests)",
+    "result": "31 passed, 0 failed",
+    "duration_s": 51.30,
+    "s3_scenarios": {
+      "ST-008": "pass",
+      "ST-009": "pass",
+      "ST-010": "pass",
+      "ST-011": "pass",
+      "ST-012": "pass"
+    },
+    "regressions": 0
+  },
   "next": "/ases-uat S3"
 }

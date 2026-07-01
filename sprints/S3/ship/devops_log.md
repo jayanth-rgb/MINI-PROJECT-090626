@@ -94,5 +94,54 @@ ASES-Sprint: S3
 
 `/ases-devops` ran in committed-locally mode. Push to origin is deferred to `/ases-release` (per ASES policy: release stamps the official ship).
 
+---
+
+## Supplemental commit — S3 UI Track (2026-07-01)
+
+**Commit:** `aab7cb4` · **Branch:** `develop` · **UAT:** UI Track APPROVED (Jayanth · 2026-07-01)
+
+### Pre-check
+| Gate | Value |
+|---|---|
+| UAT verdict (backend) | APPROVED (2026-06-29) |
+| UI Track UAT verdict | **APPROVED** (2026-07-01) — 5/5 UI ACs · TD-010 CLOSED |
+| current_phase | `SPRINT_SHIP` |
+
+### What landed
+
+| File | Change |
+|---|---|
+| `frontend/src/lib/api/transactions.ts` | Full typed API-client rewrite — DashboardPage + SalesReportPage wired to backend; MultiSelectComboboxFallback added |
+| `frontend/src/components/transactions/inward/InwardForm.tsx` | Integration point patch (+1 line) |
+| `frontend/src/components/admin/dashboard/__tests__/` | NEW — TC-161..TC-165 (jest, DashboardPage) |
+| `frontend/src/components/admin/reports/__tests__/` | NEW — TC-166..TC-170 (jest, SalesReportPage) |
+| `frontend/src/components/ui/__tests__/` | NEW — MultiSelectComboboxFallback tests |
+| `backend/src/main.py` | Minor additive fix |
+| `sprints/S3/design/test_cases.json` | +10 UI TCs (TC-161..TC-170) |
+| Sprint ship artifacts | test_suite, test_run_report, system_test_report, integration_scenarios, system_test_scenarios updated |
+| `sprints/S3/ship/uat_checklist.md` | UI Track section marked APPROVED |
+| `sprints/S3/ship/uat_report.json` | `ui_track_supplemental` block added |
+| `.ases/context.json` | `last_updated_by` updated |
+| `.claude/settings.json` | Settings accumulated during UI track |
+
+**Excluded:** `frontend/tsconfig.tsbuildinfo` (build artifact — auto-generated)
+
+**TD-010 CLOSED** — MultiSelectComboboxFallback replaces Radix Select/Popover for filter dropdowns. Numeric IDs coerce correctly (TC-169). String values unchanged (TC-170). 10/10 frontend tests green.
+
+### Commit message (verbatim)
+```
+feat(S3): integrate dashboard and sales report UI with backend
+
+UI track supplemental commit: DashboardPage + SalesReportPage wired to
+typed API client. MultiSelectComboboxFallback closes TD-010 (Radix
+jsdom incompatibility). 10/10 jest tests pass (TC-161..TC-170).
+
+UI Track UAT: APPROVED — 5/5 UI ACs accepted (Jayanth · 2026-07-01)
+TD-010: CLOSED — MultiSelectComboboxFallback ships
+Features: F-010 Dashboard UI, F-011 Sales Report UI
+
+ASES-Sprint: S3
+```
+
 ## Next
 **`/ases-final-audit S3`** — six-lens comprehensive audit. PO approval required after for `/ases-release`.

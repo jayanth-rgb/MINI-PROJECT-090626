@@ -177,5 +177,20 @@
     "production_code_changes": "0 — both fixes were test-side scenario-date corrections; the InwardService AC-021 validation worked exactly as designed."
   },
   "verdict": "PASS",
+  "rerun": {
+    "run_at": "2026-07-01",
+    "triggered_by": "/ases-integration-test S3",
+    "scope": "tests/integration/ (all 63 tests)",
+    "result": "63 passed, 0 failed, 7 warnings (pre-existing SAWarning — no impact)",
+    "duration_s": 59.94,
+    "s3_scenarios": {
+      "IS-009": "pass",
+      "IS-010": "pass",
+      "IS-011": "pass",
+      "IS-012": "pass"
+    },
+    "regressions": 0,
+    "note": "Re-run confirms all S3 integration scenarios remain green; IS-011 date-relative logic handles today=2026-07-01 (day>1 → same-month branch); IS-012 carry-forward helper computes next-month correctly."
+  },
   "next": "/ases-system-test S3"
 }

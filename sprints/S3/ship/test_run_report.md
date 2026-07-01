@@ -1,26 +1,28 @@
 # Sprint S3 — Test Run Report
 
-**Executed:** 2026-06-27 · **Gate verdict:** **PASS** · **Run cmd:** `pytest tests/ --tb=line`
+**Executed:** 2026-07-01 · **Gate verdict:** **PASS**
 
 ## Summary
 
 | Metric | Value |
 |---|---:|
-| Total tests | **158** |
-| Passed | **158** |
+| Backend tests | **167** |
+| Frontend tests | **10** |
+| **Grand total** | **177** |
+| Passed | **177** |
 | Failed | 0 |
 | Errors | 0 |
-| Skipped | 0 |
 | Warnings | 7 (pre-existing SAWarnings — see notes) |
 | Regressions | **0** |
-| Fix iterations needed | 1 (both on test seeds, not production code) |
+| Fix iterations needed | 3 total (all test-side, no production code touched) |
 
 ## Breakdown
 
 | Bucket | Total | Passed | Notes |
 |---|---:|---:|---|
-| S1+S2 regression | 112 | **112** | Zero regressions — S3 is read-only at the persistence layer |
-| S3 new (TC-115..TC-160) | 46 | **46** | All 33 critical-priority TCs passed |
+| S1+S2 regression (backend) | 121 | **121** | Zero regressions. Count up from 112 — integration/system tests from prior phases now in tree |
+| S3 new backend (TC-115..TC-160) | 46 | **46** | All 33 critical-priority TCs passed |
+| S3 new frontend (TC-161..TC-170) | 10 | **10** | First execution — 9 passed cold, TC-161 required 1 fix |
 
 ## Critical-TC gate (Step 5)
 **33 / 33 critical TCs passed → Gate PASS.**
@@ -46,7 +48,15 @@ Initial run: **156 / 158 pass, 2 failed**. Both failures were in **test seed cod
 - **Production change:** None
 - **Attempts:** 1 / 3
 
-After the two seed fixes: re-ran only the 2 failing tests → 2/2 pass; then re-ran the full suite → **158 / 158 pass**.
+After the two seed fixes: re-ran only the 2 failing tests → 2/2 pass; then re-ran the full suite → **158 / 158 pass** (backend).
+
+### TC-161 — `test_tc161_renders_data_rows_with_all_8_display_columns` *(this run)*
+- **Symptom:** `Found multiple elements with the text: 120` — `getByText("120")` threw because `120` appears in two table cells.
+- **Root cause:** The ROWS fixture has `opening=120` (row 1) and `closing=120` (row 2), both intentional. `getByText` is strict-single; test should have used `getAllByText`.
+- **Fix:** Changed `screen.getByText("120").toBeInTheDocument()` → `screen.getAllByText("120").toHaveLength(2)`.
+- **File touched:** `frontend/src/components/admin/dashboard/__tests__/DashboardTable.test.tsx` (test code only)
+- **Production change:** None
+- **Attempts:** 1 / 3
 
 ## Regressions
 **None.** All 112 S1+S2 tests still green.
@@ -56,10 +66,15 @@ After the two seed fixes: re-ran only the 2 failing tests → 2/2 pass; then re-
 - `TC-157` Sales Report p95 < 2000ms — PASS (gate).
 - `/ases-system-test S3` may re-measure with stricter hardware-pinned thresholds; numeric values are printed to test stdout but not parsed into this report.
 
-## Notes
-- `pytest-json-report` plugin not installed → results parsed from stdout footer (`158 passed`). Acceptable: the run_cmd is deterministic and easy to re-run.
-- Final full-suite wall-clock = 42807s reflects laptop sleep mid-run; real CPU spent ≈ 70s based on the initial run's 66.69s footer. Not a regression signal.
-- 7 SAWarnings logged from `tests/integration/db/` files (conftest.py:84 `trans.rollback()` warns about already-deassociated transaction). Pre-existing from S1/S2 — not introduced by S3. Non-blocking; revisit at `/ases-sprint-close` if the count grows.
+## Frontend Test Notes
+- **TC-161..TC-170:** First execution of S3 frontend tests (status was `written`, now `passed`).
+- **TD-010 resolved:** TC-169/TC-170 (`MultiSelectComboboxFallback`) pass — Radix Select interaction now covered via the native-select shim. TD-010 closed.
+- **Dual jest config:** Both `jest.config.js` and `jest.config.ts` exist — resolved by passing `--config jest.config.js` explicitly. `jest.config.ts` can be removed post-sprint.
+
+## Backend Notes
+- `pytest-json-report` plugin not installed → results parsed from stdout footer (`167 passed`). Acceptable.
+- Backend wall-clock: 113s (testcontainers PG, all 167 tests).
+- 7 SAWarnings logged from `tests/integration/db/` files (conftest.py:84 `trans.rollback()`). Pre-existing from S1/S2 — non-blocking.
 
 ## Next
 - **Gate PASS** → **`/ases-integration-test S3`** (cross-module scenarios from HLD `data_flow`)
