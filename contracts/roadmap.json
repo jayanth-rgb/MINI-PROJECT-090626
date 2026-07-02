@@ -41,23 +41,28 @@
       "scope_notes": "Read-side completion of the system. Dashboard reads from materialised stock_ledger (DS-003); Sales Report executes the dual-payload query in M-005. Carry-forward is exercised via integration tests using back-dated transactions per AC-053.",
       "dependencies_on": ["S1", "S2"],
       "status": "shipped",
-      "shipped_at": "2026-06-29",
+      "shipped_at": "2026-07-01",
+      "backend_shipped_at": "2026-06-29",
+      "ui_track_shipped_at": "2026-07-01",
       "final_audit_verdict": "SHIP",
+      "po_approval": "SHIP APPROVED — Jayanth · 2026-07-01",
       "commit": "d9715d5eeabebfa63f8f142b659bf1800b95a36c",
       "commit_short": "d9715d5",
+      "supplemental_commit": "56bd4b7",
       "summary_ref": "sprints/S3/ship/sprint_summary.json",
       "release_ref": "sprints/S3/ship/release.json",
       "new_decisions": ["DS-015", "DS-016", "DS-017"],
       "ship_findings": [
-        "FA-S3-001 minor (IS-011/012 absolute-date seed bug — test-side fix only)",
-        "FA-S3-002 warning (TC-122 seed bug caught by FORMULA-001 server-side invariant — defense-in-depth working as designed)",
-        "FA-S3-003 minor (AC-049 visual verification carry-forward to UI track)"
+        "FA-S3-001 minor (IS-011/012 absolute-date seed bug — test-side fix only) — accepted",
+        "FA-S3-002 warning (TC-122 seed bug caught by FORMULA-001 server-side invariant — defense-in-depth working as designed) — accepted",
+        "FA-S3-003 minor (AC-049 visual verification) — RESOLVED 2026-07-01 (UI track APPROVED)"
       ],
       "perf_at_ship": {"dashboard_p95_ms": 33.1, "sales_report_p95_ms": 715.7},
-      "ui_track_status": "deferred to /ases-ui-design S3 (parallel-eligible — backend API surface frozen + critiqued)"
+      "ui_track_status": "SHIPPED 2026-07-01 — DashboardPage + SalesReportPage complete; AC-049-UI verified; TD-010 CLOSED (MultiSelectComboboxFallback); 10/10 jest TCs (TC-161..TC-170) PASS",
+      "tech_debt_closed_in_s3": ["TD-010"]
     }
   ],
-  "v1_status": "FEATURE COMPLETE — all 12 V1 features (F-001..F-012) shipped across S1/S2/S3. V2 backlog tracked in `deferred` below; next sprint design (S4 / V2 scoping) starts with /ases-prd-update or /ases-lld depending on scope.",
+  "v1_status": "FEATURE COMPLETE — all 12 V1 features (F-001..F-012) shipped across S1/S2/S3 including UI track (DashboardPage + SalesReportPage, 2026-07-01). 168/168 tests passing (158 pytest + 10 jest). TD-010 closed. PO SHIP APPROVED 2026-07-01. V2 backlog tracked in `deferred` below; next sprint design starts with /ases-prd-update or /ases-lld.",
   "deferred": [
     {
       "item": "User authentication and RBAC",

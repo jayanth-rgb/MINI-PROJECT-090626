@@ -36,9 +36,18 @@ All notable changes per sprint will land here, written by `/ases-release`.
   - **TD-010** (open, S3) — Radix UI Select/Popover jsdom incompatibility; UI-design decision pending
   - **TD-008** (open, V2) — First-row insert race (theoretical; acceptable for V1)
 
-### Deferred / Carry-Forward
-- **AC-049 visual verification** — backend dual-payload JSON contract accepted; the "no toggle, no tab, Consolidation first" visual UX deferred to `/ases-ui-scaffold S3`.
-- **UI track** — frontend pages for Dashboard + Sales Report deferred to the parallel-eligible UI track (backend API surface is frozen and critiqued).
+### UI Track Supplemental — 2026-07-01 *(shipped after PO final-audit approval)*
+
+- **F-010 Dashboard UI** (AC-041-UI) — `DashboardPage` wired to `GET /api/v1/dashboard`; TC-161/162/163 PASS
+- **F-011 Sales Report UI** (AC-046-UI, AC-047-UI, AC-049-UI, AC-050-UI) — `SalesReportPage` renders `ConsolidationTable` + `TransactionTable` simultaneously (no tab/toggle, Consolidation first); AC-049 visual verification **RESOLVED** (FA-S3-003 closed)
+- **TD-010 CLOSED** — `MultiSelectComboboxFallback` (native `<select>` shim resolves Radix UI jsdom incompatibility); TC-169 + TC-170 PASS
+- **10 / 10 jest TCs added** (TC-161..TC-170) · all PASS · final test total: **168 / 168** (158 pytest + 10 jest) · 0 regressions
+- **Supplemental commit:** `56bd4b7` on `develop`
+- **Final PO approval:** SHIP APPROVED · Jayanth · 2026-07-01
+
+### Deferred / Carry-Forward *(pre-UI-track; all resolved above)*
+- ~~**AC-049 visual verification**~~ — **RESOLVED** (UI track 2026-07-01): both sections render simultaneously, no toggle, no tab, Consolidation first.
+- ~~**UI track**~~ — **SHIPPED** 2026-07-01: DashboardPage + SalesReportPage complete.
 
 ### Phase 3 Fix Iterations
 - **2 fix iterations during Phase 3, 100% test-side** — TC-122/142 (perf and reconciliation test seeds) at `/ases-test-run`, IS-011/012 (absolute-date scenario authoring) at `/ases-integration-test`. **Production source was not modified at any point during Phase 3.** In every case, the production code's own invariant assertions (AC-021 7-day window, FORMULA-001 ledger invariant, AC-050 reconciliation) caught the test bug — defense-in-depth working exactly as designed.

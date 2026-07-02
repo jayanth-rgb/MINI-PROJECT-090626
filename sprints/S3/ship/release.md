@@ -7,14 +7,15 @@ Reporting & Carry-Forward — Stock Dashboard (date-filtered), Sales Report (Con
 
 ## What shipped
 
-| Feature | ACs | Endpoint | UI |
-|---|---:|---|---|
-| **F-010** Stock Dashboard | 5 / 5 | `GET /api/v1/dashboard?as_of_date=YYYY-MM-DD` | deferred to `/ases-ui-scaffold S3` |
-| **F-011** Sales Report | 5 / 5 | `GET /api/v1/reports/sales` (5 multi-select filters) | deferred to `/ases-ui-scaffold S3` |
-| **F-012** Monthly Carry-Forward | 3 / 3 | verified via existing S2 domain.stock — no new code | n/a |
+| Feature | Backend ACs | UI ACs | Endpoint | UI |
+|---|---:|---:|---|---|
+| **F-010** Stock Dashboard | 5 / 5 | 1 / 1 | `GET /api/v1/dashboard?as_of_date=YYYY-MM-DD` | DashboardPage — shipped 2026-07-01 |
+| **F-011** Sales Report | 5 / 5 | 4 / 4 | `GET /api/v1/reports/sales` (5 multi-select filters) | SalesReportPage — shipped 2026-07-01 |
+| **F-012** Monthly Carry-Forward | 3 / 3 | n/a | verified via existing S2 domain.stock — no new code | n/a |
 
-## Commit
-`d9715d5eeabebfa63f8f142b659bf1800b95a36c` on `develop` · 131 files (+11,594 / -10) · co-authored by Claude Opus 4.7.
+## Commits
+- **Backend:** `d9715d5eeabebfa63f8f142b659bf1800b95a36c` on `develop` · 131 files (+11,594 / -10) · co-authored by Claude Opus 4.7
+- **UI track (supplemental):** `56bd4b7` on `develop` · DashboardPage + SalesReportPage wired; 10 jest TCs added; TD-010 closed
 
 ## New architectural decisions
 
@@ -29,9 +30,10 @@ Reporting & Carry-Forward — Stock Dashboard (date-filtered), Sales Report (Con
 | Suite | Count | Result |
 |---|---:|---|
 | Unit + integration pytest | 158 | **158 PASS** |
+| Frontend jest (TC-161..TC-170) | 10 | **10 PASS** |
 | Integration scenarios (IS-005..IS-012) | 8 | **8 PASS** |
 | System test scenarios (ST-001..ST-012) | 12 | **12 PASS** |
-| **Total** | **178** | **178 PASS · 0 regressions** |
+| **Total (pytest + jest)** | **168** | **168 PASS · 0 regressions** |
 
 ## Perf at ship
 
@@ -43,14 +45,14 @@ Reporting & Carry-Forward — Stock Dashboard (date-filtered), Sales Report (Con
 ## Tech debt
 
 - **New tech debt introduced by S3: 0**
-- **Closed in S3: 0** (none owed by S3 to close)
-- **Carry-forwards** (none blocking S3):
+- **Closed in S3: 1** — TD-010 (Radix UI jsdom incompatibility → MultiSelectComboboxFallback)
+- **Carry-forwards** (none blocking release):
 
 | ID | Severity | Target | Note |
 |---|---|---|---|
-| CF-001 | minor | PO action (post-release optional) | Long-lived PG bring-up; testcontainers covered all 178 tests |
-| TD-001 | minor | `/ases-ui-scaffold S3` | shadcn calendar.tsx patch |
-| TD-010 | minor | `/ases-ui-design S3` | Radix UI Select/Popover jsdom incompatibility |
+| CF-001 | minor | PO action (post-release optional) | Long-lived PG bring-up; testcontainers covered all 168 tests |
+| TD-001 | minor | UI-track (next sprint) | shadcn calendar.tsx patch (Dashboard date-picker) |
+| **TD-010** | minor | **CLOSED 2026-07-01** | MultiSelectComboboxFallback — TC-169 + TC-170 PASS |
 | TD-008 | minor | V2 | First-row insert race (theoretical) |
 
 ## Phase 3 fix iterations
@@ -64,18 +66,28 @@ Reporting & Carry-Forward — Stock Dashboard (date-filtered), Sales Report (Con
 | Modules shipped | M-001 master · M-002 API · M-003 ledger · M-004 dashboard · M-005 reports · M-007 persistence (M-006 UI deferred to UI tracks) |
 | Sprints in V1 | S1 (data foundation) → S2 (transaction forms + ledger) → S3 (reporting + carry-forward) |
 | First commit | `571c601` (2026-06-20, S1 ship) |
-| Last commit | `d9715d5` (2026-06-29, S3 ship) |
-| Total tests | **178 / 178** PASS across V1 |
-| Open carry-forwards into V2 | 4 (1 operational, 2 UI-track, 1 V2 theoretical) |
+| Last commit | `56bd4b7` (2026-07-01, S3 UI track supplemental) |
+| Total tests | **168 / 168** PASS across V1 (158 pytest + 10 jest) |
+| Open carry-forwards into V2 | 3 (CF-001 operational, TD-001 UI-track, TD-008 V2 theoretical) |
 
-## Next sprint options
+## UI Track Supplemental — 2026-07-01
 
-1. **`/ases-ui-design S3`** — UI track continuation (parallel-eligible). Closes TD-001 + TD-010 + AC-049 visual verification. Backend API surface is frozen and critiqued.
-2. **`/ases-prd-update [next-sprint-id]`** or **`/ases-lld [next-sprint-id]`** — V2 design phase. Scope drawn from `contracts/roadmap.json` `deferred[]`: auth/RBAC, pricing/invoicing, manufacturing tiles, Inward Report, PDF/Excel exports.
+| Item | Result |
+|---|---|
+| DashboardPage wired to `GET /api/v1/dashboard` | **SHIPPED** |
+| SalesReportPage: ConsolidationTable + TransactionTable simultaneous render | **SHIPPED** |
+| AC-049-UI visual verification (no toggle, no tab, Consolidation first) | **RESOLVED** |
+| TD-010 closed (MultiSelectComboboxFallback) | **CLOSED** |
+| Jest TCs TC-161..TC-170 | **10/10 PASS** |
+| PO approval of final audit | **APPROVED · Jayanth · 2026-07-01** |
+
+## Next sprint
+
+**`/ases-prd-update V2`** or **`/ases-lld V2`** — V2 design phase. Scope drawn from `contracts/roadmap.json` `deferred[]`: auth/RBAC, pricing/invoicing, Inward Report, PDF/Excel exports, manufacturing tiles.
 
 ## Phase transition
 `SPRINT_SHIP` → **`SPRINT_DESIGN`** (next sprint). `context.json` `current_sprint` set to "S3 (closed)" pending PO's choice of next-sprint id.
 
 ## Signed
-- PO: Jayanth · APPROVED 2026-06-29 (final_audit SHIP verdict)
-- /ases-release: 2026-06-29 16:00 +05:30
+- PO: Jayanth · SHIP APPROVED 2026-07-01 (UI track supplemental — final verdict)
+- /ases-release: 2026-06-29 16:00 +05:30 (initial) · 2026-07-01 (supplemental — UI track complete)

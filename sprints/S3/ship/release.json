@@ -5,7 +5,7 @@
   "released_at": "2026-06-29T16:00:00+05:30",
   "verdict": "SHIPPED",
   "v1_status": "FEATURE COMPLETE",
-  "po_approval_of_final_audit": "APPROVED 2026-06-29",
+  "po_approval_of_final_audit": "APPROVED 2026-07-01 (UI track supplemental — final verdict)",
   "sprint_goal": "Reporting & Carry-Forward — Stock Dashboard (date-filtered), Sales Report (Consolidation + Transaction dual-pane with multi-select filters), explicit verification of monthly carry-forward including back-dated transactions across month boundaries.",
   "scope_features": ["F-010", "F-011", "F-012"],
   "scope_modules": ["M-004", "M-005"],
@@ -73,18 +73,43 @@
     {"id": "TD-010", "severity": "minor", "target": "/ases-ui-design S3", "note": "Radix UI jsdom incompatibility — 7 frontend TCs deferred from S2"},
     {"id": "TD-008", "severity": "minor", "target": "V2", "note": "First-row insert race (theoretical)"}
   ],
-  "tech_debt_closed_in_s3": [],
+  "tech_debt_closed_in_s3": ["TD-010"],
   "tech_debt_introduced_in_s3": [],
+  "ui_track_supplemental": {
+    "shipped_at": "2026-07-01T00:00:00+05:30",
+    "commit": "56bd4b7",
+    "po_approval_final": "SHIP APPROVED — Jayanth · 2026-07-01",
+    "features_shipped": [
+      {
+        "feature_id": "F-010",
+        "ui_name": "DashboardPage",
+        "ui_acs_passed": ["AC-041-UI"],
+        "jest_tcs": ["TC-161", "TC-162", "TC-163"]
+      },
+      {
+        "feature_id": "F-011",
+        "ui_name": "SalesReportPage",
+        "ui_acs_passed": ["AC-046-UI", "AC-047-UI", "AC-049-UI", "AC-050-UI"],
+        "jest_tcs": ["TC-164", "TC-165", "TC-166", "TC-167", "TC-168"],
+        "fa_s3_003_resolved": true,
+        "note": "Both ConsolidationTable + TransactionTable render simultaneously; no toggle, no tab, Consolidation first"
+      }
+    ],
+    "tech_debt_closed": ["TD-010"],
+    "td_010_closure": "MultiSelectComboboxFallback (native <select> shim) — TC-169 (numeric coercion) + TC-170 (string pass-through) PASS",
+    "jest_test_totals": "10/10 (TC-161..TC-170) PASS",
+    "grand_test_total": "168/168 PASS (158 pytest + 10 jest) · 0 regressions"
+  },
   "v1_completion": {
     "features_shipped_total": 12,
     "features_planned_total": 12,
     "modules_shipped": ["M-001", "M-002", "M-003", "M-004", "M-005", "M-007"],
-    "module_M-006_status": "deferred to UI tracks (/ases-ui-scaffold per sprint)",
+    "module_M-006_status": "SHIPPED via UI tracks — DashboardPage + SalesReportPage complete (commit 56bd4b7)",
     "sprints_in_v1": ["S1", "S2", "S3"],
     "v1_first_commit": "571c601",
-    "v1_last_commit": "d9715d5",
-    "total_test_count_v1": 178,
-    "open_carry_forwards_to_v2": ["CF-001 (operational)", "TD-001 (UI)", "TD-010 (UI)", "TD-008 (V2)"]
+    "v1_last_commit": "56bd4b7",
+    "total_test_count_v1": 168,
+    "open_carry_forwards_to_v2": ["CF-001 (operational)", "TD-001 (UI)", "TD-008 (V2)"]
   },
   "next_sprint_options": [
     {"path": "ui-track-continuation", "command": "/ases-ui-design S3", "rationale": "Backend API surface frozen + critiqued; UI track is parallel-eligible. Closes TD-001 + TD-010 + AC-049 visual verification."},
@@ -95,6 +120,6 @@
     "to": "SPRINT_DESIGN (next sprint)",
     "current_sprint_set_to": "S3 (closed; next sprint id to be assigned at /ases-lld invocation)"
   },
-  "summary_one_line": "S3 shipped 13/13 ACs across F-010/F-011/F-012 with zero new tech debt, ~24x dashboard headroom, ~2.8x sales-report headroom; V1 is now FEATURE COMPLETE (12/12 features, 178/178 tests, 3 sprints).",
-  "next": "PO chooses: /ases-ui-design S3 (UI track) OR /ases-prd-update / /ases-lld [next-sprint-id] (V2 design)"
+  "summary_one_line": "S3 fully shipped: 13/13 backend ACs + 5/5 UI ACs across F-010/F-011/F-012; TD-010 CLOSED; 168/168 tests (158 pytest + 10 jest); ~24x dashboard headroom; ~2.8x sales-report headroom; V1 FEATURE COMPLETE (12/12 features, 3 sprints). PO SHIP APPROVED 2026-07-01.",
+  "next": "/ases-prd-update V2 or /ases-lld V2 (scope from roadmap.json deferred[])"
 }

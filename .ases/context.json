@@ -4,11 +4,11 @@
   "produced_by": "/ases-init",
   "updated_by": "every_command",
   "project": "Jayanth Trading Tiles System",
-  "sprint": "S3",
-  "phase": "SPRINT_SHIP",
-  "stage": "ui_integration_S3_done",
-  "last_completed": "/ases-test-impl S3 (UI track — 10 jest TCs TC-161..TC-170, TD-010 closed)",
-  "next": "/ases-test-run S3 (run frontend jest suite for TC-161..TC-170)",
+  "sprint": "V2",
+  "phase": "SPRINT_DESIGN",
+  "stage": "released",
+  "last_completed": "/ases-release S3 (supplemental — UI track + PO SHIP APPROVED 2026-07-01; V1 FULLY COMPLETE)",
+  "next": "/ases-prd-update V2 or /ases-lld V2 (scope from roadmap.json deferred[])",
   "blockers": [],
   "prd_version": 1,
   "project_id": "jayanth-trading-tiles",
@@ -83,7 +83,9 @@
     "ui_integration:S3:IP-S3-001+IP-S3-002_swapped",
     "test_impl:S3:ui_track:10/10_written:TC-161..TC-170:TD-010_closed",
     "uat:S3:ui_track:APPROVED",
-    "devops:S3:ui_track:committed:56bd4b7"
+    "devops:S3:ui_track:committed:56bd4b7",
+    "final_audit:S3:SHIP:ui_track_supplemental",
+    "release:S3:FINAL_SHIPPED:ui_track_complete:po_approved:2026-07-01"
   ],
   "open_issues": [
     "W1: deps_manifest missing jest + @testing-library/* (resolve before /ases-test-impl S1)",
@@ -124,7 +126,7 @@
     {
       "sprint_id": "S3",
       "closed_on": "2026-06-26",
-      "shipped_on": "2026-06-29",
+      "shipped_on": "2026-07-01",
       "commit": "d9715d5eeabebfa63f8f142b659bf1800b95a36c",
       "commit_short": "d9715d5",
       "completed_count": 10,
@@ -133,7 +135,7 @@
       "iteration_max": 1,
       "iteration_avg": 1.0,
       "new_tech_debt": [],
-      "closed_tech_debt": [],
+      "closed_tech_debt": ["TD-010"],
       "new_decisions": ["DS-015", "DS-016", "DS-017"],
       "carry_forward": [
         "CF-001 (PG bring-up — still pending from S1)",
@@ -155,7 +157,7 @@
       "batch_critique_outcome": "10/10 CLEAN iteration 1",
       "graphify_refreshed_at_close": true,
       "perf_at_ship": {"dashboard_p95_ms": 33.1, "sales_report_p95_ms": 715.7},
-      "po_signoff_final_audit": "APPROVED 2026-06-29",
+      "po_signoff_final_audit": "APPROVED 2026-07-01 (UI track supplemental — final verdict)",
       "ui_track_commit": "56bd4b7",
       "ui_track_uat_verdict": "APPROVED 2026-07-01",
       "td_010_closed_in_ui_track": true,
@@ -209,5 +211,5 @@
   ],
   "decisions_count": 17,
   "last_updated": "2026-07-01",
-  "last_updated_by": "/ases-devops S3 (UI track supplemental commit)"
+  "last_updated_by": "/ases-release S3 (supplemental — PO SHIP APPROVED 2026-07-01)"
 }

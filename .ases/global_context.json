@@ -371,14 +371,22 @@
       "description": "7 frontend tests (TC-092/093/095/097/099/101/102) cannot exercise Radix UI Select / Popover interactions in jsdom — portals + internal state machinery don't fully materialize. Matches S1's TC-045 deferral. 6 zod-direct sibling TCs in the same files pass cleanly. Resolution options: (a) mock @radix-ui/react-select with native <select> shim in jest.setup.ts, (b) move to Playwright/Cypress E2E in S3+, (c) accept as scaffold-level coverage (backend API tests cover the same ACs).",
       "sprint_introduced": "S2",
       "target_sprint": "S3 or V2",
-      "status": "open",
+      "status": "closed_in_S3",
+      "closed_date": "2026-07-01",
+      "closed_by": ["MultiSelectComboboxFallback (native <select> shim in jest.setup.ts)", "TC-169 (numeric coercion)", "TC-170 (string pass-through)"],
       "tags": [
-        "S2",
-        "frontend",
-        "jsdom",
-        "radix-ui",
-        "test-infra"
+        "S2", "frontend", "jsdom", "radix-ui", "test-infra", "closed"
       ]
+    },
+    {
+      "id": "TD-001",
+      "type": "tech_debt",
+      "severity": "minor",
+      "description": "shadcn calendar.tsx requires classNames patch for react-day-picker v10 compatibility (table → month_grid). Surfaces when the Dashboard date-picker UI component is built in a UI-track sprint.",
+      "sprint_introduced": "scaffold",
+      "target_sprint": "UI-track (next sprint)",
+      "status": "open",
+      "tags": ["UI", "shadcn", "calendar", "react-day-picker"]
     },
     {
       "id": "TD-011",
@@ -417,15 +425,18 @@
       "id": "SP-003",
       "type": "sprint_digest",
       "sprint": "S3",
-      "summary": "Reporting & Carry-Forward shipped: F-010 Stock Dashboard + F-011 Sales Report (dual payload with multi-select filters) + F-012 carry-forward verification. 10 tasks complete (T-057..T-066) with 10/10 CLEAN on critique iteration 1. 178/178 tests across S1+S2+S3 (46 new S3 TCs + 4 IS + 5 ST). 0 regressions. Perf headroom: dashboard p95=33.1ms (~24x), sales-report p95=715.7ms over 10800 rows (~2.8x). 0 new tech debt. UAT 13/13 accepted first-review. V1 FEATURE COMPLETE.",
+      "summary": "Reporting & Carry-Forward shipped: F-010 Stock Dashboard + F-011 Sales Report (dual payload with multi-select filters) + F-012 carry-forward verification. 10 tasks complete (T-057..T-066) with 10/10 CLEAN on critique iteration 1. 168/168 tests (158 pytest + 10 jest, TC-161..TC-170) across S1+S2+S3. 0 regressions. Perf headroom: dashboard p95=33.1ms (~24x), sales-report p95=715.7ms over 10800 rows (~2.8x). 0 new tech debt. UAT 13/13 backend + 5/5 UI-track ACs accepted first-review. UI track shipped 2026-07-01: DashboardPage + SalesReportPage complete; TD-010 CLOSED. PO SHIP APPROVED 2026-07-01. V1 FEATURE COMPLETE.",
       "verdict": "SHIP",
-      "date": "2026-06-29",
+      "date": "2026-07-01",
+      "ui_track_shipped_at": "2026-07-01",
+      "supplemental_commit": "56bd4b7",
       "tags": [
         "S3",
         "shipped",
         "M-004",
         "M-005",
-        "v1-complete"
+        "v1-complete",
+        "ui-track"
       ],
       "full_ref": "sprints/S3/ship/sprint_summary.json"
     },
@@ -436,24 +447,20 @@
       "name": "Stock Dashboard",
       "sprint": "S3",
       "ac_refs": [
-        "AC-041",
-        "AC-042",
-        "AC-043",
-        "AC-044",
-        "AC-045"
+        "AC-041", "AC-042", "AC-043", "AC-044", "AC-045"
       ],
+      "ui_ac_refs": ["AC-041-UI"],
       "ac_count": 5,
       "ac_passed": 5,
+      "ui_ac_count": 1,
+      "ui_ac_passed": 1,
       "endpoint": "GET /api/v1/dashboard?as_of_date=YYYY-MM-DD",
+      "ui_component": "DashboardPage",
       "perf": "p95=33.1ms vs 800ms (24x headroom)",
       "date": "2026-06-29",
+      "ui_shipped_at": "2026-07-01",
       "tags": [
-        "F-010",
-        "S3",
-        "M-004",
-        "dashboard",
-        "DS-003",
-        "DS-016"
+        "F-010", "S3", "M-004", "dashboard", "DS-003", "DS-016", "ui-track"
       ]
     },
     {
@@ -463,24 +470,20 @@
       "name": "Sales Report (Consolidation + Transactions)",
       "sprint": "S3",
       "ac_refs": [
-        "AC-046",
-        "AC-047",
-        "AC-048",
-        "AC-049",
-        "AC-050"
+        "AC-046", "AC-047", "AC-048", "AC-049", "AC-050"
       ],
+      "ui_ac_refs": ["AC-046-UI", "AC-047-UI", "AC-049-UI", "AC-050-UI"],
       "ac_count": 5,
       "ac_passed": 5,
+      "ui_ac_count": 4,
+      "ui_ac_passed": 4,
       "endpoint": "GET /api/v1/reports/sales (5 multi-select filters)",
+      "ui_component": "SalesReportPage (ConsolidationTable + TransactionTable simultaneously)",
       "perf": "p95=715.7ms vs 2000ms over 10800 sales_line rows (2.8x headroom)",
       "date": "2026-06-29",
+      "ui_shipped_at": "2026-07-01",
       "tags": [
-        "F-011",
-        "S3",
-        "M-005",
-        "sales-report",
-        "DS-013",
-        "DS-017"
+        "F-011", "S3", "M-005", "sales-report", "DS-013", "DS-017", "ui-track"
       ]
     },
     {
@@ -507,6 +510,6 @@
       ]
     }
   ],
-  "last_updated": "2026-06-29",
-  "last_updated_by": "/ases-release S3"
+  "last_updated": "2026-07-01",
+  "last_updated_by": "/ases-release S3 (supplemental — PO SHIP APPROVED 2026-07-01)"
 }
