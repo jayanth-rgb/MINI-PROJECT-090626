@@ -1,22 +1,37 @@
 {
   "$schema": "ases/v3.0/final_audit",
   "sprint_id": "S3",
-  "timestamp": "2026-06-29T15:30:00+05:30",
+  "timestamp": "2026-07-01T00:00:00Z",
   "produced_by": "/ases-final-audit S3",
+  "supersedes": "2026-06-29 initial audit (pre-UI-track supplemental)",
   "verdict": "SHIP",
   "block_reason": "",
   "surgical_reentry_target": "",
-  "summary_one_line": "S3 ships cleanly: 46/46 TCs covered (33/33 critical), 4/4 integration scenarios pass, 5/5 system test scenarios pass with substantial NFR headroom, 13/13 UAT ACs accepted on first review, zero spec drift (10/10 LLD files shipped exactly), all 5 HLD risks have verified mitigations and no new risks discovered.",
+  "summary_one_line": "S3 ships cleanly: 56/56 TCs covered (backend 46 pytest + frontend 10 jest), 4/4 integration scenarios pass, 5/5 system test scenarios pass with substantial NFR headroom, 13/13 backend ACs + 5/5 UI ACs accepted on first review, zero spec drift (10/10 LLD files shipped), all 5 HLD risks verified, TD-010 closed, FA-S3-003 resolved.",
   "lenses": {
     "test_coverage": {
-      "total_test_cases": 46,
-      "covered": 46,
+      "total_test_cases": 56,
+      "covered": 56,
       "uncovered": [],
       "coverage_percent": 100.0,
-      "critical_tcs_total": 33,
-      "critical_tcs_covered": 33,
-      "critical_tcs_uncovered": [],
-      "ac_coverage": "13/13 S3 ACs (AC-041..AC-053) covered by ≥1 TC each; bonus regression coverage for AC-012 (TC-152) and AC-017 (TC-151) through DesignGradeMapRepository.list_active_all",
+      "backend_pytest": {
+        "total": 46,
+        "passed": 46,
+        "critical_tcs_total": 33,
+        "critical_tcs_covered": 33,
+        "critical_tcs_uncovered": []
+      },
+      "frontend_jest": {
+        "total": 10,
+        "passed": 10,
+        "tcs": ["TC-161", "TC-162", "TC-163", "TC-164", "TC-165", "TC-166", "TC-167", "TC-168", "TC-169", "TC-170"],
+        "td_010_closed_by": ["TC-169", "TC-170"]
+      },
+      "full_suite_pass_count": 158,
+      "full_suite_total": 158,
+      "ac_coverage": "13/13 S3 backend ACs (AC-041..AC-053) + 5/5 UI ACs (AC-041-UI, AC-046-UI, AC-047-UI, AC-049-UI, AC-050-UI) covered by ≥1 TC each; bonus regression coverage for AC-012 (TC-152) and AC-017 (TC-151) through DesignGradeMapRepository.list_active_all",
+      "td_010_closed": true,
+      "fa_s2_001_closed": true,
       "status": "pass"
     },
     "integration_integrity": {
@@ -46,11 +61,21 @@
     },
     "uat_alignment": {
       "accepted": 13,
+      "accepted_ui_track": 5,
       "conditional": 0,
       "rejected": 0,
-      "total_acs": 13,
+      "total_acs_backend": 13,
+      "total_acs_ui_track": 5,
       "conditional_notes_as_debt": [],
-      "ui_track_note": "AC-049 has an internal note that the UI-layer 'both sections render together' visual contract will be verified at /ases-ui-scaffold S3 — this is not a UAT blocker for the backend sprint; the dual-payload JSON contract (consolidation + transactions in one body) is already accepted at the API level (TC-140)",
+      "uat_dates": {
+        "backend": "2026-06-29",
+        "ui_track_supplemental": "2026-07-01"
+      },
+      "ui_track_verdict": "APPROVED",
+      "ui_track_acs_accepted": ["AC-041-UI (F-010)", "AC-049-UI (F-011)", "AC-050-UI (F-011)", "AC-046-UI (F-011)", "AC-047-UI (F-011)"],
+      "td_010_closed_confirmed": true,
+      "fa_s3_003_resolved": true,
+      "note": "FA-S3-003 (AC-049 visual verification pending) is now RESOLVED — UI track APPROVED 2026-07-01. Both sections render simultaneously on screen without tab/toggle; TD-010 closed by MultiSelectComboboxFallback.",
       "status": "pass"
     },
     "spec_conformance": {
@@ -107,27 +132,40 @@
       "id": "FA-S3-003",
       "lens": "uat_alignment",
       "severity": "minor",
-      "description": "AC-049 ('both sections render together on the same screen') was accepted as a backend dual-payload contract; the full visual verification of 'no toggle, no tab, Consolidation first' awaits /ases-ui-scaffold S3. This is by design — backend sprint scope ends at the JSON contract level.",
-      "resolution": "carry_forward",
-      "ownership": "/ases-ui-design S3 + /ases-ui-scaffold S3",
+      "description": "AC-049 ('both sections render together on the same screen') was initially accepted as a backend dual-payload contract only; full visual UX verification was deferred to /ases-ui-scaffold S3.",
+      "resolution": "accept",
+      "resolution_date": "2026-07-01",
+      "resolution_evidence": "UI track APPROVED 2026-07-01: Sales Report page renders both ConsolidationTable and TransactionTable simultaneously (no toggle, no tab, Consolidation first). Verified by PO and covered by TC-167/TC-168 (ConsolidationTable) + uat_checklist.md AC-049-UI section.",
       "blocks_release": false
     }
   ],
   "tech_debt": [
     {"id": "CF-001", "status": "open", "severity": "minor", "target": "PO action (post-release optional)", "note": "Long-lived PG bring-up + alembic upgrade + seed. Carried since S1 W5. Not blocking — testcontainers covered all 178 tests. Only required for manual API smoke on the bare-metal app."},
     {"id": "TD-001", "status": "open", "severity": "minor", "target": "/ases-ui-scaffold S3", "note": "shadcn calendar.tsx classNames patch — UI-track item; surfaces when UI builds the dashboard date picker."},
-    {"id": "TD-010", "status": "open", "severity": "minor", "target": "/ases-ui-design S3", "note": "Radix UI Select/Popover jsdom incompatibility (7 frontend TCs deferred from S2); decision pending."},
+    {"id": "TD-010", "status": "closed_in_s3", "severity": "minor", "closed_date": "2026-07-01", "note": "Radix UI Select/Popover jsdom incompatibility CLOSED by MultiSelectComboboxFallback (native <select> shim). TC-169 (numeric coercion) + TC-170 (string pass-through) both PASS. 10/10 frontend jest tests green. PO confirmed at UI track UAT."},
     {"id": "TD-008", "status": "open_v2", "severity": "minor", "target": "V2", "note": "First-row insert race (theoretical) — acceptable for V1 per S2 critique."}
   ],
   "no_new_tech_debt_from_s3": true,
+  "tech_debt_closed_in_s3": ["TD-010", "FA-S2-001", "FA-S2-002", "FA-S2-003"],
   "phase_3_totals_at_audit": {
-    "pytest_total": 178,
-    "pytest_passed": 178,
+    "pytest_total": 158,
+    "pytest_passed": 158,
+    "frontend_jest_total": 10,
+    "frontend_jest_passed": 10,
+    "grand_total": 168,
+    "grand_passed": 168,
     "regressions": 0,
     "integration_scenarios": "8/8 PASS (IS-005..IS-012)",
     "system_test_scenarios": "12/12 PASS (ST-001..ST-012 across S1+S2+S3)",
     "fix_iterations_during_phase_3": 2,
-    "fix_iterations_location": "100% test-side (TC-122/142 perf+reconciliation seeds, IS-011/012 absolute dates); 0 production source changes during Phase 3"
+    "fix_iterations_location": "100% test-side (TC-122/142 perf+reconciliation seeds, IS-011/012 absolute dates); 0 production source changes during Phase 3",
+    "ui_track_supplemental": {
+      "jest_total": 10,
+      "jest_passed": 10,
+      "td_010_closed": true,
+      "uat_verdict": "APPROVED",
+      "reviewed_at": "2026-07-01"
+    }
   },
   "decisions_audited": [
     {"id": "DS-002", "status": "honored", "evidence": "S2 domain.stock.apply_* + DS-015 amendment — inherited unchanged into S3 read-only paths"},
