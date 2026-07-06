@@ -1,0 +1,6 @@
+{
+  "task_id": "T-078",
+  "test_case_refs": ["TC-214"],
+  "priority": "high",
+  "notes": "Integration test using FastAPI TestClient + testcontainers PostgreSQL. TC-214: seed supplier, place, design, grade, and inward ledger records (2 inward transactions, same design+grade, different dates). GET /reports/inward?date_from=2025-01-01&supplier_ids=<seeded_id> with SUPERVISOR auth -> 200; response has consolidation (list, non-empty), transactions (list, non-empty); assert sum(t.nos for t in transactions) == sum(c.total_nos for c in consolidation) (DS-017 invariant)."
+}

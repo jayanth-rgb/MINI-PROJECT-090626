@@ -1,0 +1,6 @@
+{
+  "task_id": "T-085",
+  "test_case_refs": ["TC-198"],
+  "priority": "critical",
+  "notes": "Unit test — no DB required. TC-198: construct a SalesReportResponse with 1 consolidation row and 1 transaction row as Pydantic instances; call PdfExporter().export_sales_report(data, {}); assert first 5 bytes == b'%PDF-' and BytesIO.getbuffer().nbytes > 0. Tests that reportlab produces a valid PDF header."
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "produced_by": "/ases-batch-critique",
+  "task_id": "T-090",
+  "sprint_id": "V2",
+  "module_ref": "M-011",
+  "output_files_reviewed": [
+    "backend/src/presentation/api/routers/pricing.py"
+  ],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-019", "DS-022"],
+  "lenses_applied": ["spec", "contract", "test", "security", "structural"],
+  "findings": [],
+  "verdict": "CLEAN",
+  "summary": "routers/pricing.py exactly matches the LLD contract (3 routes: GET '' any-auth, POST '' 201 SUPERVISOR, PATCH '/{price_id}' SUPERVISOR), prefix='/prices', tags=['pricing'], PricingService wired via get_pricing_service, and require_supervisor / get_current_user guards align with DS-019. DS-022 snapshot semantics are enforced downstream in InvoiceService (out of scope for this router) — router correctly delegates without introducing pricing coupling. No DELETE endpoint, deactivation via PATCH with is_active=False per DS-008. Import style (`src.` prefix) is consistent with sibling routers (auth.py, users.py). No security, contract, or spec deviations found."
+}

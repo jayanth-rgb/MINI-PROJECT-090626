@@ -1,0 +1,1471 @@
+{
+  "$schema": "ases/v3.0/test_cases",
+  "document": "test_cases",
+  "produced_by": "/ases-test-spec V2",
+  "consumed_by": [
+    "/ases-tasks",
+    "/ases-test-impl",
+    "/ases-critique",
+    "/ases-final-audit"
+  ],
+  "sprint_id": "V2",
+  "schema_note": "sprint_id 'V2' intentionally deviates from the ^S\\d+$ pattern in test_cases.schema.json — same acknowledged deviation as lld.json and schema.json. Pattern will be relaxed to ^(S\\d+|V\\d+)$ at next schema meta-update.",
+  "ac_note": "V2 acceptance criteria AC-054..AC-074 are synthesized from lld.json scope_summary and LLD interface specifications. No /ases-prd-update was executed before /ases-lld V2; these ACs supply testable ac_ref anchors until a formal PRD amendment is filed.",
+  "scope_features": [
+    "F-013",
+    "F-014",
+    "F-015",
+    "F-016",
+    "F-017",
+    "F-018",
+    "F-019"
+  ],
+  "scope_modules": [
+    "M-008",
+    "M-009",
+    "M-010",
+    "M-011"
+  ],
+  "numbering_note": "TC IDs start at TC-171. S1 owned TC-001..TC-046 (46 TCs), S2 owned TC-047..TC-114 (68 TCs), S3 owned TC-115..TC-170 (56 TCs). V2 owns TC-171..TC-217 (47 TCs).",
+  "ac_definitions": {
+    "F-013": {
+      "AC-054": "POST /auth/login with valid username + password returns HTTP 200 with access_token (non-empty JWT), token_type='bearer', role.",
+      "AC-055": "POST /auth/login with wrong password or unknown username returns HTTP 401.",
+      "AC-056": "POST /auth/login for a user with is_active=false returns HTTP 401."
+    },
+    "F-014": {
+      "AC-057": "GET /auth/me with a valid Bearer JWT returns HTTP 200 with the authenticated user's id, username, role, is_active.",
+      "AC-058": "All V1 + V2 API endpoints (except POST /auth/login) require a valid Bearer token; unauthenticated requests return HTTP 401.",
+      "AC-059": "Endpoints guarded by require_supervisor return HTTP 403 for STAFF and VERIFIER roles; SUPERVISOR requests pass through.",
+      "AC-060": "SUPERVISOR can create a new user (POST /users 201) and update an existing user's role/status/password (PATCH /users/{id} 200)."
+    },
+    "F-015": {
+      "AC-061": "GET /reports/inward with no filters returns all inward data; sum(transactions[*].nos) == sum(consolidation[*].total_nos) — reconciliation invariant (DS-017).",
+      "AC-062": "Optional multi-select filters (date_from, date_to, supplier_ids, places, design_ids) narrow both consolidation and transaction sections using an identical predicate.",
+      "AC-063": "Consolidation section is ordered by design_name ASC then grade_code ASC; transactions section is ordered by purchase_date ASC."
+    },
+    "F-016": {
+      "AC-064": "GET /reports/sales/export?format=pdf returns HTTP 200 StreamingResponse with Content-Type application/pdf and body whose first 5 bytes are '%PDF-'.",
+      "AC-065": "GET /reports/inward/export?format=xlsx returns HTTP 200 StreamingResponse with XLSX MIME type and a workbook containing exactly 2 sheets named 'Consolidation' and 'Transactions'.",
+      "AC-066": "Requesting an unsupported export format (e.g. format=csv) returns HTTP 400."
+    },
+    "F-017": {
+      "AC-067": "Creating a price with a duplicate (design_id, grade_id, effective_from) triple returns HTTP 409.",
+      "AC-068": "Active price lookup returns the most recently effective row (effective_from <= invoice_date ORDER BY DESC LIMIT 1); returns unit_price=0 when no active price exists."
+    },
+    "F-018": {
+      "AC-069": "POST /invoices {sales_header_id} creates invoice with invoice_number='INV-{YYYYMMDD}-{id:05d}', total_amount = sum of line_totals computed from snapshotted unit_price, initial status='PENDING'.",
+      "AC-070": "Creating a second invoice for an already-invoiced sale (same sales_header_id) returns HTTP 409.",
+      "AC-071": "Invoice line unit_price is a point-in-time snapshot at creation; subsequent price master edits do not alter the invoice."
+    },
+    "F-019": {
+      "AC-072": "POST /invoices/{id}/payments records the payment and recomputes status: 0 paid → PENDING, partial sum → PARTIAL, full sum → PAID.",
+      "AC-073": "Recording a payment that would cause cumulative payments to exceed invoice total_amount returns HTTP 422."
+    },
+    "DS-020": {
+      "AC-074": "Concurrent first-row inserts to tbl_stock_ledger for the same (design_id, grade_id) are serialized by pg_advisory_xact_lock; exactly one row is created with the correct cumulative running_balance and no IntegrityError occurs (TD-008 closed by DS-015)."
+    }
+  },
+  "ac_coverage_summary": {
+    "F-013": {
+      "acs": 3,
+      "covered_acs": 3
+    },
+    "F-014": {
+      "acs": 4,
+      "covered_acs": 4
+    },
+    "F-015": {
+      "acs": 3,
+      "covered_acs": 3
+    },
+    "F-016": {
+      "acs": 3,
+      "covered_acs": 3
+    },
+    "F-017": {
+      "acs": 2,
+      "covered_acs": 2
+    },
+    "F-018": {
+      "acs": 3,
+      "covered_acs": 3
+    },
+    "F-019": {
+      "acs": 2,
+      "covered_acs": 2
+    },
+    "DS-020": {
+      "acs": 1,
+      "covered_acs": 1
+    }
+  },
+  "test_cases": [
+    {
+      "id": "TC-171",
+      "feature_id": "F-013",
+      "ac_ref": "AC-054",
+      "description": "verify_password returns True when plain_password matches the bcrypt hash produced by get_password_hash for the same string.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/auth.py",
+      "function_ref": "verify_password",
+      "inputs": {
+        "plain_password": "admin123",
+        "hashed_password": "bcrypt_hash_generated_in_test_setup_via_get_password_hash('admin123')"
+      },
+      "expected_output": {
+        "result": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-172",
+      "feature_id": "F-013",
+      "ac_ref": "AC-055",
+      "description": "verify_password returns False when plain_password does not match the stored bcrypt hash.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/auth.py",
+      "function_ref": "verify_password",
+      "inputs": {
+        "plain_password": "wrongpassword",
+        "hashed_password": "bcrypt_hash_generated_in_test_setup_via_get_password_hash('admin123')"
+      },
+      "expected_output": {
+        "result": false
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-173",
+      "feature_id": "F-013",
+      "ac_ref": "AC-054",
+      "description": "create_access_token returns a JWT whose decoded payload contains sub='admin' and role='SUPERVISOR', and whose exp claim is in the future.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/auth.py",
+      "function_ref": "create_access_token",
+      "inputs": {
+        "data": {
+          "sub": "admin",
+          "role": "SUPERVISOR"
+        },
+        "expires_delta_seconds": 28800
+      },
+      "expected_output": {
+        "decoded_sub": "admin",
+        "decoded_role": "SUPERVISOR",
+        "exp_is_in_future": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-174",
+      "feature_id": "F-013",
+      "ac_ref": "AC-055",
+      "description": "decode_access_token returns None when the JWT has an exp claim in the past (expired token).",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/auth.py",
+      "function_ref": "decode_access_token",
+      "inputs": {
+        "token": "jwt_created_with_expires_delta_of_negative_1_second",
+        "setup_note": "Generate token with timedelta(seconds=-1) to produce an immediately-expired JWT"
+      },
+      "expected_output": {
+        "payload": null
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-175",
+      "feature_id": "F-013",
+      "ac_ref": "AC-055",
+      "description": "decode_access_token returns None when the input string is not a valid JWT (malformed token).",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/auth.py",
+      "function_ref": "decode_access_token",
+      "inputs": {
+        "token": "not.a.valid.jwt.string"
+      },
+      "expected_output": {
+        "payload": null
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-176",
+      "feature_id": "F-018",
+      "ac_ref": "AC-069",
+      "description": "compute_line_total(quantity=10, unit_price=Decimal('150.00')) returns Decimal('1500.00') (exact 2dp result).",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/invoice.py",
+      "function_ref": "compute_line_total",
+      "inputs": {
+        "quantity": 10,
+        "unit_price": "150.00"
+      },
+      "expected_output": {
+        "total": "1500.00"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-177",
+      "feature_id": "F-018",
+      "ac_ref": "AC-069",
+      "description": "compute_line_total raises ValueError when quantity=0.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/invoice.py",
+      "function_ref": "compute_line_total",
+      "inputs": {
+        "quantity": 0,
+        "unit_price": "150.00"
+      },
+      "expected_output": {},
+      "should_raise": "ValueError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-178",
+      "feature_id": "F-018",
+      "ac_ref": "AC-069",
+      "description": "compute_line_total raises ValueError when unit_price is negative.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/invoice.py",
+      "function_ref": "compute_line_total",
+      "inputs": {
+        "quantity": 5,
+        "unit_price": "-10.00"
+      },
+      "expected_output": {},
+      "should_raise": "ValueError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-179",
+      "feature_id": "F-018",
+      "ac_ref": "AC-069",
+      "description": "compute_invoice_total([Decimal('100.00'), Decimal('200.50'), Decimal('50.25')]) returns Decimal('350.75').",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/invoice.py",
+      "function_ref": "compute_invoice_total",
+      "inputs": {
+        "line_totals": [
+          "100.00",
+          "200.50",
+          "50.25"
+        ]
+      },
+      "expected_output": {
+        "total": "350.75"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-180",
+      "feature_id": "F-018",
+      "ac_ref": "AC-069",
+      "description": "compute_invoice_total([]) raises ValueError — invoice with no lines is invalid.",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "backend/src/domain/invoice.py",
+      "function_ref": "compute_invoice_total",
+      "inputs": {
+        "line_totals": []
+      },
+      "expected_output": {},
+      "should_raise": "ValueError",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-181",
+      "feature_id": "F-019",
+      "ac_ref": "AC-072",
+      "description": "compute_invoice_status(total_amount=Decimal('1000.00'), paid_amounts=[]) returns 'PENDING'.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/invoice.py",
+      "function_ref": "compute_invoice_status",
+      "inputs": {
+        "total_amount": "1000.00",
+        "paid_amounts": []
+      },
+      "expected_output": {
+        "status": "PENDING"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-182",
+      "feature_id": "F-019",
+      "ac_ref": "AC-072",
+      "description": "compute_invoice_status(total_amount=Decimal('1000.00'), paid_amounts=[Decimal('400.00')]) returns 'PARTIAL'.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/invoice.py",
+      "function_ref": "compute_invoice_status",
+      "inputs": {
+        "total_amount": "1000.00",
+        "paid_amounts": [
+          "400.00"
+        ]
+      },
+      "expected_output": {
+        "status": "PARTIAL"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-183",
+      "feature_id": "F-019",
+      "ac_ref": "AC-072",
+      "description": "compute_invoice_status(total_amount=Decimal('1000.00'), paid_amounts=[Decimal('600.00'), Decimal('400.00')]) returns 'PAID' when paid_sum equals total.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/invoice.py",
+      "function_ref": "compute_invoice_status",
+      "inputs": {
+        "total_amount": "1000.00",
+        "paid_amounts": [
+          "600.00",
+          "400.00"
+        ]
+      },
+      "expected_output": {
+        "status": "PAID"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-184",
+      "feature_id": "F-018",
+      "ac_ref": "AC-069",
+      "description": "generate_invoice_number(date(2026,7,2), sales_header_id=42) returns exactly 'INV-20260702-00042' (zero-padded to 5 digits).",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/invoice.py",
+      "function_ref": "generate_invoice_number",
+      "inputs": {
+        "invoice_date": "2026-07-02",
+        "sales_header_id": 42
+      },
+      "expected_output": {
+        "invoice_number": "INV-20260702-00042"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-185",
+      "feature_id": "F-013",
+      "ac_ref": "AC-054",
+      "description": "UserRepository.get_by_username returns the UserModel row when a user with the given username exists in tbl_user_master.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/db/repositories/auth.py",
+      "function_ref": "UserRepository.get_by_username",
+      "inputs": {
+        "seed_user": {
+          "username": "teststaff",
+          "password_hash": "hashed",
+          "role": "STAFF",
+          "is_active": true
+        },
+        "lookup_username": "teststaff"
+      },
+      "expected_output": {
+        "username": "teststaff",
+        "role": "STAFF",
+        "is_active": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-186",
+      "feature_id": "F-013",
+      "ac_ref": "AC-055",
+      "description": "UserRepository.get_by_username returns None when no user with the given username exists.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/db/repositories/auth.py",
+      "function_ref": "UserRepository.get_by_username",
+      "inputs": {
+        "lookup_username": "nonexistent_user_xyz_abc"
+      },
+      "expected_output": {
+        "result": null
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-187",
+      "feature_id": "F-017",
+      "ac_ref": "AC-068",
+      "description": "PriceMasterRepository.get_active_price returns the row with effective_from=2026-06-01 (not 2026-01-01) when two active prices exist for the same (design_id, grade_id) and today is 2026-07-02.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/db/repositories/pricing.py",
+      "function_ref": "PriceMasterRepository.get_active_price",
+      "inputs": {
+        "seed_prices": [
+          {
+            "design_id": 1,
+            "grade_id": 1,
+            "unit_price": "100.00",
+            "effective_from": "2026-01-01",
+            "is_active": true
+          },
+          {
+            "design_id": 1,
+            "grade_id": 1,
+            "unit_price": "120.00",
+            "effective_from": "2026-06-01",
+            "is_active": true
+          }
+        ],
+        "design_id": 1,
+        "grade_id": 1
+      },
+      "expected_output": {
+        "unit_price": "120.00",
+        "effective_from": "2026-06-01"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-188",
+      "feature_id": "F-017",
+      "ac_ref": "AC-068",
+      "description": "PriceMasterRepository.get_active_price returns None when the only price row for (design_id, grade_id) has is_active=false.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/db/repositories/pricing.py",
+      "function_ref": "PriceMasterRepository.get_active_price",
+      "inputs": {
+        "seed_prices": [
+          {
+            "design_id": 1,
+            "grade_id": 1,
+            "unit_price": "100.00",
+            "effective_from": "2026-01-01",
+            "is_active": false
+          }
+        ],
+        "design_id": 1,
+        "grade_id": 1
+      },
+      "expected_output": {
+        "result": null
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-189",
+      "feature_id": "F-018",
+      "ac_ref": "AC-069",
+      "description": "InvoiceRepository.create_with_lines inserts one tbl_invoice_header row and one tbl_invoice_line row in a single flush; returned model has lines eager-loaded with correct line_total.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/db/repositories/pricing.py",
+      "function_ref": "InvoiceRepository.create_with_lines",
+      "inputs": {
+        "header_data": {
+          "invoice_number": "INV-20260702-00001",
+          "sales_header_id": 1,
+          "invoice_date": "2026-07-02",
+          "total_amount": "500.00",
+          "status": "PENDING"
+        },
+        "lines_data": [
+          {
+            "sales_line_id": 1,
+            "design_id": 1,
+            "grade_id": 1,
+            "quantity": 5,
+            "unit_price": "100.00",
+            "line_total": "500.00"
+          }
+        ]
+      },
+      "expected_output": {
+        "invoice_number": "INV-20260702-00001",
+        "total_amount": "500.00",
+        "status": "PENDING",
+        "lines_count": 1,
+        "lines_0_line_total": "500.00"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-190",
+      "feature_id": "F-013",
+      "ac_ref": "AC-054",
+      "description": "AuthService.authenticate with valid credentials returns TokenResponse with non-empty access_token, token_type='bearer', and role='SUPERVISOR'.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/auth_service.py",
+      "function_ref": "AuthService.authenticate",
+      "inputs": {
+        "seed_user": {
+          "username": "admin",
+          "password_plaintext": "admin123",
+          "role": "SUPERVISOR",
+          "is_active": true
+        },
+        "username": "admin",
+        "password": "admin123"
+      },
+      "expected_output": {
+        "token_type": "bearer",
+        "role": "SUPERVISOR",
+        "access_token_is_non_empty": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-191",
+      "feature_id": "F-013",
+      "ac_ref": "AC-055",
+      "description": "AuthService.authenticate raises HTTPException 401 when password does not match stored bcrypt hash.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/auth_service.py",
+      "function_ref": "AuthService.authenticate",
+      "inputs": {
+        "seed_user": {
+          "username": "admin",
+          "password_plaintext": "admin123",
+          "role": "STAFF",
+          "is_active": true
+        },
+        "username": "admin",
+        "password": "wrongpassword"
+      },
+      "expected_output": {},
+      "should_raise": "HTTPException(status_code=401)",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-192",
+      "feature_id": "F-013",
+      "ac_ref": "AC-056",
+      "description": "AuthService.authenticate raises HTTPException 401 when user exists but is_active=False.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/auth_service.py",
+      "function_ref": "AuthService.authenticate",
+      "inputs": {
+        "seed_user": {
+          "username": "inactiveuser",
+          "password_plaintext": "pass123",
+          "role": "STAFF",
+          "is_active": false
+        },
+        "username": "inactiveuser",
+        "password": "pass123"
+      },
+      "expected_output": {},
+      "should_raise": "HTTPException(status_code=401)",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-193",
+      "feature_id": "F-014",
+      "ac_ref": "AC-057",
+      "description": "AuthService.get_current_user with a valid JWT (sub='admin') fetches and returns the matching UserModel from tbl_user_master.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/auth_service.py",
+      "function_ref": "AuthService.get_current_user",
+      "inputs": {
+        "seed_user": {
+          "username": "admin",
+          "role": "SUPERVISOR",
+          "is_active": true
+        },
+        "token": "valid_jwt_with_sub_admin_generated_by_create_access_token"
+      },
+      "expected_output": {
+        "username": "admin",
+        "role": "SUPERVISOR",
+        "is_active": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-194",
+      "feature_id": "F-014",
+      "ac_ref": "AC-060",
+      "description": "AuthService.create_user raises HTTPException 409 when username already exists in tbl_user_master.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/auth_service.py",
+      "function_ref": "AuthService.create_user",
+      "inputs": {
+        "seed_existing_user": {
+          "username": "dupuser",
+          "role": "STAFF"
+        },
+        "create_data": {
+          "username": "dupuser",
+          "password": "newpass123",
+          "role": "VERIFIER"
+        }
+      },
+      "expected_output": {},
+      "should_raise": "HTTPException(status_code=409)",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-195",
+      "feature_id": "F-015",
+      "ac_ref": "AC-061",
+      "description": "InwardReportService.generate() with no filters returns InwardReportResponse where sum(t.nos) == sum(c.total_nos) for 3 seeded inward lines across 2 suppliers and 2 designs.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/inward_report_service.py",
+      "function_ref": "InwardReportService.generate",
+      "inputs": {
+        "seed_inward": [
+          {
+            "purchase_date": "2026-07-01",
+            "supplier_id": 1,
+            "place": "Mallur",
+            "design_id": 1,
+            "grade_id": 1,
+            "nos": 100
+          },
+          {
+            "purchase_date": "2026-07-01",
+            "supplier_id": 1,
+            "place": "Mallur",
+            "design_id": 1,
+            "grade_id": 2,
+            "nos": 50
+          },
+          {
+            "purchase_date": "2026-07-02",
+            "supplier_id": 2,
+            "place": "Kerala",
+            "design_id": 2,
+            "grade_id": 1,
+            "nos": 75
+          }
+        ],
+        "filters": {}
+      },
+      "expected_output": {
+        "reconciliation_sum_transactions_nos": 225,
+        "reconciliation_sum_consolidation_total_nos": 225,
+        "reconciliation_holds": true,
+        "transaction_count": 3,
+        "consolidation_count": 3
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-196",
+      "feature_id": "F-015",
+      "ac_ref": "AC-062",
+      "description": "InwardReportService.generate(date_from=2026-07-02, date_to=2026-07-02) returns only the July 2 record; reconciliation invariant holds on the filtered subset.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/inward_report_service.py",
+      "function_ref": "InwardReportService.generate",
+      "inputs": {
+        "seed_inward": [
+          {
+            "purchase_date": "2026-07-01",
+            "supplier_id": 1,
+            "place": "Mallur",
+            "design_id": 1,
+            "grade_id": 1,
+            "nos": 100
+          },
+          {
+            "purchase_date": "2026-07-02",
+            "supplier_id": 2,
+            "place": "Kerala",
+            "design_id": 2,
+            "grade_id": 1,
+            "nos": 75
+          }
+        ],
+        "filters": {
+          "date_from": "2026-07-02",
+          "date_to": "2026-07-02"
+        }
+      },
+      "expected_output": {
+        "transaction_count": 1,
+        "transactions_0_nos": 75,
+        "consolidation_0_total_nos": 75,
+        "reconciliation_holds": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-197",
+      "feature_id": "F-015",
+      "ac_ref": "AC-063",
+      "description": "InwardReportService.generate() consolidation is ordered by design_name ASC then grade_code ASC; transactions ordered by purchase_date ASC — earlier date row appears first.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/inward_report_service.py",
+      "function_ref": "InwardReportService.generate",
+      "inputs": {
+        "seed_designs": [
+          {
+            "id": 1,
+            "design_name": "16X10 Ridges",
+            "size": "16X10"
+          },
+          {
+            "id": 2,
+            "design_name": "12X8 Ridges",
+            "size": "12X8"
+          }
+        ],
+        "seed_inward": [
+          {
+            "purchase_date": "2026-07-02",
+            "supplier_id": 1,
+            "place": "Mallur",
+            "design_id": 2,
+            "grade_id": 1,
+            "nos": 30
+          },
+          {
+            "purchase_date": "2026-07-01",
+            "supplier_id": 1,
+            "place": "Mallur",
+            "design_id": 1,
+            "grade_id": 1,
+            "nos": 100
+          }
+        ],
+        "filters": {}
+      },
+      "expected_output": {
+        "consolidation_0_design_name": "12X8 Ridges",
+        "consolidation_1_design_name": "16X10 Ridges",
+        "transactions_0_purchase_date": "2026-07-01",
+        "transactions_1_purchase_date": "2026-07-02"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-198",
+      "feature_id": "F-016",
+      "ac_ref": "AC-064",
+      "description": "PdfExporter.export_sales_report with a SalesReportResponse (1 consolidation row, 1 transaction row) returns a BytesIO whose first 5 bytes are b'%PDF-' (PDF magic number).",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/exporters/pdf_exporter.py",
+      "function_ref": "PdfExporter.export_sales_report",
+      "inputs": {
+        "data": {
+          "consolidation": [
+            {
+              "design_id": 1,
+              "design_name": "16X10 Ridges",
+              "size": "16X10",
+              "grade_id": 1,
+              "grade_code": "1",
+              "total_nos": 100
+            }
+          ],
+          "transactions": [
+            {
+              "sales_date": "2026-07-01",
+              "dealer_id": 1,
+              "dealer_name": "Raj Hardwares",
+              "place": "Dindivanam",
+              "design_id": 1,
+              "design_name": "16X10 Ridges",
+              "size": "16X10",
+              "grade_id": 1,
+              "grade_code": "1",
+              "nos": 100
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "expected_output": {
+        "first_5_bytes": "%PDF-",
+        "size_gt_0": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-199",
+      "feature_id": "F-016",
+      "ac_ref": "AC-065",
+      "description": "ExcelExporter.export_inward_report returns a BytesIO that openpyxl can open; workbook has exactly 2 sheets named 'Consolidation' and 'Transactions'.",
+      "type": "unit",
+      "priority": "critical",
+      "file_ref": "backend/src/infrastructure/exporters/excel_exporter.py",
+      "function_ref": "ExcelExporter.export_inward_report",
+      "inputs": {
+        "data": {
+          "consolidation": [
+            {
+              "design_id": 1,
+              "design_name": "16X10 Ridges",
+              "size": "16X10",
+              "grade_id": 1,
+              "grade_code": "1",
+              "total_nos": 50
+            }
+          ],
+          "transactions": [
+            {
+              "purchase_date": "2026-07-01",
+              "supplier_id": 1,
+              "supplier_name": "Manjunatha",
+              "place": "Mallur",
+              "design_id": 1,
+              "design_name": "16X10 Ridges",
+              "size": "16X10",
+              "grade_id": 1,
+              "grade_code": "1",
+              "nos": 50
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "expected_output": {
+        "sheet_names": [
+          "Consolidation",
+          "Transactions"
+        ],
+        "sheet_count": 2
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-200",
+      "feature_id": "F-016",
+      "ac_ref": "AC-066",
+      "description": "ReportExportService.export_sales(format='csv') raises HTTPException 400 — 'csv' is not a supported export format.",
+      "type": "edge",
+      "priority": "high",
+      "file_ref": "backend/src/application/services/report_export_service.py",
+      "function_ref": "ReportExportService.export_sales",
+      "inputs": {
+        "format": "csv",
+        "date_from": null,
+        "date_to": null,
+        "dealer_ids": null,
+        "places": null,
+        "design_ids": null
+      },
+      "expected_output": {},
+      "should_raise": "HTTPException(status_code=400)",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-201",
+      "feature_id": "F-017",
+      "ac_ref": "AC-067",
+      "description": "PricingService.create_price raises HTTPException 409 when a price row with the same (design_id, grade_id, effective_from) already exists.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/pricing_service.py",
+      "function_ref": "PricingService.create_price",
+      "inputs": {
+        "seed_existing_price": {
+          "design_id": 1,
+          "grade_id": 1,
+          "unit_price": "100.00",
+          "effective_from": "2026-07-01",
+          "is_active": true
+        },
+        "create_data": {
+          "design_id": 1,
+          "grade_id": 1,
+          "unit_price": "150.00",
+          "effective_from": "2026-07-01"
+        }
+      },
+      "expected_output": {},
+      "should_raise": "HTTPException(status_code=409)",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-202",
+      "feature_id": "F-018",
+      "ac_ref": "AC-069",
+      "description": "InvoiceService.create_from_sales builds invoice with total_amount=Decimal('1400.00') from 2 sales lines (10 × 100.00 + 5 × 80.00) and snapshots unit_price correctly on each invoice line.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/invoice_service.py",
+      "function_ref": "InvoiceService.create_from_sales",
+      "inputs": {
+        "seed_sales_header": {
+          "id": 1,
+          "sales_date": "2026-07-01",
+          "dealer_id": 1
+        },
+        "seed_sales_lines": [
+          {
+            "id": 1,
+            "header_id": 1,
+            "design_id": 1,
+            "grade_id": 1,
+            "nos": 10
+          },
+          {
+            "id": 2,
+            "header_id": 1,
+            "design_id": 1,
+            "grade_id": 2,
+            "nos": 5
+          }
+        ],
+        "seed_prices": [
+          {
+            "design_id": 1,
+            "grade_id": 1,
+            "unit_price": "100.00",
+            "effective_from": "2026-01-01",
+            "is_active": true
+          },
+          {
+            "design_id": 1,
+            "grade_id": 2,
+            "unit_price": "80.00",
+            "effective_from": "2026-01-01",
+            "is_active": true
+          }
+        ],
+        "sales_header_id": 1
+      },
+      "expected_output": {
+        "total_amount": "1400.00",
+        "status": "PENDING",
+        "lines_count": 2,
+        "invoice_number_starts_with": "INV-",
+        "line_0_unit_price": "100.00",
+        "line_1_unit_price": "80.00"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-203",
+      "feature_id": "F-018",
+      "ac_ref": "AC-070",
+      "description": "InvoiceService.create_from_sales raises HTTPException 409 when an invoice already exists for the given sales_header_id.",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/invoice_service.py",
+      "function_ref": "InvoiceService.create_from_sales",
+      "inputs": {
+        "seed_sales_header": {
+          "id": 1,
+          "sales_date": "2026-07-01",
+          "dealer_id": 1
+        },
+        "seed_existing_invoice": {
+          "sales_header_id": 1,
+          "invoice_number": "INV-20260701-00001",
+          "total_amount": "500.00",
+          "status": "PENDING"
+        },
+        "sales_header_id": 1
+      },
+      "expected_output": {},
+      "should_raise": "HTTPException(status_code=409)",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-204",
+      "feature_id": "F-018",
+      "ac_ref": "AC-071",
+      "description": "Invoice line unit_price is snapshotted at creation; updating the price master row after invoice creation leaves invoice line unit_price unchanged.",
+      "type": "integration",
+      "priority": "high",
+      "file_ref": "backend/src/application/services/invoice_service.py",
+      "function_ref": "InvoiceService.create_from_sales",
+      "inputs": {
+        "seed_sales_header": {
+          "id": 2,
+          "sales_date": "2026-07-01",
+          "dealer_id": 1
+        },
+        "seed_sales_lines": [
+          {
+            "id": 3,
+            "header_id": 2,
+            "design_id": 1,
+            "grade_id": 1,
+            "nos": 5
+          }
+        ],
+        "seed_price_before": {
+          "design_id": 1,
+          "grade_id": 1,
+          "unit_price": "100.00",
+          "effective_from": "2026-01-01",
+          "is_active": true
+        },
+        "action_after_invoice_creation": "PATCH /prices/{id} unit_price=200.00",
+        "sales_header_id": 2
+      },
+      "expected_output": {
+        "invoice_line_unit_price_unchanged": "100.00",
+        "invoice_line_line_total_unchanged": "500.00"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-205",
+      "feature_id": "F-019",
+      "ac_ref": "AC-072",
+      "description": "InvoiceService.record_payment with amount equal to total_amount changes invoice status from PENDING to PAID and appends 1 payment row.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/invoice_service.py",
+      "function_ref": "InvoiceService.record_payment",
+      "inputs": {
+        "seed_invoice": {
+          "invoice_number": "INV-20260702-00001",
+          "sales_header_id": 1,
+          "invoice_date": "2026-07-02",
+          "total_amount": "500.00",
+          "status": "PENDING"
+        },
+        "payment_data": {
+          "payment_date": "2026-07-02",
+          "amount": "500.00",
+          "notes": null
+        }
+      },
+      "expected_output": {
+        "status": "PAID",
+        "payments_count": 1,
+        "payments_0_amount": "500.00"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-206",
+      "feature_id": "F-019",
+      "ac_ref": "AC-073",
+      "description": "InvoiceService.record_payment raises HTTPException 422 when existing payments (400.00) plus new payment (200.00) would exceed invoice total_amount (500.00).",
+      "type": "edge",
+      "priority": "critical",
+      "file_ref": "backend/src/application/services/invoice_service.py",
+      "function_ref": "InvoiceService.record_payment",
+      "inputs": {
+        "seed_invoice": {
+          "invoice_number": "INV-20260702-00002",
+          "total_amount": "500.00",
+          "status": "PARTIAL"
+        },
+        "seed_existing_payment": {
+          "amount": "400.00",
+          "payment_date": "2026-07-01"
+        },
+        "new_payment": {
+          "payment_date": "2026-07-02",
+          "amount": "200.00",
+          "notes": null
+        }
+      },
+      "expected_output": {},
+      "should_raise": "HTTPException(status_code=422)",
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-207",
+      "feature_id": "F-007",
+      "ac_ref": "AC-074",
+      "description": "Two concurrent threads each calling domain.stock._apply on an empty ledger for (design_id=1, grade_id=1) with deltas 50 and 30 produce exactly 1 ledger row with running_balance=80 — no IntegrityError from first-row insert race (TD-008 / DS-015 advisory lock).",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/domain/stock.py",
+      "function_ref": "_apply (via domain.stock advisory lock path)",
+      "inputs": {
+        "initial_ledger_state": "empty — no row exists for (design_id=1, grade_id=1)",
+        "thread_1": {
+          "design_id": 1,
+          "grade_id": 1,
+          "delta": 50,
+          "txn_date": "2026-07-02",
+          "txn_type": "inward"
+        },
+        "thread_2": {
+          "design_id": 1,
+          "grade_id": 1,
+          "delta": 30,
+          "txn_date": "2026-07-02",
+          "txn_type": "inward"
+        },
+        "concurrency": "both threads started simultaneously via threading.Thread with barrier sync before commit"
+      },
+      "expected_output": {
+        "ledger_row_count_for_design_1_grade_1": 1,
+        "final_running_balance": 80,
+        "no_integrity_error": true,
+        "no_duplicate_key_error": true
+      },
+      "expected_side_effects": [
+        "pg_advisory_xact_lock serializes the two concurrent writes",
+        "second writer sees first writer's row via SELECT FOR UPDATE after advisory lock acquired"
+      ],
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-208",
+      "feature_id": "F-013",
+      "ac_ref": "AC-054",
+      "description": "POST /auth/login with valid credentials returns HTTP 200 and a TokenResponse body with access_token, token_type='bearer', role='SUPERVISOR'.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/auth.py",
+      "function_ref": "login",
+      "inputs": {
+        "seed_user": {
+          "username": "admin",
+          "password_plaintext": "admin123",
+          "role": "SUPERVISOR",
+          "is_active": true
+        },
+        "request": {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": {
+            "username": "admin",
+            "password": "admin123"
+          }
+        }
+      },
+      "expected_output": {
+        "status_code": 200,
+        "body.token_type": "bearer",
+        "body.role": "SUPERVISOR",
+        "body.access_token_non_empty": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-209",
+      "feature_id": "F-013",
+      "ac_ref": "AC-055",
+      "description": "POST /auth/login with wrong password returns HTTP 401.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/auth.py",
+      "function_ref": "login",
+      "inputs": {
+        "seed_user": {
+          "username": "admin",
+          "password_plaintext": "admin123",
+          "role": "SUPERVISOR",
+          "is_active": true
+        },
+        "request": {
+          "method": "POST",
+          "path": "/api/v1/auth/login",
+          "body": {
+            "username": "admin",
+            "password": "badpassword"
+          }
+        }
+      },
+      "expected_output": {
+        "status_code": 401
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-210",
+      "feature_id": "F-014",
+      "ac_ref": "AC-057",
+      "description": "GET /auth/me with a valid Bearer JWT returns HTTP 200 and UserRead body with id, username='admin', role='SUPERVISOR', is_active=true.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/auth.py",
+      "function_ref": "me",
+      "inputs": {
+        "seed_user": {
+          "username": "admin",
+          "role": "SUPERVISOR",
+          "is_active": true
+        },
+        "request": {
+          "method": "GET",
+          "path": "/api/v1/auth/me",
+          "headers": {
+            "Authorization": "Bearer <valid_jwt_for_admin>"
+          }
+        }
+      },
+      "expected_output": {
+        "status_code": 200,
+        "body.username": "admin",
+        "body.role": "SUPERVISOR",
+        "body.is_active": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-211",
+      "feature_id": "F-014",
+      "ac_ref": "AC-059",
+      "description": "GET /users with STAFF role Bearer token returns HTTP 403 — require_supervisor guard rejects non-SUPERVISOR roles.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/users.py",
+      "function_ref": "list_users",
+      "inputs": {
+        "seed_user": {
+          "username": "staffuser",
+          "role": "STAFF",
+          "is_active": true
+        },
+        "request": {
+          "method": "GET",
+          "path": "/api/v1/users",
+          "headers": {
+            "Authorization": "Bearer <valid_jwt_for_staffuser_STAFF_role>"
+          }
+        }
+      },
+      "expected_output": {
+        "status_code": 403
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-212",
+      "feature_id": "F-014",
+      "ac_ref": "AC-060",
+      "description": "POST /users with SUPERVISOR Bearer token creates a new VERIFIER user and returns HTTP 201 with UserRead.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/users.py",
+      "function_ref": "create_user",
+      "inputs": {
+        "seed_supervisor": {
+          "username": "admin",
+          "role": "SUPERVISOR",
+          "is_active": true
+        },
+        "request": {
+          "method": "POST",
+          "path": "/api/v1/users",
+          "headers": {
+            "Authorization": "Bearer <valid_jwt_for_admin>"
+          },
+          "body": {
+            "username": "newverifier",
+            "password": "securepass1",
+            "role": "VERIFIER"
+          }
+        }
+      },
+      "expected_output": {
+        "status_code": 201,
+        "body.username": "newverifier",
+        "body.role": "VERIFIER",
+        "body.is_active": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-213",
+      "feature_id": "F-014",
+      "ac_ref": "AC-058",
+      "description": "GET /suppliers (V1 endpoint) without Authorization header returns HTTP 401 — global auth guard on include_router blocks unauthenticated requests.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/main.py",
+      "function_ref": "create_app (modified) — global get_current_user dependency on V1 routers",
+      "inputs": {
+        "request": {
+          "method": "GET",
+          "path": "/api/v1/suppliers",
+          "headers": {}
+        }
+      },
+      "expected_output": {
+        "status_code": 401
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-214",
+      "feature_id": "F-015",
+      "ac_ref": "AC-061",
+      "description": "GET /reports/inward with valid Bearer token and no filters returns HTTP 200 with InwardReportResponse containing non-empty consolidation and transactions arrays; reconciliation invariant holds.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/inward_report.py",
+      "function_ref": "get_inward_report",
+      "inputs": {
+        "seed_user": {
+          "username": "admin",
+          "role": "SUPERVISOR",
+          "is_active": true
+        },
+        "seed_inward": [
+          {
+            "purchase_date": "2026-07-01",
+            "supplier_id": 1,
+            "place": "Mallur",
+            "design_id": 1,
+            "grade_id": 1,
+            "nos": 80
+          }
+        ],
+        "request": {
+          "method": "GET",
+          "path": "/api/v1/reports/inward",
+          "headers": {
+            "Authorization": "Bearer <valid_jwt>"
+          }
+        }
+      },
+      "expected_output": {
+        "status_code": 200,
+        "body.consolidation_count_gte_1": true,
+        "body.transactions_count_gte_1": true,
+        "body.reconciliation_holds": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-215",
+      "feature_id": "F-016",
+      "ac_ref": "AC-064",
+      "description": "GET /reports/sales/export?format=pdf with valid Bearer token returns HTTP 200 StreamingResponse with Content-Type application/pdf and non-empty body.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/report_export.py",
+      "function_ref": "export_sales_report",
+      "inputs": {
+        "seed_user": {
+          "username": "admin",
+          "role": "SUPERVISOR",
+          "is_active": true
+        },
+        "request": {
+          "method": "GET",
+          "path": "/api/v1/reports/sales/export",
+          "query_params": {
+            "format": "pdf"
+          },
+          "headers": {
+            "Authorization": "Bearer <valid_jwt>"
+          }
+        }
+      },
+      "expected_output": {
+        "status_code": 200,
+        "content_type": "application/pdf",
+        "content_length_gt_0": true,
+        "content_disposition_contains": "attachment"
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-216",
+      "feature_id": "F-016",
+      "ac_ref": "AC-065",
+      "description": "GET /reports/inward/export?format=xlsx with valid Bearer token returns HTTP 200 StreamingResponse with XLSX MIME type.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/report_export.py",
+      "function_ref": "export_inward_report",
+      "inputs": {
+        "seed_user": {
+          "username": "admin",
+          "role": "SUPERVISOR",
+          "is_active": true
+        },
+        "request": {
+          "method": "GET",
+          "path": "/api/v1/reports/inward/export",
+          "query_params": {
+            "format": "xlsx"
+          },
+          "headers": {
+            "Authorization": "Bearer <valid_jwt>"
+          }
+        }
+      },
+      "expected_output": {
+        "status_code": 200,
+        "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "content_length_gt_0": true
+      },
+      "framework": "pytest"
+    },
+    {
+      "id": "TC-217",
+      "feature_id": "F-018",
+      "ac_ref": "AC-069",
+      "description": "POST /invoices with SUPERVISOR Bearer token and valid sales_header_id returns HTTP 201 InvoiceRead with correct invoice_number, total_amount, status=PENDING, and populated lines array.",
+      "type": "integration",
+      "priority": "critical",
+      "file_ref": "backend/src/presentation/api/routers/invoices.py",
+      "function_ref": "create_invoice",
+      "inputs": {
+        "seed_supervisor": {
+          "username": "admin",
+          "role": "SUPERVISOR",
+          "is_active": true
+        },
+        "seed_sales_header": {
+          "id": 5,
+          "sales_date": "2026-07-01",
+          "dealer_id": 1
+        },
+        "seed_sales_lines": [
+          {
+            "id": 10,
+            "header_id": 5,
+            "design_id": 1,
+            "grade_id": 1,
+            "nos": 20
+          }
+        ],
+        "seed_price": {
+          "design_id": 1,
+          "grade_id": 1,
+          "unit_price": "90.00",
+          "effective_from": "2026-01-01",
+          "is_active": true
+        },
+        "request": {
+          "method": "POST",
+          "path": "/api/v1/invoices",
+          "headers": {
+            "Authorization": "Bearer <valid_supervisor_jwt>"
+          },
+          "body": {
+            "sales_header_id": 5
+          }
+        }
+      },
+      "expected_output": {
+        "status_code": 201,
+        "body.invoice_number": "INV-20260702-00005",
+        "body.total_amount": "1800.00",
+        "body.status": "PENDING",
+        "body.lines_count": 1
+      },
+      "framework": "pytest"
+    }
+  ]
+}

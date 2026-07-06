@@ -1,0 +1,1101 @@
+{
+  "$schema": "ases/v3.0/tasks",
+  "document": "tasks",
+  "produced_by": "/ases-tasks V2",
+  "consumed_by": [
+    "/ases-validate",
+    "/ases-dev",
+    "/ases-critique",
+    "/ases-batch-exec",
+    "/ases-ui-design"
+  ],
+  "sprint_id": "V2",
+  "schema_note": "sprint_id 'V2' intentionally deviates from the ^S\\d+$ pattern in tasks.schema.json. Same acknowledged deviation as lld.json, schema.json, test_cases.json for this major-version sprint.",
+  "design_notes": "26 backend tasks decomposing V2 LLD into per-file work units. Task IDs continue from S3 (S1: T-001..T-040, S2: T-041..T-056, S3: T-057..T-066 â†’ V2: T-067..T-092). No UI tasks in this list â€” V2 frontend ships via the UI track (/ases-ui-design V2 â†’ /ases-ui-review V2 â†’ /ases-ui-scaffold V2). TC-207 (DS-020 first-row race regression) tests existing backend/src/domain/stock.py â€” no new dev task required; handled at /ases-test-impl V2.",
+  "tasks": [
+    {
+      "id": "T-067",
+      "file": "backend/src/infrastructure/db/models/auth.py",
+      "description": "Create UserModel SQLAlchemy 2.x ORM for tbl_user_master. Columns: id (PK), username (String(100) UNIQUE NOT NULL), password_hash (String(255) NOT NULL), role (Enum STAFF/VERIFIER/SUPERVISOR NOT NULL), is_active (Boolean DEFAULT True NOT NULL), created_at (TIMESTAMPTZ via TimestampMixin per DS-014). Index ix_user_master_username on username. Inherits Base + TimestampMixin.",
+      "type": "create",
+      "module_ref": "M-008",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/base.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "UserModel"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[0]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/V2/execution/tasks/T-067-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-067-tests.md"
+    },
+    {
+      "id": "T-068",
+      "file": "backend/src/domain/auth.py",
+      "description": "Pure domain functions for auth: get_password_hash (bcrypt via passlib CryptContext), verify_password (constant-time compare), create_access_token (HS256 JWT via python-jose, default 8h TTL per DS-018, reads SECRET_KEY from config), decode_access_token (returns payload dict or None â€” never raises). No SQLAlchemy, no I/O. Fully unit-testable in isolation.",
+      "type": "create",
+      "module_ref": "M-008",
+      "inputs": {
+        "reads_from": [
+          "backend/src/config.py"
+        ],
+        "env_vars": [
+          "SECRET_KEY",
+          "ACCESS_TOKEN_EXPIRE_HOURS"
+        ],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "get_password_hash",
+          "verify_password",
+          "create_access_token",
+          "decode_access_token"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [],
+      "test_case_refs": [
+        "TC-171",
+        "TC-172",
+        "TC-173",
+        "TC-174",
+        "TC-175"
+      ],
+      "lld_ref": "lld.json files[2]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/V2/execution/tasks/T-068-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-068-tests.md"
+    },
+    {
+      "id": "T-069",
+      "file": "backend/src/presentation/schemas/auth.py",
+      "description": "Pydantic v2 schemas for auth + user management: LoginRequest (username, password min_length=1), TokenResponse (access_token, token_type Literal['bearer'], role), UserCreate (username 1..100 chars, password min_length=8, role Literal STAFF/VERIFIER/SUPERVISOR), UserRead (id, username, role, is_active; from_attributes=True), UserUpdate (is_active/role/new_password all Optional â€” partial PATCH). Pure Pydantic; no project imports.",
+      "type": "create",
+      "module_ref": "M-008",
+      "inputs": {
+        "reads_from": [],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "LoginRequest",
+          "TokenResponse",
+          "UserCreate",
+          "UserRead",
+          "UserUpdate"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[4]",
+      "status": "complete",
+      "iteration_count": 2,
+      "plan_file": "sprints/V2/execution/tasks/T-069-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-069-tests.md"
+    },
+    {
+      "id": "T-070",
+      "file": "backend/src/infrastructure/db/repositories/auth.py",
+      "description": "UserRepository extending BaseRepository[UserModel]. Adds: get_by_username(username: str) â†’ UserModel | None (case-sensitive SELECT WHERE username=:u LIMIT 1), list_active() â†’ list[UserModel] (WHERE is_active=True ORDER BY username ASC). Inherits BaseRepository create/update/get/soft_delete. Same pattern as S1 master repositories.",
+      "type": "create",
+      "module_ref": "M-008",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/repositories/base.py",
+          "backend/src/infrastructure/db/models/auth.py"
+        ],
+        "env_vars": [],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "UserRepository"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-067"
+      ],
+      "test_case_refs": [
+        "TC-185",
+        "TC-186"
+      ],
+      "lld_ref": "lld.json files[1]",
+      "status": "complete",
+      "iteration_count": 3,
+      "plan_file": "sprints/V2/execution/tasks/T-070-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-070-tests.md"
+    },
+    {
+      "id": "T-071",
+      "file": "backend/src/application/services/auth_service.py",
+      "description": "AuthService with 5 methods: authenticate (lookup â†’ verify_password â†’ TokenResponse; 401 on bad creds or inactive), get_current_user (decode JWT â†’ DB fetch; 401 on invalid/expired), create_user (uniqueness check â†’ hash â†’ persist; 409 on dup), list_users (active only ordered by username), update_user (fetch â†’ apply role/is_active/new_password patches; 404 if missing). All DB access via UserRepository; password ops via domain.auth.",
+      "type": "create",
+      "module_ref": "M-008",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/repositories/auth.py",
+          "backend/src/domain/auth.py",
+          "backend/src/presentation/schemas/auth.py"
+        ],
+        "env_vars": [],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "AuthService"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-067",
+        "T-068",
+        "T-069",
+        "T-070"
+      ],
+      "test_case_refs": [
+        "TC-190",
+        "TC-191",
+        "TC-192",
+        "TC-193",
+        "TC-194"
+      ],
+      "lld_ref": "lld.json files[3]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/V2/execution/tasks/T-071-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-071-tests.md"
+    },
+    {
+      "id": "T-072",
+      "file": "backend/src/presentation/api/routers/auth.py",
+      "description": "Auth router (prefix='/auth', tags=['auth']). POST /auth/login â€” open endpoint, no Bearer required, delegates to AuthService.authenticate(), returns TokenResponse (200 or 401). GET /auth/me â€” requires valid Bearer via Depends(get_current_user), returns UserRead for the authenticated user (401 if token invalid/expired).",
+      "type": "create",
+      "module_ref": "M-008",
+      "inputs": {
+        "reads_from": [
+          "backend/src/application/services/auth_service.py",
+          "backend/src/presentation/api/dependencies.py",
+          "backend/src/presentation/schemas/auth.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "router (APIRouter prefix='/auth', tags=['auth'])"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-071",
+        "T-089"
+      ],
+      "test_case_refs": [
+        "TC-208",
+        "TC-209",
+        "TC-210"
+      ],
+      "lld_ref": "lld.json files[5]",
+      "status": "complete",
+      "iteration_count": 3,
+      "critique_file": "sprints/V2/execution/critique_T-072.json",
+      "critique_verdict": "CLEAN",
+      "plan_file": "sprints/V2/execution/tasks/T-072-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-072-tests.md",
+      "last_action": "ases-critique iter3 -> CLEAN (F-T072-01 RESOLVED_BY_REINTERPRETATION: TC body is semantic payload not wire format; plan.json+DS-018+RFC 6749 authoritative for form-encoded. F-T072-02 NO_CHANGE_NEEDED. iter1 structural cross-task URL prefix concern RESOLVED by T-092 iter3.)",
+      "escalation_ref": "sprints/V2/execution/snapshots/T-072-escalation-2.json",
+      "po_action_at_sprint_close": "log DS-024 (auth login form-encoded wire format; LLD line 236 drift)"
+    },
+    {
+      "id": "T-073",
+      "file": "backend/src/presentation/api/routers/users.py",
+      "description": "Users router (prefix='/users', tags=['users']). SUPERVISOR only (require_supervisor Depends on all 5 endpoints). GET /users â†’ list[UserRead]. POST /users body=UserCreate â†’ UserRead 201 (409 on dup username). GET /users/{user_id} â†’ UserRead (404 if not found, HTTP-safe). PATCH /users/{user_id} body=UserUpdate â†’ UserRead (404 if not found). DELETE /users/{user_id} â†’ 204 no body, soft-deactivate via BaseRepository.soft_delete per DS-008. All delegate to AuthService. STAFF/VERIFIER get 403. Scope amended 2026-07-05 per PO Option A — output_files[] now also includes auth_service.py for AuthService.get_user + AuthService.deactivate_user only.",
+      "type": "create",
+      "module_ref": "M-008",
+      "inputs": {
+        "reads_from": [
+          "backend/src/application/services/auth_service.py",
+          "backend/src/presentation/api/dependencies.py",
+          "backend/src/presentation/schemas/auth.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "router (APIRouter prefix='/users', tags=['users'])"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-071",
+        "T-089"
+      ],
+      "test_case_refs": [
+        "TC-211",
+        "TC-212"
+      ],
+      "lld_ref": "lld.json files[6]",
+      "status": "complete",
+      "iteration_count": 4,
+      "critique_file": "sprints/V2/execution/critique_T-073.json",
+      "critique_verdict": "CLEAN",
+      "escalation_file": "sprints/V2/execution/snapshots/T-073-escalation-3.json",
+      "escalation_reason": "RESOLVED 2026-07-05 via PO Option A. Bounded scope amendment authorized: T-073 output_files[] expanded to include backend/src/application/services/auth_service.py for AuthService.get_user + AuthService.deactivate_user only. LLD amended to declare 5 endpoints on users.py and 7 methods on AuthService. Iter4 critique CLEAN — all 6 iter3 findings resolved.",
+      "last_action": "ases-critique iter4 -> CLEAN. All 6 iter3 findings resolved: F-073-01/02 (svc.get_user, HTTP-safe), F-073-03 (svc.deactivate_user via DS-008 BaseRepository.soft_delete), F-073-04 (workaround comment removed), F-073-05 (Response import removed), F-073-06 (LLD amended). Four lenses + structural PASS. T-073 status -> complete.",
+      "plan_file": "sprints/V2/execution/tasks/T-073-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-073-tests.md"
+    },
+    {
+      "id": "T-074",
+      "file": "backend/db/migrations/versions/0004_v2_auth_pricing_tables.py",
+      "description": "Alembic migration for all 5 V2 tables: tbl_user_master, tbl_price_master (with UNIQUE on design_id+grade_id+effective_from), tbl_invoice_header (UNIQUE sales_header_id â€” one invoice per sale), tbl_invoice_line (UNIQUE sales_line_id), tbl_payment. upgrade() creates all 5 + indexes. downgrade() drops in reverse FK order. Per DS-009 ORM-first policy: migration autogenerated from Base.metadata, with manual CHECK constraints added where autogenerate misses them.",
+      "type": "create",
+      "module_ref": "M-008",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/models/auth.py",
+          "backend/src/infrastructure/db/models/pricing.py",
+          "backend/db/migrations/versions/0003_transaction_and_ledger_tables.py"
+        ],
+        "env_vars": [
+          "DATABASE_URL"
+        ],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "alembic upgrade head (0004)"
+        ],
+        "side_effects": [
+          "Creates 5 new tables in the database"
+        ]
+      },
+      "depends_on": [
+        "T-067",
+        "T-079"
+      ],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[9]",
+      "status": "complete",
+      "iteration_count": 2,
+      "plan_file": "sprints/V2/execution/tasks/T-074-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-074-tests.md"
+    },
+    {
+      "id": "T-075",
+      "file": "backend/scripts/seed_default_user.py",
+      "description": "Idempotent one-shot script to insert default SUPERVISOR (admin/admin123). Checks if username='admin' exists via UserRepository; no-ops with print if so. If not found: inserts with get_password_hash('admin123'), role='SUPERVISOR', is_active=True. Prints warning to stderr: 'CHANGE ADMIN PASSWORD ON FIRST LOGIN'. Run once after alembic upgrade head on a fresh DB.",
+      "type": "create",
+      "module_ref": "M-008",
+      "inputs": {
+        "reads_from": [
+          "backend/src/domain/auth.py",
+          "backend/src/infrastructure/db/session.py",
+          "backend/src/infrastructure/db/models/auth.py"
+        ],
+        "env_vars": [
+          "DATABASE_URL"
+        ],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "seed_default_user()"
+        ],
+        "side_effects": [
+          "Inserts tbl_user_master row if admin does not exist"
+        ]
+      },
+      "depends_on": [
+        "T-067",
+        "T-068"
+      ],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[10]",
+      "status": "complete",
+      "iteration_count": 2,
+      "critique_file": "sprints/V2/execution/critique_T-075.json",
+      "critique_verdict": "CLEAN",
+      "plan_file": "sprints/V2/execution/tasks/T-075-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-075-tests.md"
+    },
+    {
+      "id": "T-076",
+      "file": "backend/src/presentation/schemas/inward_report.py",
+      "description": "Pydantic v2 schemas for the Inward Report dual-pane response: InwardConsolidationRow (design_id, design_name, size, grade_id, grade_code, total_nos), InwardTransactionRow (purchase_date, supplier_id, supplier_name, place, design_id, design_name, size, grade_id, grade_code, nos), InwardReportResponse (consolidation: list + transactions: list). Mirrors SalesReportResponse pattern. Pure Pydantic; no project imports.",
+      "type": "create",
+      "module_ref": "M-009",
+      "inputs": {
+        "reads_from": [],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "InwardConsolidationRow",
+          "InwardTransactionRow",
+          "InwardReportResponse"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[11]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/V2/execution/tasks/T-076-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-076-tests.md"
+    },
+    {
+      "id": "T-077",
+      "file": "backend/src/application/services/inward_report_service.py",
+      "description": "InwardReportService.generate(date_from, date_to, supplier_ids, places, design_ids â€” all optional). Mirrors SalesReportService pattern (DS-017): (1) build shared filter predicate from params; (2) Consolidation query GROUP BY design+grade with SUM(nos); (3) Transactions query per-line; (4) assert sum(transactions.nos)==sum(consolidation.total_nos) before return. Consolidation ORDER BY design_name ASC, grade_code ASC; Transactions ORDER BY purchase_date ASC. Returns InwardReportResponse.",
+      "type": "create",
+      "module_ref": "M-009",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/models/transactions.py",
+          "backend/src/infrastructure/db/models/master.py",
+          "backend/src/presentation/schemas/inward_report.py"
+        ],
+        "env_vars": [],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "InwardReportService"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-076"
+      ],
+      "test_case_refs": [
+        "TC-195",
+        "TC-196",
+        "TC-197"
+      ],
+      "lld_ref": "lld.json files[12]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/V2/execution/tasks/T-077-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-077-tests.md"
+    },
+    {
+      "id": "T-078",
+      "file": "backend/src/presentation/api/routers/inward_report.py",
+      "description": "Inward report router (prefix='/reports/inward', tags=['reports']). GET /reports/inward: optional query params date_from, date_to, supplier_ids (list[int]), places (list[str]), design_ids (list[int]) â€” all default None. Pure delegation to InwardReportService.generate(). Returns InwardReportResponse (200; empty lists valid). Auth guard applied globally in main.py â€” no local auth Depends needed.",
+      "type": "create",
+      "module_ref": "M-009",
+      "inputs": {
+        "reads_from": [
+          "backend/src/application/services/inward_report_service.py",
+          "backend/src/presentation/api/dependencies.py",
+          "backend/src/presentation/schemas/inward_report.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "router (APIRouter prefix='/reports/inward', tags=['reports'])"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-077",
+        "T-089"
+      ],
+      "test_case_refs": [
+        "TC-214"
+      ],
+      "lld_ref": "lld.json files[13]",
+      "status": "complete",
+      "iteration_count": 2,
+      "critique_file": "sprints/V2/execution/critique_T-078.json",
+      "critique_verdict": "CLEAN",
+      "plan_file": "sprints/V2/execution/tasks/T-078-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-078-tests.md"
+    },
+    {
+      "id": "T-079",
+      "file": "backend/src/infrastructure/db/models/pricing.py",
+      "description": "SQLAlchemy ORM models for all 4 V2 pricing tables: PriceMasterModel (tbl_price_master, UniqueConstraint design_id+grade_id+effective_from, lazy='joined' relationships to TradingDesignModel+GradeModel), InvoiceHeaderModel (tbl_invoice_header, UNIQUE sales_header_id), InvoiceLineModel (tbl_invoice_line, UNIQUE sales_line_id, unit_price snapshotted per DS-022), PaymentModel (tbl_payment). All inherit Base+TimestampMixin.",
+      "type": "create",
+      "module_ref": "M-011",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/base.py",
+          "backend/src/infrastructure/db/models/master.py",
+          "backend/src/infrastructure/db/models/transactions.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "PriceMasterModel",
+          "InvoiceHeaderModel",
+          "InvoiceLineModel",
+          "PaymentModel"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[15]",
+      "status": "complete",
+      "iteration_count": 2,
+      "plan_file": "sprints/V2/execution/tasks/T-079-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-079-tests.md"
+    },
+    {
+      "id": "T-080",
+      "file": "backend/src/infrastructure/db/repositories/pricing.py",
+      "description": "Three repositories: PriceMasterRepository (get_active_price â€” effective_from<=today ORDER BY DESC LIMIT 1, returns None if no active price; list_all including inactive ordered by design+grade+effective_from), InvoiceRepository (create_with_lines atomic flush; get with joinedload lines+payments; list with optional dealer_id/date/status filters), PaymentRepository (create single payment row). Extends BaseRepository per DS-012.",
+      "type": "create",
+      "module_ref": "M-011",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/repositories/base.py",
+          "backend/src/infrastructure/db/models/pricing.py"
+        ],
+        "env_vars": [],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "PriceMasterRepository",
+          "InvoiceRepository",
+          "PaymentRepository"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-079"
+      ],
+      "test_case_refs": [
+        "TC-187",
+        "TC-188",
+        "TC-189"
+      ],
+      "lld_ref": "lld.json files[16]",
+      "status": "complete",
+      "iteration_count": 2,
+      "plan_file": "sprints/V2/execution/tasks/T-080-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-080-tests.md"
+    },
+    {
+      "id": "T-081",
+      "file": "backend/src/domain/invoice.py",
+      "description": "Pure domain functions for invoice arithmetic: compute_line_total(quantity, unit_price) â†’ Decimal rounded 2dp ROUND_HALF_UP (ValueError if qty<=0 or price<0), compute_invoice_total(line_totals) â†’ Decimal sum 2dp (ValueError if empty), compute_invoice_status(total_amount, paid_amounts) â†’ 'PENDING'|'PARTIAL'|'PAID' (sum==0â†’PENDING, sum>=totalâ†’PAID, else PARTIAL), generate_invoice_number(invoice_date, sales_header_id) â†’ 'INV-{YYYYMMDD}-{id:05d}'. No I/O, no SQLAlchemy.",
+      "type": "create",
+      "module_ref": "M-011",
+      "inputs": {
+        "reads_from": [],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "compute_line_total",
+          "compute_invoice_total",
+          "compute_invoice_status",
+          "generate_invoice_number"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [],
+      "test_case_refs": [
+        "TC-176",
+        "TC-177",
+        "TC-178",
+        "TC-179",
+        "TC-180",
+        "TC-181",
+        "TC-182",
+        "TC-183",
+        "TC-184"
+      ],
+      "lld_ref": "lld.json files[17]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/V2/execution/tasks/T-081-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-081-tests.md"
+    },
+    {
+      "id": "T-082",
+      "file": "backend/src/presentation/schemas/pricing.py",
+      "description": "Pydantic v2 schemas for pricing/invoicing: PriceMasterCreate (design_id, grade_id, unit_price Decimal ge=0, effective_from date), PriceMasterRead (id, design_name, size, grade_code, unit_price, effective_from, is_active; from_attributes=True), PriceMasterUpdate (unit_price/is_active Optional â€” partial PATCH), InvoiceLineRead, PaymentRead, PaymentCreate (amount Decimal gt=0), InvoiceRead (with nested lines+payments; from_attributes=True), InvoiceSummary (header-level only). Pure Pydantic.",
+      "type": "create",
+      "module_ref": "M-011",
+      "inputs": {
+        "reads_from": [],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "PriceMasterCreate",
+          "PriceMasterRead",
+          "PriceMasterUpdate",
+          "InvoiceLineRead",
+          "PaymentRead",
+          "PaymentCreate",
+          "InvoiceRead",
+          "InvoiceSummary"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[21]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/V2/execution/tasks/T-082-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-082-tests.md"
+    },
+    {
+      "id": "T-083",
+      "file": "backend/src/application/services/pricing_service.py",
+      "description": "PricingService for Price Master CRUD: list_prices() â†’ all rows incl. inactive, create_price(data) â†’ pre-insert uniqueness SELECT to return 409 (not catching IntegrityError); validates design_id + grade_id exist (404 if not); inserts + returns PriceMasterModel. update_price(price_id, data) â†’ fetch â†’ apply unit_price/is_active patches â†’ return (404 if missing). DS-008 soft-delete (is_active=false) â€” no hard delete.",
+      "type": "create",
+      "module_ref": "M-011",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/repositories/pricing.py",
+          "backend/src/presentation/schemas/pricing.py"
+        ],
+        "env_vars": [],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "PricingService"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-079",
+        "T-080",
+        "T-082"
+      ],
+      "test_case_refs": [
+        "TC-201"
+      ],
+      "lld_ref": "lld.json files[18]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/V2/execution/tasks/T-083-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-083-tests.md"
+    },
+    {
+      "id": "T-084",
+      "file": "backend/src/application/services/invoice_service.py",
+      "description": "InvoiceService: create_from_sales(sales_header_id) â€” verify exists (404), check no prior invoice (409), fetch sales_lines, per-line get_active_price (unit_price=0 + warning note if None per DS-022), compute_line_total/compute_invoice_total/generate_invoice_number, create_with_lines atomic. list_invoices (filtered summaries). get_invoice (full with lines+payments; 404). record_payment â€” fetch + overpayment guard (422) + PaymentRepository.create + recompute status via compute_invoice_status + update header.",
+      "type": "create",
+      "module_ref": "M-011",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/repositories/pricing.py",
+          "backend/src/infrastructure/db/repositories/transactions.py",
+          "backend/src/domain/invoice.py",
+          "backend/src/presentation/schemas/pricing.py"
+        ],
+        "env_vars": [],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "InvoiceService"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-079",
+        "T-080",
+        "T-081",
+        "T-082"
+      ],
+      "test_case_refs": [
+        "TC-202",
+        "TC-203",
+        "TC-204",
+        "TC-205",
+        "TC-206"
+      ],
+      "lld_ref": "lld.json files[19]",
+      "status": "complete",
+      "iteration_count": 3,
+      "critique_file": "sprints/V2/execution/critique_T-084.json",
+      "critique_verdict": "CLEAN",
+      "plan_file": "sprints/V2/execution/tasks/T-084-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-084-tests.md"
+    },
+    {
+      "id": "T-085",
+      "file": "backend/src/infrastructure/exporters/pdf_exporter.py",
+      "description": "PdfExporter with export_sales_report(data: SalesReportResponse, filters: dict) â†’ BytesIO and export_inward_report(data: InwardReportResponse, filters: dict) â†’ BytesIO. Both use reportlab SimpleDocTemplate+Table per DS-021. Layout: title + generated-at timestamp, filter summary row, 'Consolidation' section + table (Design|Size|Grade|Total Nos), 'Transactions' section + table. Returns BytesIO seeked to 0. Stateless â€” no DB I/O.",
+      "type": "create",
+      "module_ref": "M-010",
+      "inputs": {
+        "reads_from": [
+          "backend/src/presentation/schemas/sales_report.py",
+          "backend/src/presentation/schemas/inward_report.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "PdfExporter"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-076"
+      ],
+      "test_case_refs": [
+        "TC-198"
+      ],
+      "lld_ref": "lld.json files[13]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/V2/execution/tasks/T-085-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-085-tests.md"
+    },
+    {
+      "id": "T-086",
+      "file": "backend/src/infrastructure/exporters/excel_exporter.py",
+      "description": "ExcelExporter with export_sales_report(data, filters) â†’ BytesIO and export_inward_report(data, filters) â†’ BytesIO. Both use openpyxl per DS-021. Two worksheets per workbook: 'Consolidation' (Design|Size|Grade|Total Nos, bold header, filter summary row 1) and 'Transactions' (Date|Dealer/Supplier|Place|Design|Size|Grade|Nos). Returns BytesIO seeked to 0. Stateless â€” no DB I/O.",
+      "type": "create",
+      "module_ref": "M-010",
+      "inputs": {
+        "reads_from": [
+          "backend/src/presentation/schemas/sales_report.py",
+          "backend/src/presentation/schemas/inward_report.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "ExcelExporter"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-076"
+      ],
+      "test_case_refs": [
+        "TC-199"
+      ],
+      "lld_ref": "lld.json files[14]",
+      "status": "complete",
+      "iteration_count": 1,
+      "plan_file": "sprints/V2/execution/tasks/T-086-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-086-tests.md"
+    },
+    {
+      "id": "T-087",
+      "file": "backend/src/application/services/report_export_service.py",
+      "description": "ReportExportService: export_sales(format, filters) and export_inward(format, filters). Both: (1) call the appropriate report service to get data; (2) route to PdfExporter or ExcelExporter based on format param; (3) return tuple (BytesIO, content_type, filename). HTTPException 400 if format not in ['pdf','xlsx']. filename = '{report}_report_{YYYY-MM-DD}.{ext}'. content_type = 'application/pdf' or XLSX MIME.",
+      "type": "create",
+      "module_ref": "M-010",
+      "inputs": {
+        "reads_from": [
+          "backend/src/application/services/sales_report_service.py",
+          "backend/src/application/services/inward_report_service.py",
+          "backend/src/infrastructure/exporters/pdf_exporter.py",
+          "backend/src/infrastructure/exporters/excel_exporter.py"
+        ],
+        "env_vars": [],
+        "services": [
+          "PostgreSQL 16"
+        ]
+      },
+      "outputs": {
+        "exports": [
+          "ReportExportService"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-077",
+        "T-085",
+        "T-086"
+      ],
+      "test_case_refs": [
+        "TC-200"
+      ],
+      "lld_ref": "lld.json files[15]",
+      "status": "complete",
+      "iteration_count": 1,
+      "critique_file": "sprints/V2/execution/critique_T-087.json",
+      "critique_verdict": "CLEAN",
+      "plan_file": "sprints/V2/execution/tasks/T-087-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-087-tests.md"
+    },
+    {
+      "id": "T-088",
+      "file": "backend/src/presentation/api/routers/report_export.py",
+      "description": "Report export router (prefix='/reports', tags=['export']). GET /reports/sales/export?format=pdf|xlsx&<sales filters> â†’ StreamingResponse. GET /reports/inward/export?format=pdf|xlsx&<inward filters> â†’ StreamingResponse. Both call service.export_sales/export_inward and return StreamingResponse(BytesIO, media_type, headers={'Content-Disposition': 'attachment; filename=...'}).",
+      "type": "create",
+      "module_ref": "M-010",
+      "inputs": {
+        "reads_from": [
+          "backend/src/application/services/report_export_service.py",
+          "backend/src/presentation/api/dependencies.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "router (APIRouter prefix='/reports', tags=['export'])"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-087",
+        "T-089"
+      ],
+      "test_case_refs": [
+        "TC-215",
+        "TC-216"
+      ],
+      "lld_ref": "lld.json files[16]",
+      "status": "complete",
+      "iteration_count": 0,
+      "critique_file": "sprints/V2/execution/critique_T-088.json",
+      "critique_verdict": "CLEAN",
+      "plan_file": "sprints/V2/execution/tasks/T-088-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-088-tests.md"
+    },
+    {
+      "id": "T-089",
+      "file": "backend/src/presentation/api/dependencies.py",
+      "description": "MODIFY (S1+S2+S3 file). ADD auth infrastructure: oauth2_scheme (OAuth2PasswordBearer tokenUrl='/api/v1/auth/login'), get_current_user (decode token â†’ AuthService.get_current_user(token) â†’ UserModel), require_supervisor (raises 403 if role != 'SUPERVISOR'). ADD 5 new DI factories: get_auth_service, get_inward_report_service, get_report_export_service, get_pricing_service, get_invoice_service. Existing 13 factories (S1+S2+S3) byte-identical â€” no removals, no changes.",
+      "type": "modify",
+      "module_ref": "M-008",
+      "inputs": {
+        "reads_from": [
+          "backend/src/infrastructure/db/session.py",
+          "backend/src/application/services/auth_service.py",
+          "backend/src/application/services/inward_report_service.py",
+          "backend/src/application/services/report_export_service.py",
+          "backend/src/application/services/pricing_service.py",
+          "backend/src/application/services/invoice_service.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "oauth2_scheme",
+          "get_current_user",
+          "require_supervisor",
+          "get_auth_service",
+          "get_inward_report_service",
+          "get_report_export_service",
+          "get_pricing_service",
+          "get_invoice_service"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-071",
+        "T-077",
+        "T-083",
+        "T-084",
+        "T-087"
+      ],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[7]",
+      "status": "complete",
+      "iteration_count": 0,
+      "critique_file": "sprints/V2/execution/critique_T-089.json",
+      "critique_verdict": "CLEAN",
+      "plan_file": "sprints/V2/execution/tasks/T-089-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-089-tests.md"
+    },
+    {
+      "id": "T-090",
+      "file": "backend/src/presentation/api/routers/pricing.py",
+      "description": "Price Master router (prefix='/prices', tags=['pricing']). GET /prices â†’ list[PriceMasterRead] (any authenticated user). POST /prices body=PriceMasterCreate â†’ PriceMasterRead 201 (SUPERVISOR only; 409 dup; 404 design/grade not found). PATCH /prices/{price_id} body=PriceMasterUpdate â†’ PriceMasterRead (SUPERVISOR only; 404). SUPERVISOR guard via Depends(require_supervisor) on POST + PATCH route decorators.",
+      "type": "create",
+      "module_ref": "M-011",
+      "inputs": {
+        "reads_from": [
+          "backend/src/application/services/pricing_service.py",
+          "backend/src/presentation/api/dependencies.py",
+          "backend/src/presentation/schemas/pricing.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "router (APIRouter prefix='/prices', tags=['pricing'])"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-083",
+        "T-089"
+      ],
+      "test_case_refs": [],
+      "lld_ref": "lld.json files[22]",
+      "status": "complete",
+      "iteration_count": 1,
+      "critique_file": "sprints/V2/execution/critique_T-090.json",
+      "critique_verdict": "CLEAN",
+      "plan_file": "sprints/V2/execution/tasks/T-090-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-090-tests.md"
+    },
+    {
+      "id": "T-091",
+      "file": "backend/src/presentation/api/routers/invoices.py",
+      "description": "Invoice router (prefix='/invoices', tags=['invoices']). GET /invoices?dealer_id&date_from&date_to&status â†’ list[InvoiceSummary] (any authenticated user). POST /invoices body={sales_header_id} â†’ InvoiceRead 201 (SUPERVISOR only; 404 sales not found; 409 already invoiced). GET /invoices/{id} â†’ InvoiceRead (any authenticated user; 404). POST /invoices/{id}/payments body=PaymentCreate â†’ InvoiceRead (SUPERVISOR only; 404; 422 overpayment). SUPERVISOR guard on POST routes.",
+      "type": "create",
+      "module_ref": "M-011",
+      "inputs": {
+        "reads_from": [
+          "backend/src/application/services/invoice_service.py",
+          "backend/src/presentation/api/dependencies.py",
+          "backend/src/presentation/schemas/pricing.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "router (APIRouter prefix='/invoices', tags=['invoices'])"
+        ],
+        "side_effects": []
+      },
+      "depends_on": [
+        "T-084",
+        "T-089"
+      ],
+      "test_case_refs": [
+        "TC-217"
+      ],
+      "lld_ref": "lld.json files[23]",
+      "status": "complete",
+      "iteration_count": 1,
+      "critique_file": "sprints/V2/execution/critique_T-091.json",
+      "critique_verdict": "CLEAN",
+      "plan_file": "sprints/V2/execution/tasks/T-091-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-091-tests.md"
+    },
+    {
+      "id": "T-092",
+      "file": "backend/src/main.py",
+      "description": "MODIFY (S1+S2+S3 file). ADD 6 new include_router calls: auth.router (no auth dependency â€” open endpoint, mounted FIRST), users.router, inward_report.router, report_export.router, pricing.router, invoices.router (all with dependencies=[Depends(get_current_user)]). ADD get_current_user dependency to all 11 existing V1 router mounts (suppliers, staff, dealers, grades, designs, design_grade_map, inward, sales, adjustments, dashboard, sales_report). SUPERVISOR-only endpoints use inline Depends(require_supervisor) in router decorators â€” NOT at mount level. CORS, error handlers, /health unchanged.",
+      "type": "modify",
+      "module_ref": "M-008",
+      "inputs": {
+        "reads_from": [
+          "backend/src/presentation/api/routers/auth.py",
+          "backend/src/presentation/api/routers/users.py",
+          "backend/src/presentation/api/routers/inward_report.py",
+          "backend/src/presentation/api/routers/report_export.py",
+          "backend/src/presentation/api/routers/pricing.py",
+          "backend/src/presentation/api/routers/invoices.py",
+          "backend/src/presentation/api/dependencies.py"
+        ],
+        "env_vars": [],
+        "services": []
+      },
+      "outputs": {
+        "exports": [
+          "create_app (modified â€” 6 new mounts + global auth guard on 15 protected routers)",
+          "app"
+        ],
+        "side_effects": [
+          "GET /api/v1/suppliers (and all V1 endpoints) now return 401 without Authorization header"
+        ]
+      },
+      "depends_on": [
+        "T-072",
+        "T-073",
+        "T-078",
+        "T-088",
+        "T-089",
+        "T-090",
+        "T-091"
+      ],
+      "test_case_refs": [
+        "TC-213"
+      ],
+      "lld_ref": "lld.json files[8]",
+      "status": "complete",
+      "iteration_count": 3,
+      "critique_file": "sprints/V2/execution/critique_T-092.json",
+      "critique_verdict": "CLEAN",
+      "plan_file": "sprints/V2/execution/tasks/T-092-plan.md",
+      "tests_file": "sprints/V2/execution/tasks/T-092-tests.md",
+      "last_action": "ases-critique iter3 -> CLEAN (F-092-1/2/3 RESOLVED, F-092-4 minor ADR-tradeoff accepted as-built)"
+    }
+  ],
+  "execution_order": [
+    "T-067",
+    "T-068",
+    "T-069",
+    "T-076",
+    "T-079",
+    "T-081",
+    "T-082",
+    "T-070",
+    "T-074",
+    "T-075",
+    "T-077",
+    "T-080",
+    "T-085",
+    "T-086",
+    "T-071",
+    "T-083",
+    "T-084",
+    "T-087",
+    "T-089",
+    "T-072",
+    "T-073",
+    "T-078",
+    "T-088",
+    "T-090",
+    "T-091",
+    "T-092"
+  ],
+  "parallel_groups": [
+    [
+      "T-067",
+      "T-068",
+      "T-069",
+      "T-076",
+      "T-079",
+      "T-081",
+      "T-082"
+    ],
+    [
+      "T-070",
+      "T-074",
+      "T-075",
+      "T-077",
+      "T-080",
+      "T-085",
+      "T-086"
+    ],
+    [
+      "T-071",
+      "T-083",
+      "T-084",
+      "T-087"
+    ],
+    [
+      "T-089"
+    ],
+    [
+      "T-072",
+      "T-073",
+      "T-078",
+      "T-088",
+      "T-090",
+      "T-091"
+    ],
+    [
+      "T-092"
+    ]
+  ],
+  "ui_tasks": [],
+  "backend_tasks": [
+    "T-067",
+    "T-068",
+    "T-069",
+    "T-070",
+    "T-071",
+    "T-072",
+    "T-073",
+    "T-074",
+    "T-075",
+    "T-076",
+    "T-077",
+    "T-078",
+    "T-079",
+    "T-080",
+    "T-081",
+    "T-082",
+    "T-083",
+    "T-084",
+    "T-085",
+    "T-086",
+    "T-087",
+    "T-088",
+    "T-089",
+    "T-090",
+    "T-091",
+    "T-092"
+  ],
+  "ui_track_note": "V2 frontend pages (login /login, user admin /admin/users, price admin /admin/prices, invoice list /admin/invoices, invoice detail /admin/invoices/{id}, inward report /admin/reports/inward) and export buttons on /admin/reports/sales + /admin/reports/inward ship via UI track: /ases-ui-design V2 â†’ /ases-ui-review V2 â†’ /ases-ui-scaffold V2. JWT auth state storage (localStorage vs httpOnly cookie) is deferred to /ases-ui-design V2 decision.",
+  "decisions_referenced": [
+    "DS-007",
+    "DS-008",
+    "DS-009",
+    "DS-012",
+    "DS-013",
+    "DS-014",
+    "DS-015",
+    "DS-017",
+    "DS-018",
+    "DS-019",
+    "DS-020",
+    "DS-021",
+    "DS-022",
+    "DS-023"
+  ],
+  "tc_coverage": {
+    "tcs_mapped_to_tasks": 46,
+    "tcs_handled_at_test_impl_only": [
+      {
+        "tc": "TC-207",
+        "reason": "DS-020 first-row insert race regression test against existing backend/src/domain/stock.py â€” no new V2 dev task per LLD. Advisory lock already live (DS-015, TD-011 closed S2). Test-impl only."
+      }
+    ],
+    "total_tcs_in_sprint": 47,
+    "reconciliation": "46 mapped to tasks + 1 test-impl-only (TC-207 existing code) = 47 total."
+  },
+  "next": "/ases-validate T-067 V2"
+}

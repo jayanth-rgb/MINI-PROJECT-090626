@@ -1,0 +1,1 @@
+{"task_id": "T-082", "test_case_refs": [], "priority": "n/a", "notes": "test_required=false per LLD files[21]. Schema correctness verified transitively via T-083 (TC-201: PricingService.create_price returns PriceMasterRead) and T-084 (TC-202..TC-206: InvoiceService methods return InvoiceRead with correct fields)."}

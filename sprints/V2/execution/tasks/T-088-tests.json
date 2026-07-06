@@ -1,0 +1,6 @@
+{
+  "task_id": "T-088",
+  "test_case_refs": ["TC-215", "TC-216"],
+  "priority": "high",
+  "notes": "Integration tests using FastAPI TestClient + testcontainers PostgreSQL. TC-215: seed dealer and sales data; GET /reports/sales/export?format=pdf with SUPERVISOR auth -> 200; assert Content-Type header == 'application/pdf'; Content-Disposition header contains 'attachment'; response body first 4 bytes == b'%PDF'. TC-216: seed inward purchase data; GET /reports/inward/export?format=xlsx with auth -> 200; assert Content-Type == xlsx MIME ('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'); body first 4 bytes == b'PK\\x03\\x04' (ZIP magic / xlsx)."
+}

@@ -1,0 +1,6 @@
+{
+  "task_id": "T-083",
+  "test_case_refs": ["TC-201"],
+  "priority": "critical",
+  "notes": "Integration test requiring PostgreSQL (testcontainers). TC-201: seed a price row with design_id=1, grade_id=1, effective_from=2026-07-01, unit_price=100.00, is_active=True; call create_price(PriceMasterCreate(design_id=1, grade_id=1, unit_price=150.00, effective_from=2026-07-01)); assert raises HTTPException with status_code=409."
+}

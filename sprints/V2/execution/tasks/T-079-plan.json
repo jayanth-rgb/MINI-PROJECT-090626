@@ -1,0 +1,17 @@
+{
+  "task_id": "T-079",
+  "title": "models/pricing.py — SQLAlchemy ORM for 4 V2 pricing tables",
+  "module_ref": "M-011",
+  "output_files": ["backend/src/infrastructure/db/models/pricing.py"],
+  "scope": "Four SQLAlchemy 2.x models all inheriting Base + TimestampMixin. PriceMasterModel (__tablename__='tbl_price_master'): id PK, design_id FK tbl_trading_design_master.id, grade_id FK tbl_grade_master.id, unit_price Numeric(10,2) CHECK>=0, effective_from Date, is_active Boolean DEFAULT True; UniqueConstraint(design_id, grade_id, effective_from, name='uq_price_design_grade_effective'); relationships design (TradingDesignModel lazy='joined'), grade (GradeModel lazy='joined'). InvoiceHeaderModel (__tablename__='tbl_invoice_header'): id PK, invoice_number String(30) UNIQUE, sales_header_id FK+UNIQUE tbl_sales_header.id, invoice_date Date, total_amount Numeric(12,2), status String(10) DEFAULT 'PENDING'; relationship lines (list[InvoiceLineModel] backref), payments (list[PaymentModel] backref), sales_header. InvoiceLineModel (__tablename__='tbl_invoice_line'): id PK, invoice_header_id FK, sales_line_id FK+UNIQUE, design_id Int, grade_id Int, quantity Int, unit_price Numeric(10,2), line_total Numeric(12,2). PaymentModel (__tablename__='tbl_payment'): id PK, invoice_header_id FK, payment_date Date, amount Numeric(12,2) CHECK>0, notes Text nullable.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-014", "DS-022", "DS-023"],
+  "success_criteria": {
+    "manual": "python -c 'from src.infrastructure.db.models.pricing import PriceMasterModel,InvoiceHeaderModel,InvoiceLineModel,PaymentModel; print([m.__tablename__ for m in [PriceMasterModel,InvoiceHeaderModel,InvoiceLineModel,PaymentModel]])' → 4 table names.",
+    "automated": "T-080 integration tests (TC-187..TC-189) insert and query these models. T-074 migration creates matching DDL.",
+    "definition_of_done": "4 model classes exported. PriceMasterModel has UniqueConstraint on (design_id,grade_id,effective_from). InvoiceHeaderModel UNIQUE on sales_header_id. InvoiceLineModel UNIQUE on sales_line_id. Relationships lazy='joined' on PriceMasterModel.design/grade."
+  },
+  "checkout_prompt": "models/pricing.py created. 4 ORM models: PriceMasterModel, InvoiceHeaderModel, InvoiceLineModel, PaymentModel. Ready for T-080 (pricing repositories) and T-074 (migration)."
+}

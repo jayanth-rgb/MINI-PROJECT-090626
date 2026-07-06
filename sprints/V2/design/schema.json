@@ -1,0 +1,946 @@
+{
+  "$schema": "ases/v3.0/schema",
+  "document": "schema",
+  "produced_by": "/ases-schema V2",
+  "consumed_by": ["/ases-dev", "/ases-sprint-gate", "/ases-test-spec", "/ases-tasks", "/ases-validate"],
+  "sprint_id": "V2",
+  "schema_note": "sprint_id 'V2' intentionally deviates from the ^S\\d+$ regex in schema.schema.json, which was scoped to V1 sprints only. Acknowledged in lld.json schema_note. The meta-schema pattern will be relaxed to ^(S\\d+|V\\d+)$ at the next schema meta-update.",
+  "scope_modules": ["M-008", "M-009", "M-010", "M-011"],
+  "scope_features": ["F-013", "F-014", "F-015", "F-016", "F-017", "F-018", "F-019"],
+  "decisions_referenced": [
+    "DS-005", "DS-007", "DS-008", "DS-009", "DS-012", "DS-013", "DS-014",
+    "DS-015", "DS-017", "DS-018", "DS-019", "DS-020", "DS-021", "DS-022", "DS-023"
+  ],
+
+  "schema_amendments": {
+    "description": "V2 introduces 5 new tables via migration 0004_v2_auth_pricing_tables. M-008 adds tbl_user_master for authentication and RBAC. M-011 adds tbl_price_master, tbl_invoice_header, tbl_invoice_line, and tbl_payment for the Pricing & Invoicing module. M-009 (Inward Report) and M-010 (Report Export) are fully read-only over existing S1/S2 tables — zero new tables or columns for those modules.",
+    "new_tables": [
+      "tbl_user_master",
+      "tbl_price_master",
+      "tbl_invoice_header",
+      "tbl_invoice_line",
+      "tbl_payment"
+    ],
+    "altered_tables": [],
+    "dropped_tables": []
+  },
+
+  "entities": [
+
+    {
+      "name": "tbl_user_master",
+      "hld_module": "M-008",
+      "type": "table",
+      "modification": "create",
+      "feature_ref": ["F-013", "F-014"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "SERIAL",
+          "nullable": false,
+          "description": "PK autoincrement."
+        },
+        {
+          "name": "username",
+          "type": "VARCHAR(100)",
+          "nullable": false,
+          "description": "Login identifier. UNIQUE NOT NULL. Case-sensitive match in UserRepository.get_by_username. Max 100 chars per UserCreate schema validation."
+        },
+        {
+          "name": "password_hash",
+          "type": "VARCHAR(255)",
+          "nullable": false,
+          "description": "bcrypt hash via passlib CryptContext(schemes=['bcrypt']) per DS-018. Never stored as plain text. 255 chars accommodates bcrypt $2b$ prefix + 60-char hash."
+        },
+        {
+          "name": "role",
+          "type": "VARCHAR(20)",
+          "nullable": false,
+          "description": "RBAC role per DS-019. CHECK(role IN ('STAFF','VERIFIER','SUPERVISOR')). Snapshotted into JWT payload at login; get_current_user re-reads from DB on each request so a role change takes effect immediately (within the same 8h TTL window)."
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": true,
+          "description": "Soft-delete flag per DS-008. Inactive users cannot log in and are rejected by get_current_user on every request regardless of a still-valid token. Bounds exposure window per DS-018."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "NOW()",
+          "description": "Server-side default via TimestampMixin per DS-014. Audit trail for SUPERVISOR user-management operations."
+        }
+      ],
+      "indexes": [
+        "ix_user_master_username ON tbl_user_master(username) — supports UserRepository.get_by_username O(1) lookup. Called on every login attempt AND on every authenticated API request via get_current_user (which fetches by JWT sub claim = username)."
+      ],
+      "relationships": [],
+      "constraints": [
+        "PRIMARY KEY (id)",
+        "UNIQUE (username)",
+        "CHECK (role IN ('STAFF','VERIFIER','SUPERVISOR'))"
+      ],
+      "used_by_v2_files": [
+        "backend/src/infrastructure/db/models/auth.py — ORM model definition",
+        "backend/src/infrastructure/db/repositories/auth.py — UserRepository (get_by_username, list_active)",
+        "backend/src/application/services/auth_service.py — authenticate, create_user, list_users, update_user",
+        "backend/scripts/seed_default_user.py — inserts default admin SUPERVISOR row (idempotent)"
+      ],
+      "design_notes": [
+        "DS-018: role VARCHAR CHECK instead of Postgres ENUM type per DS-019 — avoids ALTER TYPE migration if a 4th role is added in V3.",
+        "DS-018: no refresh tokens in V2; 8h TTL + is_active re-check on every request is the deactivation mechanism. Deactivated user's token becomes effectively revoked within one request cycle.",
+        "DS-019: three fixed roles (STAFF, VERIFIER, SUPERVISOR) map directly to PRD user types. No separate roles table — enum column is O(1) read from JWT payload on each request."
+      ]
+    },
+
+    {
+      "name": "tbl_price_master",
+      "hld_module": "M-011",
+      "type": "table",
+      "modification": "create",
+      "feature_ref": ["F-017"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "SERIAL",
+          "nullable": false,
+          "description": "PK autoincrement."
+        },
+        {
+          "name": "design_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "FK tbl_trading_design_master.id. Part of the unique price key (design, grade, effective_from). ORM relationship PriceMasterModel.design with lazy='joined' for design_name + size resolution in PriceMasterRead."
+        },
+        {
+          "name": "grade_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "FK tbl_grade_master.id. Part of the unique price key. ORM relationship PriceMasterModel.grade with lazy='joined' for grade_code resolution in PriceMasterRead."
+        },
+        {
+          "name": "unit_price",
+          "type": "NUMERIC(10,2)",
+          "nullable": false,
+          "description": "Price per NOS unit. CHECK(unit_price >= 0) — zero is valid (placeholder). Snapshotted onto tbl_invoice_line.unit_price at invoice creation per DS-022; future edits to this row never retroact on existing invoices."
+        },
+        {
+          "name": "effective_from",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Date from which this price becomes valid. Active price lookup (DS-022): WHERE is_active=true AND effective_from <= invoice_date ORDER BY effective_from DESC LIMIT 1 — the most recent effective price on or before the invoice date."
+        },
+        {
+          "name": "is_active",
+          "type": "BOOLEAN",
+          "nullable": false,
+          "default": true,
+          "description": "Soft-delete flag per DS-008. SUPERVISOR can retire a price row via PATCH /prices/{id} without deleting it. Retired rows remain visible in GET /prices (admin history view)."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "NOW()",
+          "description": "Audit trail."
+        }
+      ],
+      "indexes": [
+        "uq_price_design_grade_effective UNIQUE ON tbl_price_master(design_id, grade_id, effective_from) — (1) enforces the business rule that no two prices exist for the same (design, grade, date); (2) the (design_id, grade_id) prefix services PriceMasterRepository.get_active_price equality filter, with effective_from range scan for ORDER BY effective_from DESC LIMIT 1."
+      ],
+      "relationships": [
+        {
+          "type": "one_to_many",
+          "target": "tbl_trading_design_master",
+          "foreign_key": "design_id"
+        },
+        {
+          "type": "one_to_many",
+          "target": "tbl_grade_master",
+          "foreign_key": "grade_id"
+        }
+      ],
+      "constraints": [
+        "PRIMARY KEY (id)",
+        "UNIQUE (design_id, grade_id, effective_from) — name: uq_price_design_grade_effective",
+        "FOREIGN KEY (design_id) REFERENCES tbl_trading_design_master(id)",
+        "FOREIGN KEY (grade_id) REFERENCES tbl_grade_master(id)",
+        "CHECK (unit_price >= 0)"
+      ],
+      "used_by_v2_files": [
+        "backend/src/infrastructure/db/models/pricing.py — ORM model: PriceMasterModel",
+        "backend/src/infrastructure/db/repositories/pricing.py — PriceMasterRepository (get_active_price, list_all)",
+        "backend/src/application/services/pricing_service.py — list_prices, create_price, update_price",
+        "backend/src/application/services/invoice_service.py — get_active_price called per sales line at invoice creation"
+      ],
+      "design_notes": [
+        "DS-022: effective-from price lookup gives time-aware pricing — a price change on 2026-08-01 does not affect invoices generated before that date.",
+        "DS-022: unit_price snapshot on tbl_invoice_line (not a FK to this row) ensures immutable historical invoice totals even if this row is later edited.",
+        "DS-023: if no active price exists for a (design, grade) pair, InvoiceService uses unit_price=0 with a warning note on the invoice line — invoice creation does not block.",
+        "DS-008: soft-delete preserves price history for audit. list_all() returns all rows including inactive so SUPERVISOR can see the full price timeline."
+      ]
+    },
+
+    {
+      "name": "tbl_invoice_header",
+      "hld_module": "M-011",
+      "type": "table",
+      "modification": "create",
+      "feature_ref": ["F-018"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "SERIAL",
+          "nullable": false,
+          "description": "PK autoincrement."
+        },
+        {
+          "name": "invoice_number",
+          "type": "VARCHAR(30)",
+          "nullable": false,
+          "description": "Human-readable invoice ID. Generated deterministically by domain.invoice.generate_invoice_number as 'INV-{YYYYMMDD}-{sales_header_id:05d}'. UNIQUE — deterministic generation means a duplicate creation attempt (same sales_header_id) produces the same invoice_number and collides on this constraint, returning a clean 409 per DS-023."
+        },
+        {
+          "name": "sales_header_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "FK tbl_sales_header.id. UNIQUE — enforces exactly one invoice per sale (DS-023). InvoiceService.create_from_sales checks this via a SELECT before insert to return a clean 409 rather than catching IntegrityError."
+        },
+        {
+          "name": "invoice_date",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Date the invoice was generated (today() at creation time per InvoiceService.create_from_sales). Used in InvoiceRepository.list date_from/date_to filter."
+        },
+        {
+          "name": "total_amount",
+          "type": "NUMERIC(12,2)",
+          "nullable": false,
+          "description": "Sum of all invoice_line.line_total values. Computed by domain.invoice.compute_invoice_total and persisted — enables fast status recomputation in record_payment without re-summing lines from DB."
+        },
+        {
+          "name": "status",
+          "type": "VARCHAR(10)",
+          "nullable": false,
+          "default": "'PENDING'",
+          "description": "Payment status. CHECK(status IN ('PENDING','PARTIAL','PAID')). Recomputed in application layer by compute_invoice_status after each payment recorded; synchronously updated in the same DB transaction."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "NOW()",
+          "description": "Audit trail."
+        }
+      ],
+      "indexes": [
+        "UNIQUE (invoice_number) — implicit B-tree; enforces invoice_number uniqueness and supports fast lookup if needed.",
+        "UNIQUE (sales_header_id) — implicit B-tree; enforces one-invoice-per-sale (DS-023) and supports InvoiceService.create_from_sales existence check.",
+        "ix_invoice_header_invoice_date ON tbl_invoice_header(invoice_date) — services InvoiceRepository.list date_from/date_to filter."
+      ],
+      "relationships": [
+        {
+          "type": "one_to_many",
+          "target": "tbl_sales_header",
+          "foreign_key": "sales_header_id"
+        },
+        {
+          "type": "one_to_many",
+          "target": "tbl_invoice_line",
+          "via": "tbl_invoice_line.invoice_header_id"
+        },
+        {
+          "type": "one_to_many",
+          "target": "tbl_payment",
+          "via": "tbl_payment.invoice_header_id"
+        }
+      ],
+      "constraints": [
+        "PRIMARY KEY (id)",
+        "UNIQUE (invoice_number)",
+        "UNIQUE (sales_header_id)",
+        "FOREIGN KEY (sales_header_id) REFERENCES tbl_sales_header(id)",
+        "CHECK (status IN ('PENDING','PARTIAL','PAID'))"
+      ],
+      "used_by_v2_files": [
+        "backend/src/infrastructure/db/models/pricing.py — ORM model: InvoiceHeaderModel",
+        "backend/src/infrastructure/db/repositories/pricing.py — InvoiceRepository (create_with_lines, get, list)",
+        "backend/src/application/services/invoice_service.py — create_from_sales, list_invoices, get_invoice, record_payment"
+      ],
+      "design_notes": [
+        "DS-023: UNIQUE(sales_header_id) is the authoritative guard against double-invoicing — the service pre-checks but the DB constraint is the final safety net.",
+        "status is recomputed in memory by compute_invoice_status (domain layer) and written back synchronously — no DB trigger needed.",
+        "total_amount is computed and stored at creation time; it is immutable after creation since invoice lines are also immutable. Only status changes via payment recording."
+      ]
+    },
+
+    {
+      "name": "tbl_invoice_line",
+      "hld_module": "M-011",
+      "type": "table",
+      "modification": "create",
+      "feature_ref": ["F-018"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "SERIAL",
+          "nullable": false,
+          "description": "PK autoincrement."
+        },
+        {
+          "name": "invoice_header_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "FK tbl_invoice_header.id. Groups lines under one invoice. Used in ix_invoice_line_header for eager loading."
+        },
+        {
+          "name": "sales_line_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "FK tbl_sales_line.id. UNIQUE — one invoice line per sales line; prevents the same unit of sale from appearing on two invoices."
+        },
+        {
+          "name": "design_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "Denormalized snapshot of sales_line.design_id at invoice creation time. Immutable. Same snapshot pattern as DS-013 (place) and DS-022 (unit_price). Enables InvoiceLineRead to display design_id without re-joining to tbl_sales_line."
+        },
+        {
+          "name": "grade_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "Denormalized snapshot of sales_line.grade_id at invoice creation time. Immutable. Design/grade names resolved via lazy='joined' relationships on PriceMasterModel (not re-derived from this column at runtime — InvoiceLineRead joins to master tables for names)."
+        },
+        {
+          "name": "quantity",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "Snapshot of tbl_sales_line.nos at invoice creation time. Immutable. Changing a sales line's NOS after invoicing does not alter the invoice quantity."
+        },
+        {
+          "name": "unit_price",
+          "type": "NUMERIC(10,2)",
+          "nullable": false,
+          "description": "Point-in-time price snapshot per DS-022. Copied from the active tbl_price_master row at invoice creation. Future price master edits never retroact. Zero if no active price configured (DS-023 zero-price fallback)."
+        },
+        {
+          "name": "line_total",
+          "type": "NUMERIC(12,2)",
+          "nullable": false,
+          "description": "quantity × unit_price computed by domain.invoice.compute_line_total (ROUND_HALF_UP, 2dp) and stored at creation. Immutable."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "NOW()",
+          "description": "Audit trail."
+        }
+      ],
+      "indexes": [
+        "UNIQUE (sales_line_id) — implicit B-tree; prevents same sales_line from appearing on two invoices.",
+        "ix_invoice_line_header ON tbl_invoice_line(invoice_header_id) — services InvoiceRepository.get joinedload of lines and InvoiceRepository.create_with_lines flush."
+      ],
+      "relationships": [
+        {
+          "type": "one_to_many",
+          "target": "tbl_invoice_header",
+          "foreign_key": "invoice_header_id"
+        },
+        {
+          "type": "one_to_many",
+          "target": "tbl_sales_line",
+          "foreign_key": "sales_line_id"
+        }
+      ],
+      "constraints": [
+        "PRIMARY KEY (id)",
+        "UNIQUE (sales_line_id)",
+        "FOREIGN KEY (invoice_header_id) REFERENCES tbl_invoice_header(id)",
+        "FOREIGN KEY (sales_line_id) REFERENCES tbl_sales_line(id)"
+      ],
+      "used_by_v2_files": [
+        "backend/src/infrastructure/db/models/pricing.py — ORM model: InvoiceLineModel",
+        "backend/src/infrastructure/db/repositories/pricing.py — InvoiceRepository.create_with_lines (inserts header + N lines in a single SQLAlchemy flush)",
+        "backend/src/application/services/invoice_service.py — builds lines_data from sales_line rows + active price lookups"
+      ],
+      "design_notes": [
+        "DS-022: unit_price is a point-in-time snapshot — identical immutability pattern to tbl_inward_header.place (DS-013). Post-creation price edits never silently change historical invoice totals.",
+        "design_id and grade_id are snapshotted (not FK references) so InvoiceLineRead can display values even if the original design or grade is later soft-deleted.",
+        "UNIQUE(sales_line_id) is the authoritative guard against duplicate invoice lines — a sales_line can appear on exactly one invoice across the system lifetime."
+      ]
+    },
+
+    {
+      "name": "tbl_payment",
+      "hld_module": "M-011",
+      "type": "table",
+      "modification": "create",
+      "feature_ref": ["F-019"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "SERIAL",
+          "nullable": false,
+          "description": "PK autoincrement."
+        },
+        {
+          "name": "invoice_header_id",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "FK tbl_invoice_header.id. Payments are append-only — no UPDATE or DELETE on this table."
+        },
+        {
+          "name": "payment_date",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Date of payment as entered by SUPERVISOR. No date-range restriction beyond basic non-null."
+        },
+        {
+          "name": "amount",
+          "type": "NUMERIC(12,2)",
+          "nullable": false,
+          "description": "Payment amount. CHECK(amount > 0) — zero and negative amounts are rejected at DB level. InvoiceService.record_payment additionally validates that cumulative payments do not exceed invoice total_amount (422 overpayment guard in application layer)."
+        },
+        {
+          "name": "notes",
+          "type": "TEXT",
+          "nullable": true,
+          "description": "Optional free-text notes (e.g. cheque number, bank reference). Not required for payment recording."
+        },
+        {
+          "name": "created_at",
+          "type": "TIMESTAMPTZ",
+          "nullable": false,
+          "default": "NOW()",
+          "description": "Audit trail. Append-only semantics mean this is also the definitive record of when the payment was entered."
+        }
+      ],
+      "indexes": [
+        "ix_payment_invoice_header ON tbl_payment(invoice_header_id) — services InvoiceRepository.get joinedload of all payments for an invoice, and the payment sum aggregation in InvoiceService.record_payment for compute_invoice_status."
+      ],
+      "relationships": [
+        {
+          "type": "one_to_many",
+          "target": "tbl_invoice_header",
+          "foreign_key": "invoice_header_id"
+        }
+      ],
+      "constraints": [
+        "PRIMARY KEY (id)",
+        "FOREIGN KEY (invoice_header_id) REFERENCES tbl_invoice_header(id)",
+        "CHECK (amount > 0)"
+      ],
+      "used_by_v2_files": [
+        "backend/src/infrastructure/db/models/pricing.py — ORM model: PaymentModel",
+        "backend/src/infrastructure/db/repositories/pricing.py — PaymentRepository.create",
+        "backend/src/application/services/invoice_service.py — record_payment: appends payment row then recomputes and updates invoice status"
+      ],
+      "design_notes": [
+        "Payments are insert-only. Corrections are handled by SUPERVISOR adding a corrective payment entry — the append-only table preserves a complete payment audit trail.",
+        "Overpayment guard is in InvoiceService.record_payment (application layer) because the DB CHECK cannot know the running total without a trigger. DB CHECK only enforces amount > 0."
+      ]
+    },
+
+    {
+      "name": "tbl_inward_header",
+      "hld_module": "M-002",
+      "type": "table",
+      "modification": "read_only_reuse_from_S2",
+      "feature_ref": ["F-015", "F-016"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Existing PK. Joined to tbl_inward_line in both consolidation + transactions queries (InwardReportService). NOT modified."
+        },
+        {
+          "name": "purchase_date",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Existing — date-range filter predicate (date_from/date_to) in InwardReportService.generate via shared filter predicate (DS-017 pattern). ORDER BY ASC in transactions query."
+        },
+        {
+          "name": "supplier_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "Existing — supplier multi-select filter predicate (supplier_ids IN) in InwardReportService.generate. JOIN target to tbl_supplier_master for supplier_name projection."
+        },
+        {
+          "name": "place",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Existing — denormalized snapshot per DS-013. Used directly in place multi-select filter (places IN) AND projected into InwardTransactionRow.place without re-joining to tbl_supplier_master."
+        }
+      ],
+      "indexes": [
+        "ix_inward_header_purchase_date — EXISTING from S2. Services InwardReportService date_from/date_to filter for both consolidation + transactions queries.",
+        "ix_inward_header_supplier — EXISTING from S2. Services InwardReportService supplier_ids IN filter.",
+        "NOTE: no index on tbl_inward_header.place. Place-only filter falls back to seq scan. Acceptable at V2 scale per PRD non_functional.scalability. V3 candidate if place-only filter dominates under profiling."
+      ],
+      "relationships": [
+        {
+          "type": "one_to_many",
+          "target": "tbl_inward_line",
+          "via": "tbl_inward_line.header_id"
+        },
+        {
+          "type": "one_to_many",
+          "target": "tbl_supplier_master",
+          "via": "supplier_id"
+        }
+      ],
+      "constraints": [],
+      "used_by_v2_files": [
+        "backend/src/application/services/inward_report_service.py — both consolidation + transactions queries via shared filter predicate (DS-017)",
+        "backend/src/application/services/report_export_service.py — delegates to InwardReportService for InwardReportResponse data"
+      ],
+      "design_notes": [
+        "DS-017: shared filter predicate (same WHERE clauses for both consolidation + transactions queries) guarantees reconciliation invariant: sum(transactions.nos) == sum(consolidation.total_nos) by construction — asserted in InwardReportService.generate before return.",
+        "DS-013: place is a denormalized snapshot on tbl_inward_header — InwardReportService reads place from the header row, not from tbl_supplier_master, so historical records show the place that was in effect at purchase time."
+      ]
+    },
+
+    {
+      "name": "tbl_inward_line",
+      "hld_module": "M-002",
+      "type": "table",
+      "modification": "read_only_reuse_from_S2",
+      "feature_ref": ["F-015", "F-016"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Existing PK. NOT modified."
+        },
+        {
+          "name": "header_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "Existing — JOIN to tbl_inward_header for date/supplier/place filter application and header projection fields."
+        },
+        {
+          "name": "design_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "Existing — design multi-select filter predicate (design_ids IN) AND GROUP BY key in InwardReportService consolidation query (GROUP BY design_id, grade_id, design_name, size, grade_code)."
+        },
+        {
+          "name": "grade_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "Existing — GROUP BY key in consolidation (paired with design_id for InwardConsolidationRow grouping)."
+        },
+        {
+          "name": "nos",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "Existing — SUM(nos) aggregation target in consolidation query; raw value in InwardTransactionRow."
+        }
+      ],
+      "indexes": [
+        "ix_inward_line_dgd(design_id, grade_id, header_id) — EXISTING from S2. Supports GROUP BY design_id, grade_id in consolidation and design_id IN filter. Same pattern as ix_sales_line_dgd.",
+        "ix_inward_line_header(header_id) — EXISTING from S2. Supports JOIN to tbl_inward_header."
+      ],
+      "relationships": [
+        {
+          "type": "one_to_many",
+          "target": "tbl_inward_header",
+          "via": "header_id"
+        },
+        {
+          "type": "one_to_many",
+          "target": "tbl_trading_design_master",
+          "via": "design_id"
+        },
+        {
+          "type": "one_to_many",
+          "target": "tbl_grade_master",
+          "via": "grade_id"
+        }
+      ],
+      "constraints": [],
+      "used_by_v2_files": [
+        "backend/src/application/services/inward_report_service.py — both consolidation + transactions queries"
+      ]
+    },
+
+    {
+      "name": "tbl_supplier_master",
+      "hld_module": "M-001",
+      "type": "table",
+      "modification": "read_only_reuse_from_S1",
+      "feature_ref": ["F-015"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Existing PK. JOIN target in InwardReportService for supplier_name projection. NOT modified."
+        },
+        {
+          "name": "supplier_name",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Existing — projected into InwardTransactionRow.supplier_name. First time this column is read outside of M-001 CRUD operations."
+        }
+      ],
+      "indexes": [],
+      "relationships": [],
+      "constraints": [],
+      "used_by_v2_files": [
+        "backend/src/application/services/inward_report_service.py — JOIN on supplier_id for supplier_name projection in InwardTransactionRow"
+      ],
+      "design_notes": [
+        "InwardReportService reads supplier_name from tbl_supplier_master for display. place is read from tbl_inward_header.place (DS-013 snapshot) — not re-joined to supplier master — so historical inward records display the place recorded at purchase time, even if the supplier's place is later updated."
+      ]
+    },
+
+    {
+      "name": "tbl_sales_header",
+      "hld_module": "M-002",
+      "type": "table",
+      "modification": "read_only_reuse_from_S2",
+      "feature_ref": ["F-016", "F-018"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Existing PK. FK target for tbl_invoice_header.sales_header_id (UNIQUE in V2). InvoiceService reads this to verify existence before invoice creation. NOT modified."
+        },
+        {
+          "name": "sales_date",
+          "type": "DATE",
+          "nullable": false,
+          "description": "Existing — used by InvoiceRepository.list date_from/date_to filter (JOIN tbl_invoice_header → tbl_sales_header)."
+        },
+        {
+          "name": "dealer_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "Existing — used by InvoiceRepository.list dealer_id filter."
+        }
+      ],
+      "indexes": [
+        "ix_sales_header_sales_date — EXISTING from S2. Services InvoiceRepository.list date filter.",
+        "ix_sales_header_dealer — EXISTING from S2. Services InvoiceRepository.list dealer_id filter."
+      ],
+      "relationships": [
+        {
+          "type": "one_to_many",
+          "target": "tbl_sales_line",
+          "via": "tbl_sales_line.header_id"
+        },
+        {
+          "type": "one_to_many",
+          "target": "tbl_invoice_header",
+          "via": "tbl_invoice_header.sales_header_id"
+        }
+      ],
+      "constraints": [],
+      "used_by_v2_files": [
+        "backend/src/application/services/invoice_service.py — verify sales_header_id existence; retrieve associated sales lines for invoice line building",
+        "backend/src/application/services/report_export_service.py — delegates to SalesReportService (S3) which reads tbl_sales_header"
+      ],
+      "design_notes": [
+        "V2 does NOT modify tbl_sales_header. It gains one new logical child table (tbl_invoice_header via UNIQUE FK) but no structural change to this table. M-010 export reads it indirectly via SalesReportService."
+      ]
+    },
+
+    {
+      "name": "tbl_sales_line",
+      "hld_module": "M-002",
+      "type": "table",
+      "modification": "read_only_reuse_from_S2",
+      "feature_ref": ["F-016", "F-018"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "BIGSERIAL",
+          "nullable": false,
+          "description": "Existing PK. FK target for tbl_invoice_line.sales_line_id (UNIQUE in V2). InvoiceService fetches all lines for a sales_header_id to build invoice lines. NOT modified."
+        },
+        {
+          "name": "header_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "Existing — InvoiceService filters by header_id to retrieve all sales lines for a given sales_header."
+        },
+        {
+          "name": "design_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "Existing — copied into tbl_invoice_line.design_id as a snapshot at invoice creation time."
+        },
+        {
+          "name": "grade_id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "Existing — copied into tbl_invoice_line.grade_id as a snapshot at invoice creation time."
+        },
+        {
+          "name": "nos",
+          "type": "INTEGER",
+          "nullable": false,
+          "description": "Existing — copied into tbl_invoice_line.quantity as a snapshot at invoice creation time."
+        }
+      ],
+      "indexes": [
+        "ix_sales_line_dgd(design_id, grade_id, header_id) — EXISTING from S2.",
+        "ix_sales_line_header(header_id) — EXISTING from S2. Services InvoiceService line fetch by header_id."
+      ],
+      "relationships": [
+        {
+          "type": "one_to_many",
+          "target": "tbl_sales_header",
+          "via": "header_id"
+        },
+        {
+          "type": "one_to_many",
+          "target": "tbl_invoice_line",
+          "via": "tbl_invoice_line.sales_line_id"
+        }
+      ],
+      "constraints": [],
+      "used_by_v2_files": [
+        "backend/src/application/services/invoice_service.py — fetches all lines for a sales_header_id; copies design_id, grade_id, nos into invoice_line snapshots at invoice creation"
+      ]
+    },
+
+    {
+      "name": "tbl_trading_design_master",
+      "hld_module": "M-001",
+      "type": "table",
+      "modification": "read_only_reuse_from_S1",
+      "feature_ref": ["F-015", "F-017"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "Existing PK. FK target for tbl_price_master.design_id. JOINed in InwardReportService for design_name + size projection. NOT modified."
+        },
+        {
+          "name": "design_name",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Existing — projected into InwardConsolidationRow.design_name + InwardTransactionRow.design_name. ORDER BY design_name ASC in InwardReportService (mirrors RULE-019 from SalesReportService)."
+        },
+        {
+          "name": "size",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Existing — projected into InwardConsolidationRow.size + InwardTransactionRow.size."
+        }
+      ],
+      "indexes": [],
+      "relationships": [],
+      "constraints": [],
+      "used_by_v2_files": [
+        "backend/src/application/services/inward_report_service.py — JOIN for design_name + size projection via lazy='joined' on InwardLineModel.design",
+        "backend/src/infrastructure/db/models/pricing.py — PriceMasterModel.design lazy='joined' relationship for design_name + size in PriceMasterRead"
+      ]
+    },
+
+    {
+      "name": "tbl_grade_master",
+      "hld_module": "M-001",
+      "type": "table",
+      "modification": "read_only_reuse_from_S1",
+      "feature_ref": ["F-015", "F-017"],
+      "fields": [
+        {
+          "name": "id",
+          "type": "BIGINT",
+          "nullable": false,
+          "description": "Existing PK. FK target for tbl_price_master.grade_id. JOINed in InwardReportService for grade_code projection. NOT modified."
+        },
+        {
+          "name": "grade_code",
+          "type": "TEXT",
+          "nullable": false,
+          "description": "Existing — UNIQUE per AC-011. Projected into InwardConsolidationRow.grade_code + InwardTransactionRow.grade_code. ORDER BY grade_code ASC in InwardReportService consolidation."
+        }
+      ],
+      "indexes": [],
+      "relationships": [],
+      "constraints": [],
+      "used_by_v2_files": [
+        "backend/src/application/services/inward_report_service.py — JOIN for grade_code projection",
+        "backend/src/infrastructure/db/models/pricing.py — PriceMasterModel.grade lazy='joined' for grade_code in PriceMasterRead"
+      ]
+    }
+
+  ],
+
+  "completeness_check": {
+    "every_lld_model_in_schema": true,
+    "every_schema_entity_in_lld": true,
+    "lld_persistence_files_audited": [
+      "backend/src/infrastructure/db/models/auth.py → tbl_user_master",
+      "backend/src/infrastructure/db/models/pricing.py → tbl_price_master + tbl_invoice_header + tbl_invoice_line + tbl_payment",
+      "backend/src/infrastructure/db/repositories/auth.py → tbl_user_master (reads via UserRepository)",
+      "backend/src/infrastructure/db/repositories/pricing.py → tbl_price_master + tbl_invoice_header + tbl_invoice_line + tbl_payment (PriceMasterRepository + InvoiceRepository + PaymentRepository)",
+      "backend/src/application/services/auth_service.py → tbl_user_master (via UserRepository)",
+      "backend/src/application/services/inward_report_service.py → tbl_inward_header + tbl_inward_line + tbl_supplier_master + tbl_trading_design_master + tbl_grade_master (reads only)",
+      "backend/src/application/services/pricing_service.py → tbl_price_master (via PriceMasterRepository)",
+      "backend/src/application/services/invoice_service.py → tbl_invoice_header + tbl_invoice_line + tbl_payment + tbl_sales_header + tbl_sales_line (via InvoiceRepository + PaymentRepository + TransactionRepository)",
+      "backend/db/migrations/versions/0004_v2_auth_pricing_tables.py → all 5 new tables (DDL create + downgrade drop)"
+    ],
+    "lld_non_persistence_files_excluded": [
+      "presentation/schemas/auth.py — Pydantic only",
+      "presentation/schemas/inward_report.py — Pydantic only",
+      "presentation/schemas/pricing.py — Pydantic only",
+      "presentation/api/routers/auth.py — HTTP routing only",
+      "presentation/api/routers/users.py — HTTP routing only",
+      "presentation/api/routers/inward_report.py — HTTP routing only",
+      "presentation/api/routers/report_export.py — HTTP routing only",
+      "presentation/api/routers/pricing.py — HTTP routing only",
+      "presentation/api/routers/invoices.py — HTTP routing only",
+      "presentation/api/dependencies.py — DI wiring only",
+      "backend/src/main.py — FastAPI wiring only",
+      "backend/src/domain/auth.py — pure functions, no DB I/O",
+      "backend/src/domain/invoice.py — pure functions, no DB I/O",
+      "backend/src/infrastructure/exporters/pdf_exporter.py — stateless, receives schema objects, no DB I/O",
+      "backend/src/infrastructure/exporters/excel_exporter.py — stateless, receives schema objects, no DB I/O",
+      "backend/src/application/services/report_export_service.py — orchestration only, delegates to report services + exporters",
+      "backend/scripts/seed_default_user.py — one-shot post-migration script, not a production persistence layer file"
+    ],
+    "entity_count": 12,
+    "new_entity_count": 5,
+    "modified_entity_count": 0,
+    "read_only_reused_count": 7,
+    "feature_count": 7,
+    "module_count": 4,
+    "indexes_added": 5,
+    "indexes_reused": 8,
+    "cross_sprint_read_tables": [
+      "tbl_inward_header (S2) — first time read by a report service; M-009 InwardReportService is the new reader",
+      "tbl_inward_line (S2) — first time read by a report service; M-009 InwardReportService is the new reader",
+      "tbl_sales_header (S2, also in S3 schema) — additional reader in V2: M-011 InvoiceService + M-010 export via SalesReportService",
+      "tbl_sales_line (S2, also in S3 schema) — additional reader in V2: M-011 InvoiceService (line snapshot copies)",
+      "tbl_supplier_master (S1) — first time read outside M-001 CRUD; M-009 InwardReportService reads supplier_name",
+      "tbl_trading_design_master (S1, also in S3 schema) — additional readers in V2: M-009 (inward report) + M-011 (price master lazy join)",
+      "tbl_grade_master (S1, also in S3 schema) — additional readers in V2: M-009 (inward report) + M-011 (price master lazy join)"
+    ]
+  },
+
+  "migration_plan": {
+    "revision_id": "0004_v2_auth_pricing_tables",
+    "down_revision": "0003_tx_ledger",
+    "reason": "S3 introduced no schema changes. The last migration was 0003 (S2: transaction tables + stock ledger). V2 is the first schema-modifying sprint after S3.",
+    "operations_in_order": [
+      "CREATE TABLE tbl_user_master (id, username, password_hash, role, is_active, created_at)",
+      "CREATE INDEX ix_user_master_username ON tbl_user_master(username)",
+      "CREATE TABLE tbl_price_master (id, design_id, grade_id, unit_price, effective_from, is_active, created_at)",
+      "CREATE UNIQUE CONSTRAINT uq_price_design_grade_effective ON tbl_price_master(design_id, grade_id, effective_from)",
+      "CREATE TABLE tbl_invoice_header (id, invoice_number, sales_header_id, invoice_date, total_amount, status, created_at)",
+      "CREATE UNIQUE INDEX on tbl_invoice_header(invoice_number)",
+      "CREATE UNIQUE INDEX on tbl_invoice_header(sales_header_id)",
+      "CREATE INDEX ix_invoice_header_invoice_date ON tbl_invoice_header(invoice_date)",
+      "CREATE TABLE tbl_invoice_line (id, invoice_header_id, sales_line_id, design_id, grade_id, quantity, unit_price, line_total, created_at)",
+      "CREATE UNIQUE INDEX on tbl_invoice_line(sales_line_id)",
+      "CREATE INDEX ix_invoice_line_header ON tbl_invoice_line(invoice_header_id)",
+      "CREATE TABLE tbl_payment (id, invoice_header_id, payment_date, amount, notes, created_at)",
+      "CREATE INDEX ix_payment_invoice_header ON tbl_payment(invoice_header_id)"
+    ],
+    "downgrade_order": [
+      "DROP TABLE tbl_payment",
+      "DROP TABLE tbl_invoice_line",
+      "DROP TABLE tbl_invoice_header",
+      "DROP TABLE tbl_price_master",
+      "DROP TABLE tbl_user_master"
+    ],
+    "post_migration_script": "backend/scripts/seed_default_user.py — inserts default admin SUPERVISOR user (username=admin, password=admin123). Idempotent — no-ops if admin already exists. Run once after alembic upgrade head on a fresh or migrated database. Print warning to change password on first login.",
+    "rationale": "Creation order respects FK constraints: tbl_user_master is standalone (no FK to existing tables). tbl_price_master depends on tbl_trading_design_master + tbl_grade_master (S1 — already in place). tbl_invoice_header depends on tbl_sales_header (S2 — already in place). tbl_invoice_line depends on tbl_invoice_header (created immediately before it) + tbl_sales_line (S2). tbl_payment depends on tbl_invoice_header. Downgrade order is strict reverse FK order."
+  },
+
+  "indexes_in_play_summary": [
+    {
+      "index": "ix_user_master_username ON tbl_user_master(username)",
+      "sprint_added": "V2",
+      "v2_uses": [
+        "UserRepository.get_by_username — called on every login (POST /auth/login) and every authenticated request (get_current_user fetches by JWT sub)",
+        "AuthService.create_user uniqueness check"
+      ]
+    },
+    {
+      "index": "uq_price_design_grade_effective UNIQUE ON tbl_price_master(design_id, grade_id, effective_from)",
+      "sprint_added": "V2",
+      "v2_uses": [
+        "PriceMasterRepository.get_active_price — WHERE design_id=X AND grade_id=G AND is_active=true AND effective_from <= today ORDER BY effective_from DESC LIMIT 1 (index prefix design_id, grade_id narrows; effective_from range scans in DESC order)",
+        "PricingService.create_price uniqueness pre-check before insert"
+      ]
+    },
+    {
+      "index": "ix_invoice_header_invoice_date ON tbl_invoice_header(invoice_date)",
+      "sprint_added": "V2",
+      "v2_uses": [
+        "InvoiceRepository.list — optional date_from/date_to filter on GET /invoices"
+      ]
+    },
+    {
+      "index": "ix_invoice_line_header ON tbl_invoice_line(invoice_header_id)",
+      "sprint_added": "V2",
+      "v2_uses": [
+        "InvoiceRepository.get — joinedload of all lines for an invoice",
+        "InvoiceRepository.create_with_lines — flush verification of created lines"
+      ]
+    },
+    {
+      "index": "ix_payment_invoice_header ON tbl_payment(invoice_header_id)",
+      "sprint_added": "V2",
+      "v2_uses": [
+        "InvoiceRepository.get — joinedload of all payments for an invoice",
+        "InvoiceService.record_payment — loads all existing payments to sum against total_amount before recording"
+      ]
+    },
+    {
+      "index": "ix_inward_header_purchase_date — EXISTING from S2",
+      "sprint_added": "S2",
+      "v2_uses": ["InwardReportService date_from/date_to filter (M-009)"]
+    },
+    {
+      "index": "ix_inward_header_supplier — EXISTING from S2",
+      "sprint_added": "S2",
+      "v2_uses": ["InwardReportService supplier_ids IN filter (M-009)"]
+    },
+    {
+      "index": "ix_inward_line_dgd(design_id, grade_id, header_id) — EXISTING from S2",
+      "sprint_added": "S2",
+      "v2_uses": ["InwardReportService GROUP BY design_id, grade_id in consolidation; design_ids IN filter (M-009)"]
+    },
+    {
+      "index": "ix_inward_line_header(header_id) — EXISTING from S2",
+      "sprint_added": "S2",
+      "v2_uses": ["InwardReportService JOIN tbl_inward_header (M-009)"]
+    },
+    {
+      "index": "ix_sales_header_sales_date — EXISTING from S2",
+      "sprint_added": "S2",
+      "v2_uses": ["InvoiceRepository.list date filter (M-011 via JOIN tbl_sales_header)"]
+    },
+    {
+      "index": "ix_sales_header_dealer — EXISTING from S2",
+      "sprint_added": "S2",
+      "v2_uses": ["InvoiceRepository.list dealer_id filter (M-011 via JOIN tbl_sales_header)"]
+    },
+    {
+      "index": "ix_sales_line_header(header_id) — EXISTING from S2",
+      "sprint_added": "S2",
+      "v2_uses": ["InvoiceService.create_from_sales — fetch all sales lines by header_id (M-011)"]
+    },
+    {
+      "index": "ix_sales_line_dgd(design_id, grade_id, header_id) — EXISTING from S2",
+      "sprint_added": "S2",
+      "v2_uses": ["Continued S3 Sales Report use; no new V2 direct use (InvoiceService accesses by header_id not design/grade)"]
+    }
+  ],
+
+  "next": "/ases-test-spec V2"
+}

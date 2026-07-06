@@ -90,7 +90,20 @@
       "Skill(ases-system-test:*)",
       "Bash(.venv/Scripts/python.exe -m pytest tests/system/ -v --tb=short)",
       "Skill(ases-uat)",
-      "Skill(ases-uat:*)"
+      "Skill(ases-uat:*)",
+      "Skill(ases-final-audit)",
+      "Skill(ases-final-audit:*)",
+      "Skill(ases-release)",
+      "Skill(ases-release:*)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git restore *)",
+      "Bash(python -c \"import json,sys; r=json.load\\(sys.stdin\\); [print\\(json.dumps\\(s, indent=2\\)\\) for s in r.get\\('sprints',[]\\) if s.get\\('id'\\) in \\('V2','S4'\\)]\")",
+      "Skill(ases-lld)",
+      "Skill(ases-lld:*)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
+      "Skill(ases-schema)",
+      "Skill(ases-schema:*)"
     ],
     "deny": [
       "Write(./.env)",

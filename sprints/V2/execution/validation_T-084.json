@@ -1,0 +1,66 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "task_id": "T-084",
+  "sprint_id": "V2",
+  "validated_at": "2026-07-04",
+  "verdict": "PROCEED",
+
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "detail": "All 4 files in reads_from[] exist on disk with full implementations.",
+      "files_checked": [
+        { "path": "backend/src/infrastructure/db/repositories/pricing.py", "exists": true },
+        { "path": "backend/src/infrastructure/db/repositories/transactions.py", "exists": true },
+        { "path": "backend/src/domain/invoice.py", "exists": true },
+        { "path": "backend/src/presentation/schemas/pricing.py", "exists": true }
+      ]
+    },
+
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[19]",
+      "detail": "All expected exports verified present in source files.",
+      "contracts_verified": [
+        {
+          "file": "backend/src/infrastructure/db/repositories/pricing.py",
+          "task_ref": "T-080",
+          "expected_exports": ["PriceMasterRepository", "InvoiceRepository", "PaymentRepository"],
+          "confirmed": true,
+          "key_methods": ["PriceMasterRepository.get_active_price", "InvoiceRepository.create_with_lines", "InvoiceRepository.list", "InvoiceRepository.get", "PaymentRepository.create"]
+        },
+        {
+          "file": "backend/src/presentation/schemas/pricing.py",
+          "task_ref": "T-082",
+          "expected_exports": ["PriceMasterCreate", "PriceMasterRead", "PriceMasterUpdate", "InvoiceLineRead", "PaymentRead", "PaymentCreate", "InvoiceRead", "InvoiceSummary"],
+          "confirmed": true
+        },
+        {
+          "file": "backend/src/domain/invoice.py",
+          "task_ref": "T-081",
+          "expected_exports": ["compute_line_total", "compute_invoice_total", "compute_invoice_status", "generate_invoice_number"],
+          "confirmed": true
+        }
+      ]
+    },
+
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "detail": "No other task writes to backend/src/application/services/invoice_service.py. No tasks are in_progress. T-084 is the sole owner of that output file."
+    },
+
+    "no_circular_dependency": {
+      "status": "PASS",
+      "detail": "All 4 upstream dependencies are marked complete in tasks.json.",
+      "dependency_status": [
+        { "task": "T-079", "file": "backend/src/infrastructure/db/models/pricing.py", "status": "complete", "blocking": false },
+        { "task": "T-080", "file": "backend/src/infrastructure/db/repositories/pricing.py", "status": "complete", "blocking": false },
+        { "task": "T-081", "file": "backend/src/domain/invoice.py", "status": "complete", "blocking": false },
+        { "task": "T-082", "file": "backend/src/presentation/schemas/pricing.py", "status": "complete", "blocking": false }
+      ]
+    }
+  },
+
+  "next": "/ases-dev T-084 V2"
+}

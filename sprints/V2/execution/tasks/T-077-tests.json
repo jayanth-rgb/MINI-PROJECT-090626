@@ -1,0 +1,6 @@
+{
+  "task_id": "T-077",
+  "test_case_refs": ["TC-195", "TC-196", "TC-197"],
+  "priority": "critical",
+  "notes": "All 3 TCs are integration tests requiring PostgreSQL (testcontainers). TC-195: seed 3 inward lines across 2 suppliers+2 designs; generate() with no filters; assert sum(transactions.nos)==sum(consolidation.total_nos)==225, transaction_count=3, consolidation_count=3. TC-196: seed 2 inward lines on different dates; generate(date_from=2026-07-02, date_to=2026-07-02); assert transaction_count=1, transactions[0].nos=75, reconciliation holds. TC-197: seed 2 designs (16X10 Ridges, 12X8 Ridges) + 2 lines; generate(); assert consolidation[0].design_name='12X8 Ridges' (ASC order), transactions[0].purchase_date=2026-07-01 (ASC date order)."
+}

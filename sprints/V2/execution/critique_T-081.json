@@ -1,0 +1,70 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "task_id": "T-081",
+  "sprint_id": "V2",
+  "iteration": 1,
+  "issues_remaining": 0,
+  "verdict": "CLEAN",
+  "produced_by": "/ases-critique T-081 V2",
+  "timestamp": "2026-07-03",
+
+  "decisions_read": ["DS-007", "DS-022", "DS-023"],
+  "adr_tradeoffs_noted": [],
+
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "findings": [
+        {
+          "id": "OBS-001",
+          "severity": "observation",
+          "is_adr_tradeoff": false,
+          "description": "compute_invoice_status uses `paid_sum <= 0` to return 'PENDING', but the plan spec says `paid_sum == 0 → 'PENDING'`. The deviation affects only negative paid_sum values, which are unreachable at runtime because PaymentCreate schema enforces `amount gt=0`. All 3 TC-181/182/183 test cases pass identically.",
+          "location": "backend/src/domain/invoice.py:28",
+          "fix_instruction": "No fix required — negative paid_sum is schema-blocked upstream (PaymentCreate amount gt=0). The `<= 0` guard is a defensive improvement with no incorrect observable behaviour. Flagged as observation only.",
+          "fix_required": false
+        }
+      ]
+    },
+    "contract": {
+      "status": "PASS",
+      "findings": []
+    },
+    "test": {
+      "status": "PASS",
+      "findings": [],
+      "tc_results": [
+        { "tc": "TC-176", "result": "PASS", "note": "compute_line_total(10, Decimal('150.00')) = Decimal('1500.00')" },
+        { "tc": "TC-177", "result": "PASS", "note": "compute_line_total(0, ...) raises ValueError" },
+        { "tc": "TC-178", "result": "PASS", "note": "compute_line_total(5, Decimal('-10.00')) raises ValueError" },
+        { "tc": "TC-179", "result": "PASS", "note": "compute_invoice_total([100.00, 200.50, 50.25]) = Decimal('350.75')" },
+        { "tc": "TC-180", "result": "PASS", "note": "compute_invoice_total([]) raises ValueError" },
+        { "tc": "TC-181", "result": "PASS", "note": "compute_invoice_status(1000.00, []) = 'PENDING'" },
+        { "tc": "TC-182", "result": "PASS", "note": "compute_invoice_status(1000.00, [400.00]) = 'PARTIAL'" },
+        { "tc": "TC-183", "result": "PASS", "note": "compute_invoice_status(1000.00, [600.00, 400.00]) = 'PAID'" },
+        { "tc": "TC-184", "result": "PASS", "note": "generate_invoice_number(date(2026,7,2), 42) = 'INV-20260702-00042'" }
+      ]
+    },
+    "security": {
+      "status": "PASS",
+      "findings": []
+    },
+    "structural": {
+      "status": "SKIPPED",
+      "reason": "Pure 4-function domain file with no external dependencies. No graph.json analysis required."
+    }
+  },
+
+  "summary": {
+    "total_findings": 0,
+    "blocking_findings": 0,
+    "observations": 1,
+    "all_tcs_pass": true,
+    "scope_violation": false,
+    "layer_violation": false,
+    "exports_match_lld": true,
+    "no_io": true,
+    "no_sqlalchemy": true
+  }
+}

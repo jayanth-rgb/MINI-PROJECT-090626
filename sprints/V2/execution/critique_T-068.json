@@ -1,0 +1,74 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "task_id": "T-068",
+  "sprint_id": "V2",
+  "file_reviewed": "backend/src/domain/auth.py",
+  "iteration": 1,
+  "produced_by": "/ases-critique T-068 V2",
+  "timestamp": "2026-07-02",
+  "decisions_read_first": ["DS-005", "DS-007", "DS-018", "DS-019"],
+  "adr_tradeoffs_present": [],
+
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "notes": [
+        "Exactly 4 exported functions: get_password_hash, verify_password, create_access_token, decode_access_token.",
+        "No class definitions, no SQLAlchemy imports, no HTTP imports.",
+        "get_password_hash: _pwd_context.hash(plain_password) via CryptContext(schemes=['bcrypt']) — matches plan.",
+        "verify_password: _pwd_context.verify() — passlib bcrypt is constant-time; matches plan definition-of-done.",
+        "create_access_token: reads SECRET_KEY via os.getenv; raises ValueError if missing (matches LLD raises[]); reads ACCESS_TOKEN_EXPIRE_HOURS with 8h fallback (matches DS-018); encodes with HS256; merges data dict with exp claim — all correct.",
+        "decode_access_token: catches JWTError only (not explicitly ExpiredSignatureError). NOT a defect: python-jose's ExpiredSignatureError is a subclass of JWTError, so the single catch covers both. Simpler code, same semantics.",
+        "decode_access_token uses empty-string SECRET_KEY fallback when env var absent — safe: tokens signed with a real key will fail jwt.decode with '' secret → JWTError → None. Asymmetry with create_access_token (which raises ValueError) is intentional and correct."
+      ],
+      "issues": []
+    },
+    "contract": {
+      "status": "PASS",
+      "notes": [
+        "All 4 function signatures match LLD interfaces[2] exactly.",
+        "depends_on: [] in both plan and LLD — only stdlib (datetime, os) and third-party (jose, passlib) imports; zero project-level imports. No layer violations.",
+        "Downstream T-071 (auth_service.py) expects domain.auth.* — all 4 functions available.",
+        "T-075 (seed_default_user.py) expects domain.auth.get_password_hash — available.",
+        "Module-level _pwd_context singleton is correct — creating a new CryptContext per call would be wasteful; passlib CryptContext is thread-safe."
+      ],
+      "issues": []
+    },
+    "test": {
+      "status": "PASS",
+      "notes": [
+        "TC-171: verify_password(matching) → True. _pwd_context.verify returns True. SATISFIABLE.",
+        "TC-172: verify_password(mismatching) → False. bcrypt compare fails safely. SATISFIABLE.",
+        "TC-173: create_access_token returns JWT with sub/role in payload, exp in future. data.copy() merges exp; SECRET_KEY env var must be set in test setup — standard pytest fixture concern, not a code defect. SATISFIABLE.",
+        "TC-174: expired token (timedelta(seconds=-1)) → decode returns None. ExpiredSignatureError ⊆ JWTError → caught → None. SATISFIABLE.",
+        "TC-175: malformed token string → decode returns None. JWTError → caught → None. SATISFIABLE.",
+        "All 5 test cases satisfiable without any code change."
+      ],
+      "issues": []
+    },
+    "security": {
+      "status": "PASS",
+      "notes": [
+        "No hardcoded secrets — SECRET_KEY sourced exclusively from os.getenv.",
+        "bcrypt via passlib CryptContext — industry standard for password hashing.",
+        "Constant-time password comparison — passlib CryptContext.verify() uses hmac.compare_digest internally.",
+        "Algorithm pinned in both encode (algorithm='HS256') and decode (algorithms=['HS256']) — prevents none-algorithm and RS256/HS256 confusion attacks.",
+        "decode_access_token never raises to callers — fail-safe None return on any JWTError.",
+        "secret_key is a local variable in each function call — not module-level, not logged, not leaked."
+      ],
+      "issues": []
+    },
+    "structural": {
+      "status": "SKIP",
+      "reason": "Pure domain file with zero project imports. Call-graph reachability is guaranteed by contract — all 4 functions are explicitly consumed by T-071 and T-075 dependents. No orphaned functions."
+    }
+  },
+
+  "issues": [],
+  "issues_remaining": 0,
+  "previous_issues_remaining": null,
+
+  "verdict": "CLEAN",
+  "verdict_rationale": "All four lenses pass. Implementation matches spec, satisfies TC-171..TC-175, correct contract exports, no security vulnerabilities. No issues found."
+}

@@ -1,0 +1,265 @@
+{
+  "$schema": "ases/v3.0/integration_scenarios",
+  "sprint_id": "V2",
+  "produced_by": "/ases-integration-test V2 Step A",
+  "designed_at": "2026-07-06",
+  "scope_modules": ["M-008", "M-009", "M-010", "M-011"],
+  "scope_features": ["F-013", "F-014", "F-015", "F-016", "F-017", "F-018", "F-019"],
+  "hld_data_flows_covered": [
+    "DF-006 (with V2 auth overlay)",
+    "V2 DF-Auth (M-006 → M-008 login → protected route)",
+    "V2 DF-Invoice (M-002 Sales → M-011 Invoicing → Payment)",
+    "V2 DF-InwardReport (M-002 inward writes → M-009 read)",
+    "V2 DF-Export (M-005/M-009 → M-010)",
+    "V2 DF-PriceSnapshot (M-011 immutable unit_price per DS-022)",
+    "V2 DF-Users (M-008 SUPERVISOR CRUD → role gate)"
+  ],
+  "cross_sprint_flows_covered": [
+    "S2 (M-002 Sales) → V2 (M-011 Invoice/Payment)",
+    "S2 (M-002 Inward) → V2 (M-009 Inward Report → M-010 Export)",
+    "S3 (M-005 Sales Report) → V2 (M-010 Export)"
+  ],
+  "notes": [
+    "V2 introduces four new modules with cross-sprint dependencies. Per-module HTTP behaviour is already covered by the /ases-test-impl V2 integration suite (tests/integration/v2/). These scenarios focus on multi-endpoint / multi-module flows that no single test_case_ref exercises.",
+    "All V2 endpoints require authentication per DS-025. Scenarios that exercise V1 endpoints reuse the client fixture default SUPERVISOR JWT from backend/tests/conftest.py; scenarios that assert role gating construct STAFF/SUPERVISOR tokens explicitly via v2._helpers.bearer.",
+    "Dates in Sales/Inward writes are computed relative to date.today() per the S3 IS-011/IS-012 lesson: the AC-021 7-day back-date guard rejects hard-coded 2026-06-05 fixtures once real time drifts past the window. Reports/Invoices use the same relative dates for consistency.",
+    "The Docker daemon requirement (INFRA-001) applies — testcontainers Postgres 16 is spun once per pytest session per conftest.py."
+  ],
+  "scenarios": [
+    {
+      "id": "IS-013",
+      "title": "DF-Auth: login → /auth/me → V1 protected endpoint round-trip through real HTTP",
+      "modules": ["M-008", "M-001"],
+      "priority": "critical",
+      "entry_point": "POST /api/v1/auth/login → GET /api/v1/auth/me → GET /api/v1/suppliers",
+      "flow": [
+        "Seed a SUPERVISOR user directly via UserModel (username='integ_admin', password='integ-pass-13', role='SUPERVISOR', is_active=True) using v2._helpers.seed_user",
+        "Use the unauthenticated_client fixture (no default Bearer header) so the login step is not shortcut by the conftest default JWT",
+        "STEP 1 — POST /api/v1/auth/login with application/x-www-form-urlencoded body (DS-024 / RFC 6749 §4.3.2): data={'username': 'integ_admin', 'password': 'integ-pass-13'}",
+        "  • Expect 200 + TokenResponse: access_token (non-empty str), token_type='bearer', role='SUPERVISOR'",
+        "STEP 2 — GET /api/v1/auth/me with Authorization: Bearer <token from step 1>",
+        "  • Expect 200 + UserRead: id (int), username='integ_admin', role='SUPERVISOR', is_active=True",
+        "STEP 3 — GET /api/v1/suppliers with same Bearer token",
+        "  • Expect 200 + list (empty since no supplier seeded — asserts the V1 endpoint is reachable through auth guard)",
+        "STEP 4 — repeat STEP 3 with no Authorization header",
+        "  • Expect 401 + WWW-Authenticate: Bearer (per DS-025, superseding DS-005)"
+      ],
+      "test_data": {
+        "seed_user": {"username": "integ_admin", "password": "integ-pass-13", "role": "SUPERVISOR"},
+        "login_body_encoding": "application/x-www-form-urlencoded",
+        "expected_role": "SUPERVISOR"
+      },
+      "exit_assertion": "All 4 steps behave as specified. Step 1 returns 200 with a valid JWT that decodes to sub='integ_admin', role='SUPERVISOR'. Step 2 returns UserRead matching seed. Step 3 returns 200 (guard passes). Step 4 returns 401 with WWW-Authenticate header (guard rejects). Verifies that the DS-025 route-level Depends(get_current_user) applied on all 11 V1 routers is behaviourally equivalent to mount-level dependencies for legitimate and rejected requests."
+    },
+    {
+      "id": "IS-014",
+      "title": "DF-Invoice: S2 sale → V2 invoice → V2 payments — full PENDING → PARTIAL → PAID lifecycle through HTTP",
+      "modules": ["M-001", "M-002", "M-011"],
+      "priority": "critical",
+      "entry_point": "POST /api/v1/prices → POST /api/v1/sales → POST /api/v1/invoices?sales_header_id → POST /api/v1/invoices/{id}/payments (×2) → GET /api/v1/invoices/{id}",
+      "flow": [
+        "Seed master (via v2._helpers): 1 design (D1='16X10 Ridges', size='16X10'), 1 grade (G1 code='1'), 1 active DesignGradeMap pair, 1 dealer, 1 staff",
+        "Compute sale_date = date.today() - timedelta(days=1) (within AC-021 7-day window)",
+        "STEP 1 — POST /api/v1/prices (SUPERVISOR — use default client fixture): {design_id:1, grade_id:1, unit_price:'150.00', effective_from: sale_date}. Expect 201 PriceMasterRead.",
+        "STEP 2 — POST /api/v1/sales: {sales_date: sale_date, dealer_id:1, place:'Mysuru', entered_by_staff_id:1, verified_by_staff_id:1, lines:[{design_id:1, grade_id:1, nos:10}]}. Capture sales_header_id from response.",
+        "STEP 3 — POST /api/v1/invoices?sales_header_id={captured_id}. Expect 201 InvoiceRead with total_amount == '1500.00', status='PENDING', 1 line with unit_price='150.00', quantity=10, line_total='1500.00'.",
+        "STEP 4 — POST /api/v1/invoices/{invoice_id}/payments: {payment_date: today, amount:'600.00', notes:'first tranche'}. Expect 201; response status='PARTIAL'; payments length=1.",
+        "STEP 5 — GET /api/v1/invoices/{invoice_id}. Expect 200; status='PARTIAL'; total_amount='1500.00'; sum(payments.amount)=600.00.",
+        "STEP 6 — POST /api/v1/invoices/{invoice_id}/payments: {payment_date: today, amount:'900.00'}. Expect 201; response status='PAID'; payments length=2.",
+        "STEP 7 — GET /api/v1/invoices/{invoice_id}. Expect 200; status='PAID'; sum(payments.amount)=1500.00.",
+        "STEP 8 — POST /api/v1/invoices?sales_header_id={captured_id} again. Expect 409 (duplicate — UNIQUE(sales_header_id) per DS-023).",
+        "STEP 9 — POST /api/v1/invoices/{invoice_id}/payments: {amount:'1.00'}. Expect 422 (overpayment guard per TC-206)."
+      ],
+      "test_data": {
+        "design": {"design_id": 1, "size": "16X10", "design_name": "16X10 Ridges"},
+        "grade": {"grade_id": 1, "grade_code": "1"},
+        "unit_price": "150.00",
+        "sale_line_nos": 10,
+        "expected_total": "1500.00",
+        "partial_payment": "600.00",
+        "final_payment": "900.00"
+      },
+      "exit_assertion": "Full lifecycle green. Expected transitions: create → PENDING; partial payment → PARTIAL; full payment → PAID. Snapshot invariant: invoice line unit_price equals PriceMaster unit_price at creation time. Duplicate create returns 409. Overpayment returns 422 (T-084 guard). All through real HTTP with SUPERVISOR default JWT — verifies M-002/M-011 composition and the full DS-022 + DS-023 contracts."
+    },
+    {
+      "id": "IS-015",
+      "title": "DF-InwardReport: S2 inward writes → V2 GET /reports/inward with filters returns reconciled dual payload",
+      "modules": ["M-001", "M-002", "M-009"],
+      "priority": "critical",
+      "entry_point": "POST /api/v1/inward (×3) → GET /api/v1/reports/inward?date_from&date_to&supplier_ids&places",
+      "flow": [
+        "Seed master: 2 designs (D1='16X10 Ridges' 16X10, D2='12X8 Ridges' 12X8), 2 grades (G1 code='1', G2 code='2'), 4 active DesignGradeMap pairs, 2 suppliers (S1='Manjunatha' @ 'Mallur', S2='Ravi Traders' @ 'Bengaluru'), 1 staff",
+        "Compute inward_date_a = today - 1d, inward_date_b = today - 2d (both within AC-021 7-day window)",
+        "STEP 1 — POST /api/v1/inward: {purchase_date: inward_date_a, supplier_id:1, place:'Mallur', entered_by_staff_id:1, lines:[{design_id:1, grade_id:1, nos:20}, {design_id:1, grade_id:2, nos:10}]}. Expect 201.",
+        "STEP 2 — POST /api/v1/inward: {purchase_date: inward_date_a, supplier_id:1, place:'Mallur', entered_by_staff_id:1, lines:[{design_id:2, grade_id:1, nos:5}]}. Expect 201.",
+        "STEP 3 — POST /api/v1/inward: {purchase_date: inward_date_b, supplier_id:2, place:'Bengaluru', entered_by_staff_id:1, lines:[{design_id:1, grade_id:1, nos:15}]}. Expect 201.  ← will be excluded by supplier filter",
+        "STEP 4 — GET /api/v1/reports/inward?supplier_ids=1&places=Mallur (no date filter). Expect 200 with consolidation + transactions keys.",
+        "  • transactions length=3 (2 lines from post 1 + 1 line from post 2)",
+        "  • consolidation length=3: (D1,G1)=20, (D1,G2)=10, (D2,G1)=5",
+        "  • sum(transactions.nos) == sum(consolidation.total_nos) == 35 (AC-050 mirror asserted in InwardReportService.generate per DS-017)",
+        "  • Bengaluru inward from step 3 absent from both sections",
+        "  • consolidation ordered by design_name ASC then grade_code ASC (RULE-019 mirror)",
+        "  • transactions ordered by purchase_date ASC",
+        "STEP 5 — GET /api/v1/reports/inward (no filters). Expect 200; transactions length=4; consolidation sums to 50; Bengaluru row now present."
+      ],
+      "test_data": {
+        "suppliers": [
+          {"id": 1, "name": "Manjunatha", "place": "Mallur"},
+          {"id": 2, "name": "Ravi Traders", "place": "Bengaluru"}
+        ],
+        "designs": [
+          {"id": 1, "name": "16X10 Ridges", "size": "16X10"},
+          {"id": 2, "name": "12X8 Ridges", "size": "12X8"}
+        ],
+        "grades": [{"id": 1, "code": "1"}, {"id": 2, "code": "2"}],
+        "expected_filtered_reconciliation": 35,
+        "expected_unfiltered_reconciliation": 50
+      },
+      "exit_assertion": "Filtered call (step 4) returns exactly 3 transactions + 3 consolidation groups with reconciliation sum 35 and correct sort. Unfiltered call (step 5) includes all 4 lines with reconciliation sum 50. Bengaluru inward is filtered out in step 4 but present in step 5 — proves the shared filter predicate (DS-017) applies uniformly to both sections and that no filter equals full dataset (RULE-018 mirror). Verifies M-002 write → M-009 read composition through the auth-guarded HTTP stack."
+    },
+    {
+      "id": "IS-016",
+      "title": "DF-Export: Sales Report + Inward Report → GET /reports/{sales,inward}/export streams PDF and XLSX with correct magic bytes",
+      "modules": ["M-002", "M-005", "M-009", "M-010"],
+      "priority": "high",
+      "entry_point": "POST /api/v1/inward → POST /api/v1/sales → GET /api/v1/reports/sales/export?format={pdf,xlsx} + GET /api/v1/reports/inward/export?format={pdf,xlsx}",
+      "flow": [
+        "Seed master: 1 supplier, 1 dealer, 2 staff, 1 design, 1 grade, 1 active pair",
+        "POST /api/v1/inward with 1 line nos=25 (date=today-1d). Expect 201.",
+        "POST /api/v1/sales with 1 line nos=10 (date=today-1d). Expect 201.",
+        "STEP 1 — GET /api/v1/reports/sales/export?format=pdf. Expect 200. Content-Type = 'application/pdf'. Body starts with b'%PDF-' (PDF magic bytes). Content-Disposition contains 'attachment; filename=sales_report_' and '.pdf'.",
+        "STEP 2 — GET /api/v1/reports/sales/export?format=xlsx. Expect 200. Content-Type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'. Body starts with b'PK\\x03\\x04' (ZIP magic — XLSX is a ZIP archive). Content-Disposition contains 'sales_report_' and '.xlsx'.",
+        "STEP 3 — GET /api/v1/reports/inward/export?format=pdf. Expect 200 + PDF magic + filename 'inward_report_*.pdf'.",
+        "STEP 4 — GET /api/v1/reports/inward/export?format=xlsx. Expect 200 + XLSX magic + filename 'inward_report_*.xlsx'. Verify sheet names by opening with openpyxl.load_workbook(BytesIO(response.content)) — sheets ['Consolidation', 'Transactions'] present.",
+        "STEP 5 — GET /api/v1/reports/sales/export?format=csv. Expect 422 (Query pattern '^(pdf|xlsx)$' rejects unknown format at FastAPI validation layer)."
+      ],
+      "test_data": {
+        "inward_nos": 25,
+        "sales_nos": 10,
+        "expected_pdf_content_type": "application/pdf",
+        "expected_xlsx_content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "pdf_magic": "%PDF-",
+        "xlsx_magic_hex": "504b0304"
+      },
+      "exit_assertion": "Both formats stream successfully for both report types (4 successful exports). Magic-byte checks confirm actual binary content (not just a plausible content-type header). openpyxl round-trips the XLSX and sees both sheets (Consolidation + Transactions per T-086 spec). Invalid format returns 422 (route-level Query pattern), not 400 — this is FastAPI's validation layer rejecting before ReportExportService.export_* is called."
+    },
+    {
+      "id": "IS-017",
+      "title": "DF-Users: SUPERVISOR creates STAFF → STAFF login → STAFF hits SUPERVISOR-only endpoint gets 403 → SUPERVISOR promotes STAFF → new token now succeeds",
+      "modules": ["M-008"],
+      "priority": "high",
+      "entry_point": "POST /api/v1/users → POST /api/v1/auth/login → POST /api/v1/prices (403) → PATCH /api/v1/users/{id} → login again → POST /api/v1/prices (201)",
+      "flow": [
+        "Seed no user directly — use the default client fixture's SUPERVISOR JWT for admin steps.",
+        "Seed master (1 design, 1 grade, 1 pair) so the /prices POST payload is FK-valid.",
+        "STEP 1 — POST /api/v1/users: {username:'jane_staff', password:'staff-pass-01', role:'STAFF'} with default SUPERVISOR JWT. Expect 201; response role='STAFF'; capture user_id.",
+        "STEP 2 — POST /api/v1/auth/login (unauthenticated_client) form data={'username':'jane_staff','password':'staff-pass-01'}. Expect 200; role='STAFF'; capture staff_token.",
+        "STEP 3 — POST /api/v1/prices with Authorization: Bearer {staff_token} — body {design_id:1, grade_id:1, unit_price:'99.00', effective_from: today}. Expect 403 (require_supervisor rejects STAFF role per DS-019).",
+        "STEP 4 — PATCH /api/v1/users/{user_id}: {role:'SUPERVISOR'} with default SUPERVISOR JWT. Expect 200; response role='SUPERVISOR'.",
+        "STEP 5 — POST /api/v1/auth/login again for jane_staff. Expect 200; role='SUPERVISOR' in fresh token payload.",
+        "STEP 6 — POST /api/v1/prices with the FRESH jane_staff Bearer. Expect 201 (now allowed).",
+        "STEP 7 — DELETE /api/v1/users/{user_id} with default SUPERVISOR JWT. Expect 204 (canonical soft-delete per DS-008).",
+        "STEP 8 — POST /api/v1/auth/login again for jane_staff. Expect 401 (account deactivated per AuthService.authenticate)."
+      ],
+      "test_data": {
+        "created_user": {"username": "jane_staff", "password": "staff-pass-01", "role": "STAFF"},
+        "role_flip_target": "SUPERVISOR",
+        "expected_price_403_body_contains": "supervisor"
+      },
+      "exit_assertion": "All 8 steps produce the expected status codes. Verifies the full user-management round trip: create → login → RBAC deny → role update → re-login → RBAC allow → soft-delete → login denied. Confirms that role changes take effect on subsequent tokens only (JWT is stateless) and that soft-deleted users cannot re-authenticate."
+    },
+    {
+      "id": "IS-018",
+      "title": "DF-PriceSnapshot: PriceMaster unit_price change AFTER invoice creation does NOT mutate the invoice line unit_price (DS-022 immutability)",
+      "modules": ["M-011", "M-002"],
+      "priority": "high",
+      "entry_point": "POST /api/v1/prices → POST /api/v1/sales → POST /api/v1/invoices → PATCH /api/v1/prices/{id} → GET /api/v1/invoices/{id}",
+      "flow": [
+        "Seed master: 1 design, 1 grade, 1 active pair, 1 dealer, 1 staff",
+        "sale_date = today - 1d",
+        "STEP 1 — POST /api/v1/prices: {design_id:1, grade_id:1, unit_price:'200.00', effective_from: sale_date}. Capture price_id.",
+        "STEP 2 — POST /api/v1/sales: 1 line nos=5. Capture sales_header_id.",
+        "STEP 3 — POST /api/v1/invoices?sales_header_id=captured. Expect 201; line[0].unit_price='200.00'; line_total='1000.00'; total_amount='1000.00'. Capture invoice_id.",
+        "STEP 4 — PATCH /api/v1/prices/{price_id}: {unit_price:'250.00'}. Expect 200; response.unit_price='250.00'.",
+        "STEP 5 — GET /api/v1/invoices/{invoice_id}. Expect 200; line[0].unit_price STILL '200.00'; line_total STILL '1000.00'; total_amount STILL '1000.00' — the PATCH did NOT bleed back into the invoice.",
+        "STEP 6 — GET /api/v1/prices. Assert the returned PriceMasterRead for (design_id=1, grade_id=1) shows unit_price='250.00' — the master itself did move, only the invoice_line snapshot is frozen."
+      ],
+      "test_data": {
+        "initial_price": "200.00",
+        "updated_price": "250.00",
+        "sale_nos": 5,
+        "expected_invoice_total_before_and_after": "1000.00"
+      },
+      "exit_assertion": "Invoice line unit_price + line_total + header total_amount all remain at the values captured at invoice-creation time even after the master price is doubled. Confirms DS-022 snapshot immutability contract end-to-end — the invoice-line schema stores the price at the moment of invoicing, independent of subsequent PriceMaster edits. Guards against silent financial mutation."
+    }
+  ],
+  "execution_results": [
+    {
+      "scenario_id": "IS-013",
+      "result": "pass",
+      "test_file": "backend/tests/integration/test_integration_is013_auth_login_to_v1_protected.py",
+      "iteration": 1,
+      "output": "PASS first-try. POST /auth/login with form-encoded body returned 200 + valid JWT (role=SUPERVISOR). GET /auth/me returned UserRead matching seeded user. GET /suppliers succeeded with Bearer, and 401 + WWW-Authenticate: Bearer without. DS-025 route-level guard behaves as designed across all 4 steps."
+    },
+    {
+      "scenario_id": "IS-014",
+      "result": "pass",
+      "test_file": "backend/tests/integration/test_integration_is014_sales_to_invoice_to_payment.py",
+      "iteration": 2,
+      "fix_attempts": 1,
+      "fix_root_cause": "POST /prices returned 500 ResponseValidationError because PricingService.create_price returned raw PriceMasterModel while the router declares response_model=PriceMasterRead. PriceMasterRead requires flat design_name/size/grade_code, but these fields live on the joined design/grade relationships — pydantic from_attributes could not resolve them. The success path had never been exercised via HTTP by any V2 test.",
+      "fix_summary": "Added PricingService._to_read(price) → PriceMasterRead helper that flattens price.design.design_name, price.design.size, price.grade.grade_code (lazy='joined' relationships already load them). list_prices / create_price / update_price all return PriceMasterRead now. Follows the exact InvoiceService._to_invoice_read pattern.",
+      "files_touched": ["backend/src/application/services/pricing_service.py"],
+      "output": "PASS after fix. Full lifecycle green: PENDING → PARTIAL → PAID; duplicate invoice returns 409; overpayment returns 422. Verifies S2 (sales) → V2 (invoice + payments) through the real HTTP + auth stack."
+    },
+    {
+      "scenario_id": "IS-015",
+      "result": "pass",
+      "test_file": "backend/tests/integration/test_integration_is015_inward_writes_to_inward_report.py",
+      "iteration": 1,
+      "output": "PASS first-try. 3 POST /inward → GET /reports/inward with (supplier_ids=1, places=Mallur) filter returned 3 transactions + 3 consolidation groups with reconciliation sum 35; Bengaluru inward excluded. Unfiltered GET returned 4 transactions with reconciliation sum 50. DS-017 shared filter predicate honored: same predicate applied to both sections."
+    },
+    {
+      "scenario_id": "IS-016",
+      "result": "pass",
+      "test_file": "backend/tests/integration/test_integration_is016_report_export_pdf_and_xlsx.py",
+      "iteration": 1,
+      "output": "PASS first-try. All 4 exports (sales PDF, sales XLSX, inward PDF, inward XLSX) returned 200 with correct Content-Type headers and magic-byte prefixes (%PDF-, PK\\x03\\x04). openpyxl round-trip on the inward XLSX confirmed both Consolidation and Transactions sheets present per T-086 spec. Invalid format=csv returned 422 at the FastAPI Query pattern validation layer."
+    },
+    {
+      "scenario_id": "IS-017",
+      "result": "pass",
+      "test_file": "backend/tests/integration/test_integration_is017_supervisor_user_crud_role_gate.py",
+      "iteration": 2,
+      "fix_attempts": 1,
+      "fix_root_cause": "Same PricingService bug as IS-014 — POST /prices was returning 500 before the STAFF-role-gate assertion could reach the correct 403 conclusion (STEP 3), and again after promotion (STEP 6).",
+      "fix_summary": "Fixed via the same PricingService._to_read change applied for IS-014 — no additional test-side edits needed.",
+      "files_touched": ["backend/src/application/services/pricing_service.py (shared with IS-014)"],
+      "output": "PASS after fix. Full user lifecycle green: create STAFF → login → 403 on SUPERVISOR endpoint → PATCH role to SUPERVISOR → re-login → 201 on same endpoint → soft-delete → 401 on subsequent login. Confirms JWT is stateless (role changes apply only to NEW tokens) and soft-deletion blocks re-auth."
+    },
+    {
+      "scenario_id": "IS-018",
+      "result": "pass",
+      "test_file": "backend/tests/integration/test_integration_is018_price_snapshot_immutability.py",
+      "iteration": 2,
+      "fix_attempts": 1,
+      "fix_root_cause": "Same PricingService.create_price 500 as IS-014.",
+      "fix_summary": "Fixed via the same PricingService._to_read change applied for IS-014.",
+      "files_touched": ["backend/src/application/services/pricing_service.py (shared with IS-014)"],
+      "output": "PASS after fix. PriceMaster @ 200.00 → sale (5 nos) → invoice total 1000.00, line unit_price 200.00. PATCH price to 250.00 → GET /invoices/{id} STILL 200.00 line + 1000.00 total (snapshot preserved); GET /prices shows master at 250.00. DS-022 immutability contract holds end-to-end through HTTP."
+    }
+  ],
+  "summary": {
+    "scenarios_total": 6,
+    "passed": 6,
+    "failed": 0,
+    "errors": 0,
+    "fix_iterations": {"IS-013": 0, "IS-014": 1, "IS-015": 0, "IS-016": 0, "IS-017": 1, "IS-018": 1},
+    "source_code_changes": [
+      "backend/src/application/services/pricing_service.py — added _to_read helper flattening design/grade relationships into PriceMasterRead; list_prices/create_price/update_price now return PriceMasterRead. Root cause: response_model=PriceMasterRead vs raw PriceMasterModel mismatch on the /prices success path, never exercised by any V2 unit or integration test. Pattern mirrors InvoiceService._to_invoice_read."
+    ],
+    "full_integration_suite_regression": "99/99 passed in 76.58 s (all pre-V2 IS-001..IS-012 + 12 V2 tests/integration/v2/*.py + 6 new IS-013..IS-018)."
+  },
+  "verdict": "PASS",
+  "next": "/ases-system-test V2"
+}

@@ -1,0 +1,6 @@
+{
+  "task_id": "T-080",
+  "test_case_refs": ["TC-187", "TC-188", "TC-189"],
+  "priority": "critical",
+  "notes": "All 3 TCs are integration tests requiring PostgreSQL (testcontainers). TC-187: seed 2 active prices for same (design_id=1, grade_id=1) with effective_from 2026-01-01 (100.00) and 2026-06-01 (120.00); call get_active_price(1,1) on 2026-07-02; expect unit_price=120.00, effective_from=2026-06-01 (most recent effective). TC-188: seed 1 price row with is_active=false; call get_active_price; expect None. TC-189: call create_with_lines with header_data + 1 line_dict; assert returned model has invoice_number, total_amount, lines_count=1, lines[0].line_total=500.00."
+}

@@ -299,6 +299,148 @@
       "made_by": "architect",
       "timestamp": "2026-06-23",
       "status": "active"
+    },
+    {
+      "id": "DS-018",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "Authentication uses JWT (JSON Web Tokens) signed with HS256 via python-jose, with an 8-hour access token TTL. Credentials are stored as bcrypt hashes via passlib. No refresh tokens in V2. FastAPI OAuth2PasswordBearer extracts the Bearer token from the Authorization header. get_current_user re-fetches is_active from the DB on every request so deactivation takes effect immediately.",
+      "rationale": "JWT is stateless — no session store required, compatible with the existing single-process uvicorn deployment. 8-hour TTL matches a typical trading day, minimising re-login friction. Bcrypt is the industry standard for password hashing. python-jose + passlib are the canonical FastAPI auth stack. Refresh tokens add storage and rotation complexity with marginal benefit at single-tenant single-site scale.",
+      "tradeoffs": "No token revocation in V2 — a deactivated user's existing token remains valid until expiry (up to 8h). Mitigated by DB is_active re-check on every request — deactivation takes effect on the next API call, not at token expiry.",
+      "alternatives_considered": [
+        "Session-based auth (server-side sessions): rejected — requires a session store (Redis or DB table), adds infrastructure dependency.",
+        "Short TTL (1h) + refresh tokens: rejected — adds client-side token rotation complexity; overkill for V2 internal-network use.",
+        "API key per user: rejected — no per-request expiry, harder to revoke, no standard FastAPI integration."
+      ],
+      "module_refs": ["M-008"],
+      "recall_keywords": ["auth", "jwt", "bcrypt", "oauth2", "token", "v2"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active"
+    },
+    {
+      "id": "DS-019",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "RBAC uses a single role enum column on tbl_user_master — three roles: STAFF (data entry + read reports), VERIFIER (read only: dashboard + reports), SUPERVISOR (full access including user + price + invoice management). No separate roles or permissions tables.",
+      "rationale": "Three fixed roles map directly to PRD user types (Data Entry Staff, Stock Verifier, Management/Supervisor). A roles table with many-to-many user↔role adds 3+ tables and a join on every request for a system with exactly 3 roles. The enum column is O(1) to check — role is embedded in the JWT payload, no extra DB query needed for role checks. Role expansion beyond 3 would warrant a permissions table; V2 scope does not require it.",
+      "tradeoffs": "Role enum is a schema migration if a 4th role is added. Acceptable — migrations are cheap and the ORM change is one field.",
+      "alternatives_considered": [
+        "Separate tbl_role + tbl_user_role many-to-many: rejected — 2 extra tables, FK joins, and migration complexity for 3 roles that won't change in V2.",
+        "Permission bitfield per user: rejected — opaque, hard to audit, not readable by non-developers."
+      ],
+      "module_refs": ["M-008"],
+      "recall_keywords": ["rbac", "roles", "supervisor", "staff", "verifier", "permissions"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active"
+    },
+    {
+      "id": "DS-020",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "TD-008 (first-row insert race in tbl_stock_ledger when no prior row exists for a (design, grade) pair) is CLOSED by DS-015's pg_advisory_xact_lock. No code change to domain/stock.py required. V2 adds a new integration test TC covering the concurrent first-row insert scenario for explicit regression coverage.",
+      "rationale": "The pg_advisory_xact_lock(design_id, grade_id) mandated by DS-015 is a transaction-level exclusive lock. When two sessions both call it for the same (design, grade), the second blocks until the first commits — including the first-row case. The domain.stock._apply function in backend/src/domain/stock.py already implements this (TD-011 closed in S2). The gap was test coverage — TC-087 (S2) assumed a pre-existing row. V2 closes that gap with a test.",
+      "tradeoffs": "Test-only addition — zero risk of regression. The advisory lock was live in production at V1 ship.",
+      "alternatives_considered": [
+        "INSERT ... ON CONFLICT DO UPDATE (upsert): considered — would also handle first-row, but changes the ledger's append-only semantics and complicates running_balance recomputation.",
+        "Lock the design_grade_map row as sentinel: rejected by DS-015 — couples admin edits to ledger write path."
+      ],
+      "module_refs": ["M-003"],
+      "recall_keywords": ["TD-008", "first-row", "race", "advisory lock", "stock ledger", "DS-015"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active",
+      "closes_tech_debt": ["TD-008"]
+    },
+    {
+      "id": "DS-021",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "Report export uses reportlab for PDF generation and openpyxl for Excel (XLSX) generation. Both produce BytesIO objects returned via FastAPI StreamingResponse.",
+      "rationale": "reportlab: mature Python PDF library, pure Python, no external binary dependencies (unlike wkhtmltopdf or weasyprint), generates tabular reports via SimpleDocTemplate + Table without HTML intermediary. openpyxl: pure Python XLSX writer, MIT licence, no LibreOffice/Java dependency, well-maintained, produces native .xlsx that Excel and Google Sheets open natively. StreamingResponse avoids buffering large files fully in memory before sending.",
+      "tradeoffs": "reportlab's API is verbose — building tables requires explicit column widths and styles. Acceptable for 2 report types with stable layouts.",
+      "alternatives_considered": [
+        "weasyprint (HTML→PDF): rejected — requires libpango/libcairo system libraries, complicating the Docker image.",
+        "xlsxwriter (Excel): rejected — write-only, no read capability if ever needed; openpyxl is more broadly useful.",
+        "pandas.DataFrame.to_excel: rejected — pulls in pandas as a dependency for a use-case that doesn't need DataFrame semantics."
+      ],
+      "module_refs": ["M-010"],
+      "recall_keywords": ["export", "pdf", "excel", "xlsx", "reportlab", "openpyxl", "streamingresponse"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active"
+    },
+    {
+      "id": "DS-022",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "Active price for invoice line population = the tbl_price_master row WHERE design_id=X AND grade_id=G AND is_active=True AND effective_from <= invoice_date ORDER BY effective_from DESC LIMIT 1. unit_price is snapshotted onto tbl_invoice_line at invoice creation time (immutable after creation). If no active price exists for a (design, grade), unit_price=0 is used and the line carries a warning note.",
+      "rationale": "Effective-from price lookup gives time-aware pricing: a price change introduced later doesn't affect invoices generated before that date. Snapshotting unit_price on invoice creation follows DS-013 (place denormalisation) — immutable historical invoices. Zero-price fallback prevents invoice creation from blocking when prices are not yet configured, matching the PO's workflow where prices may be back-filled after sales entry.",
+      "tradeoffs": "A zero-price invoice line is a warning state, not an error. Admin must notice and re-invoice if needed. Alternative (block on missing price) was rejected because it couples invoice creation to price configuration completeness.",
+      "alternatives_considered": [
+        "Block invoice if price missing: rejected — prevents invoicing newly introduced design-grade combinations during a price-configuration catch-up window.",
+        "Use latest active price regardless of effective_from: rejected — removes time-aware pricing capability.",
+        "Store price as FK reference on invoice_line: rejected — allows retroactive price edits to silently change historical invoice amounts."
+      ],
+      "module_refs": ["M-011"],
+      "recall_keywords": ["pricing", "invoice", "unit_price", "effective_from", "snapshot", "DS-013"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active"
+    },
+    {
+      "id": "DS-023",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "Invoices are created on-demand by SUPERVISOR via POST /invoices {sales_header_id} — NOT auto-triggered during sales saves. One invoice per sales transaction enforced by UNIQUE(sales_header_id) on tbl_invoice_header. invoice_number is deterministic: 'INV-{YYYYMMDD}-{sales_header_id:05d}'.",
+      "rationale": "Auto-triggering invoice creation on every POST /sales would require prices to be configured for all (design, grade) pairs before any sale can be saved — blocking the data-entry flow that was operational in V1. On-demand creation gives the supervisor control over the invoicing timeline and accommodates the common scenario where prices are configured after sales are entered. The UNIQUE constraint prevents double-invoicing. Deterministic invoice_number means accidental duplicate creation attempts get a clean 409.",
+      "tradeoffs": "Invoices must be created manually per sale — a supervisor could forget to invoice some transactions. Mitigation: GET /invoices can be enhanced in V3 to filter by uninvoiced sales (LEFT JOIN on sales_header_id IS NULL). V2 does not include this endpoint.",
+      "alternatives_considered": [
+        "Auto-create invoice in sales save transaction: rejected — blocks sales entry when prices are missing; tight coupling between M-002 (transactions) and M-011 (invoicing).",
+        "Batch invoice creation (invoice all un-invoiced sales): considered for V3 — useful but out of V2 scope."
+      ],
+      "module_refs": ["M-011"],
+      "recall_keywords": ["invoice", "on-demand", "sales", "supervisor", "unique constraint", "DS-023"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active"
+    },
+    {
+      "id": "DS-024",
+      "stage": "sprint_close",
+      "sprint_id": "V2",
+      "decision": "V2 auth login wire format is OAuth2 form-encoded (application/x-www-form-urlencoded), NOT JSON. The router POST /auth/login binds `form: OAuth2PasswordRequestForm = Depends()` per RFC 6749 §4.3.2 and DS-018's OAuth2PasswordBearer(tokenUrl='/api/v1/auth/login'). TC-208/TC-209 body field is a semantic payload description (which fields are sent: username, password), NOT a wire-format directive — Phase 3 test-impl will encode via httpx `data=` (form-encoded), not `json=`. LLD line 236 (`data: LoginRequest`) is documentation drift and will be corrected in the next LLD refresh.",
+      "rationale": "Resolves the residual documentation-drift flagged by T-072 iter3 critique (findings F-T072-01 RESOLVED_BY_REINTERPRETATION). Under ASES Hard Rule 2 (plan.json is authoritative), the router correctly implements the form-encoded contract. Making this explicit as an ADR prevents Phase 3 test-impl from mistakenly encoding TC bodies as JSON, and prevents future contributors from 'fixing' the router to accept JSON in a misguided attempt to match LLD prose.",
+      "tradeoffs": "TC-208/209 bodies read as JSON on a naive glance — reviewers must recall this ADR when reading V2 auth test cases. Alternative (rewrite the router to accept JSON at /auth/login) rejected because it breaks OAuth2 spec compliance and Swagger 'Authorize' flow.",
+      "alternatives_considered": [
+        "Introduce a JSON login endpoint alongside the form-encoded one: rejected — two endpoints for the same action, doubles the auth surface, and Swagger 'Authorize' only supports the OAuth2 form-encoded contract.",
+        "Rewrite router to accept LoginRequest (JSON body): rejected — breaks OAuth2PasswordBearer semantics and RFC 6749 conformance."
+      ],
+      "module_refs": ["M-008"],
+      "recall_keywords": ["auth", "login", "oauth2", "form-encoded", "wire format", "rfc 6749", "T-072"],
+      "made_by": "po",
+      "timestamp": "2026-07-05",
+      "status": "active",
+      "source": "T-072 iter3 critique po_action_recommended"
+    },
+    {
+      "id": "DS-025",
+      "stage": "sprint_close",
+      "sprint_id": "V2",
+      "decision": "V2 non-auth routers (users, prices, invoices, reports/inward, reports/export) rely on route-level `Depends(get_current_user)` declared inside each router file, NOT on mount-level `dependencies=[Depends(get_current_user)]` on the `app.include_router(...)` call in main.py. Only the 11 V1 routers carry the mount-level dependency (added by T-092). auth_router is mounted with no dependency at all (open endpoint per DS-018). This deviation from LLD prose is intentional and documented inline on main.py:64 and 68-69.",
+      "rationale": "FastAPI dedupes identical Depends within a single request, so the two patterns are behaviorally equivalent. The V2 as-built pattern keeps each router file self-contained for auth semantics (a reader of routers/users.py sees the guard at each route), whereas mount-level deps hide the requirement from anyone reading the router in isolation. T-092 iter3 F-092-4 accepted this as an is_adr_tradeoff. TC-213 (auth-guard regression across V1 mounts) is unaffected.",
+      "tradeoffs": "LLD prose says 'apply auth dep globally via mount-level dependencies=[...]' — as-built deviates. LLD prose will be refreshed at next LLD update. Cost: reviewers must know both patterns coexist (V1 mount-level for legacy, V2 route-level for new). Benefit: V2 router files are self-documenting for auth requirements.",
+      "alternatives_considered": [
+        "Refactor all V2 routers to remove route-level Depends and add mount-level dep in main.py: rejected — behavior unchanged, cost is real code churn across 5 router files with zero test impact.",
+        "Also strip route-level Depends from V1 routers to match V2: rejected — V1 auth guard is currently mount-level for a reason (T-092 kept V1 mount-level to minimize touch surface); LLD refresh will pick one direction."
+      ],
+      "module_refs": ["M-008"],
+      "recall_keywords": ["auth", "depends", "fastapi", "mount-level", "route-level", "T-092", "F-092-4"],
+      "made_by": "po",
+      "timestamp": "2026-07-05",
+      "status": "active",
+      "source": "T-092 iter3 critique F-092-4 (accepted_as_tradeoff)"
     }
   ]
 }

@@ -1,0 +1,62 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-074",
+  "sprint_id": "V2",
+  "iteration": 2,
+  "reviewed_at": "2026-07-04",
+  "reviewed_by": "/ases-critique",
+  "implementation_file": "backend/db/migrations/versions/0004_v2_auth_pricing_tables.py",
+  "issues": [
+    {
+      "id": "I-001",
+      "lens": "spec",
+      "severity": "minor",
+      "file": "backend/db/migrations/versions/0004_v2_auth_pricing_tables.py",
+      "line_ref": "19",
+      "description": "LLD upgrade() prose specifies 'role VARCHAR(20) NOT NULL CHECK(role IN (...))', but the migration uses a PostgreSQL named ENUM type (user_role_enum). The LLD models section for auth.py correctly specifies Enum('STAFF','VERIFIER','SUPERVISOR'), creating an internal contradiction in the LLD. The migration resolves this by following the ORM model (Enum), which is the correct choice per DS-009 (ORM-first). The code comment on lines 17-18 explicitly documents the rationale.",
+      "fix_instruction": "No fix required — implementation is correct. ORM model auth.py uses sa.Enum with name='user_role_enum'. Migration follows ORM per DS-009. The inaccuracy is in the LLD upgrade() prose description, not in the migration code.",
+      "spec_ref": "T-074-plan.json scope; LLD file.upgrade.description vs LLD file.functions[UserModel].description",
+      "adr_ref": "DS-009",
+      "is_adr_tradeoff": true
+    },
+    {
+      "id": "I-002",
+      "lens": "spec",
+      "severity": "minor",
+      "file": "backend/db/migrations/versions/0004_v2_auth_pricing_tables.py",
+      "line_ref": "27-38",
+      "description": "tbl_user_master has BOTH a column-level UNIQUE constraint (username column's unique=True, which PostgreSQL implements as a unique B-tree index) AND a separate non-unique index via op.create_index('ix_user_master_username', ...). This is redundant — the unique constraint's backing index already covers the same lookup path. However, the migration correctly mirrors the ORM model's __table_args__ (Index('ix_user_master_username', 'username') coexists with unique=True on the column) per DS-009.",
+      "fix_instruction": "No fix required in migration — ORM model is the source of truth per DS-009. If redundancy is to be eliminated, the fix belongs in backend/src/infrastructure/db/models/auth.py: remove Index('ix_user_master_username', 'username') from UserModel.__table_args__ and regenerate the migration. That change is out of scope for T-074.",
+      "spec_ref": "T-074-plan.json scope; LLD UserModel: 'Index: ix_user_master_username on username'",
+      "adr_ref": "DS-009",
+      "is_adr_tradeoff": true
+    }
+  ],
+  "verdict": "CLEAN",
+  "critical_count": 0,
+  "major_count": 0,
+  "minor_count": 2,
+  "adr_tradeoff_count": 2,
+  "genuine_issues_count": 0,
+  "iteration_note": "Iteration 2: re-confirms iteration 1 CLEAN verdict. Code unchanged. Status update was not applied after iteration 1 — this run triggers the tasks.json status=complete update.",
+  "validated_correct": [
+    "down_revision = '0003_tx_ledger' chains correctly — confirmed against revision = '0003_tx_ledger' in 0003_transaction_and_ledger_tables.py",
+    "FK tbl_trading_design_master.design_id — confirmed correct PK column name (TradingDesignModel.design_id: BigInteger) in master.py",
+    "FK tbl_grade_master.grade_id — confirmed correct PK column name (GradeModel.grade_id: BigInteger) in master.py",
+    "FK tbl_sales_header.header_id — confirmed correct PK column name (SalesHeaderModel.header_id: BigInteger) in transactions.py",
+    "FK tbl_sales_line.line_id — confirmed correct PK column name (SalesLineModel.line_id: BigInteger) in transactions.py",
+    "tbl_invoice_header UNIQUE(sales_header_id) enforces DS-023 one-invoice-per-sale invariant at DB level",
+    "tbl_invoice_line UNIQUE(sales_line_id) enforces one invoice line per sales line across the system",
+    "tbl_price_master uq_price_design_grade_effective prevents duplicate active price for same (design_id, grade_id, effective_from)",
+    "CHECK constraints present: ck_price_master_unit_price_nonneg (unit_price >= 0), ck_invoice_status (status IN PENDING/PARTIAL/PAID), ck_payment_amount_positive (amount > 0)",
+    "All created_at columns use DateTime(timezone=True) — compliant with DS-014 TIMESTAMPTZ requirement",
+    "tbl_invoice_line.design_id + grade_id are plain Integer (no FK) — correct denormalized snapshots per DS-022",
+    "tbl_invoice_line.unit_price is a denormalized snapshot — no FK to tbl_price_master — correct per DS-022",
+    "downgrade() drops all indexes then tables in correct reverse-FK order (payment→line→header→price→user), then drops user_role_enum ENUM type",
+    "user_role_enum.drop(op.get_bind()) called after table drop — standard Alembic pattern for named ENUM cleanup",
+    "password_hash VARCHAR(255) — appropriate for bcrypt (60-char output; 255 provides headroom for future algorithm migration)",
+    "No secrets or hardcoded credentials embedded in migration file",
+    "tbl_price_master and tbl_invoice_header use BigInteger FK columns to match BigInteger PKs in S1/S2 tables"
+  ],
+  "summary": "Migration 0004 is CLEAN (iteration 2 confirmation). All 5 V2 tables (tbl_user_master, tbl_price_master, tbl_invoice_header, tbl_invoice_line, tbl_payment) are created with correct DDL: column types, UNIQUE constraints, CHECK constraints, FK column names verified against S1+S2 ORM models, TIMESTAMPTZ for all created_at. Revision chain confirmed against 0003 file. Downgrade drops indexes then tables in correct FK-reverse order and cleans up the ENUM type. Two minor observations are ADR tradeoffs (ENUM vs VARCHAR role type following ORM per DS-009; redundant username index mirroring ORM __table_args__ per DS-009) — neither is a blocking issue."
+}

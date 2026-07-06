@@ -1,0 +1,49 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-080",
+  "sprint_id": "V2",
+  "iteration": 2,
+  "file_under_review": "backend/src/infrastructure/db/repositories/pricing.py",
+  "decisions_checked": ["DS-007", "DS-012", "DS-022", "DS-023"],
+  "issues": [
+    {
+      "id": "I-002",
+      "lens": "contract",
+      "severity": "minor",
+      "file": "backend/src/infrastructure/db/repositories/pricing.py",
+      "line_ref": "60",
+      "description": "InvoiceRepository.get(self, invoice_id: int) names its parameter invoice_id instead of id_ (BaseRepository.get signature is get(self, id_: int)). Keyword-argument callers using get(id_=X) would receive TypeError. LSP violation on parameter name. Positional callers (including create_with_lines after the I-001 fix) are unaffected.",
+      "fix_instruction": "Rename parameter to id_ and update the WHERE clause: InvoiceHeaderModel.id == id_.",
+      "spec_ref": "DS-012: BaseRepository[T] pattern; lld.json files[16] InvoiceRepository.get inputs: [{name: invoice_id, type: int}]",
+      "is_adr_tradeoff": false
+    },
+    {
+      "id": "I-003",
+      "lens": "contract",
+      "severity": "minor",
+      "file": "backend/src/infrastructure/db/repositories/pricing.py",
+      "line_ref": "97",
+      "description": "PaymentRepository.create(self, invoice_header_id: int, data) — the data parameter is untyped. LLD specifies data: PaymentCreate. Missing type annotation defeats static type checking; mypy/pyright treats data as Any.",
+      "fix_instruction": "Add import: from src.presentation.schemas.pricing import PaymentCreate; change parameter signature to data: PaymentCreate. Use TYPE_CHECKING guard if needed to avoid circular import.",
+      "spec_ref": "lld.json files[16] PaymentRepository.create inputs: [{name: data, type: PaymentCreate}]",
+      "is_adr_tradeoff": false
+    },
+    {
+      "id": "I-004",
+      "lens": "contract",
+      "severity": "minor",
+      "file": "backend/src/infrastructure/db/repositories/pricing.py",
+      "line_ref": "46",
+      "description": "create_with_lines is annotated '-> InvoiceHeaderModel' but returns self.get(header.id) which is typed 'InvoiceHeaderModel | None'. mypy/pyright will flag: 'Incompatible return value type (got InvoiceHeaderModel | None, expected InvoiceHeaderModel)'. Runtime-safe — the row was just flushed so the SELECT always finds it — but it is a static type error introduced by the I-001 fix.",
+      "fix_instruction": "After the second flush, guard the return: result = self.get(header.id); assert result is not None; return result. Alternatively use typing.cast: from typing import cast; return cast(InvoiceHeaderModel, self.get(header.id)).",
+      "spec_ref": "lld.json files[16] InvoiceRepository.create_with_lines output type: InvoiceHeaderModel (not Optional). plan.json DoD: create_with_lines is atomic.",
+      "is_adr_tradeoff": false
+    }
+  ],
+  "verdict": "CLEAN",
+  "critical_count": 0,
+  "major_count": 0,
+  "minor_count": 3,
+  "issues_remaining": 3,
+  "summary": "Major I-001 (lazy-load inconsistency) is resolved — create_with_lines now delegates to self.get(header.id) which uses the correct joinedload(lines, payments) path, matching the LLD spec and TC-189 expectation. SalesHeaderModel.header_id join column confirmed correct against transactions.py model. TC-187 (effective_from ordering), TC-188 (inactive price → None), and TC-189 (eager-loaded lines on create) are all satisfied. Three minor issues remain: I-002 (LSP parameter name mismatch in get()), I-003 (untyped data param in PaymentRepository.create), I-004 (return type annotation mismatch introduced by I-001 fix — InvoiceHeaderModel | None vs InvoiceHeaderModel). No critical or major issues. All DoD criteria met. Verdict: CLEAN."
+}

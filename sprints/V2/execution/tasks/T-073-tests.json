@@ -1,0 +1,6 @@
+{
+  "task_id": "T-073",
+  "test_case_refs": ["TC-211", "TC-212"],
+  "priority": "high",
+  "notes": "Integration tests using FastAPI TestClient + testcontainers PostgreSQL. TC-211: POST /users with SUPERVISOR JWT (admin), body {username: 'newstaff', password: 'pass1234', role: 'STAFF'} -> 201; response has id (positive int), username='newstaff', role='STAFF', is_active=True. TC-212: first create a STAFF user (via TC-211 setup), log in as that STAFF user to get STAFF JWT; then POST /users with STAFF JWT -> 403. Requires seeded admin user for SUPERVISOR token."
+}

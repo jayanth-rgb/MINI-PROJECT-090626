@@ -1,0 +1,60 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "task_id": "T-080",
+  "sprint_id": "V2",
+  "produced_by": "/ases-validate T-080 V2",
+  "timestamp": "2026-07-03T00:00:00Z",
+  "verdict": "PROCEED",
+  "checks": {
+    "input_files_exist": {
+      "result": "PASS",
+      "files_checked": [
+        {
+          "path": "backend/src/infrastructure/db/repositories/base.py",
+          "exists": true
+        },
+        {
+          "path": "backend/src/infrastructure/db/models/pricing.py",
+          "exists": true
+        }
+      ]
+    },
+    "interface_contract_intact": {
+      "result": "PASS",
+      "lld_ref": "lld.json files[16]",
+      "expected_exports": ["PriceMasterRepository", "InvoiceRepository", "PaymentRepository"],
+      "expected_from_deps": {
+        "backend/src/infrastructure/db/repositories/base.py": ["BaseRepository"],
+        "backend/src/infrastructure/db/models/pricing.py": ["PriceMasterModel", "InvoiceHeaderModel", "InvoiceLineModel", "PaymentModel"]
+      },
+      "actual_from_deps": {
+        "backend/src/infrastructure/db/repositories/base.py": {
+          "exports": ["BaseRepository"],
+          "contract_drift": false
+        },
+        "backend/src/infrastructure/db/models/pricing.py": {
+          "exports": ["PriceMasterModel", "InvoiceHeaderModel", "InvoiceLineModel", "PaymentModel"],
+          "contract_drift": false
+        }
+      },
+      "notes": "All 4 model classes exported by pricing.py (T-079, complete). BaseRepository generic with __class_getitem__ pattern. PriceMasterModel has UniqueConstraint(design_id, grade_id, effective_from) and lazy='joined' relationships. InvoiceHeaderModel has lines/payments relationships for joinedload."
+    },
+    "scope_boundary_clear": {
+      "result": "PASS",
+      "output_file": "backend/src/infrastructure/db/repositories/pricing.py",
+      "in_progress_tasks": [],
+      "overlap_detected": false,
+      "notes": "No tasks currently in_progress. All other tasks are complete or pending. Output file not claimed by any other task."
+    },
+    "no_circular_dependency": {
+      "result": "PASS",
+      "depends_on": ["T-079"],
+      "dependency_statuses": {
+        "T-079": "complete"
+      },
+      "notes": "T-079 (pricing.py ORM models) is complete. No circular or unresolved dependencies."
+    }
+  },
+  "next": "/ases-dev T-080 V2"
+}

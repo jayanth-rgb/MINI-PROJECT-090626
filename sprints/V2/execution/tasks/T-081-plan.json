@@ -1,0 +1,17 @@
+{
+  "task_id": "T-081",
+  "title": "domain/invoice.py — pure invoice arithmetic functions",
+  "module_ref": "M-011",
+  "output_files": ["backend/src/domain/invoice.py"],
+  "scope": "Four pure functions using decimal.Decimal only. (1) compute_line_total(quantity: int, unit_price: Decimal) → Decimal: (Decimal(quantity) * unit_price).quantize(Decimal('0.01'), ROUND_HALF_UP); raises ValueError if quantity<=0 or unit_price<0. (2) compute_invoice_total(line_totals: list[Decimal]) → Decimal: sum(line_totals).quantize(Decimal('0.01'), ROUND_HALF_UP); raises ValueError if list is empty. (3) compute_invoice_status(total_amount: Decimal, paid_amounts: list[Decimal]) → Literal['PENDING','PARTIAL','PAID']: paid_sum=sum(paid_amounts); if paid_sum==0 → 'PENDING'; elif paid_sum>=total_amount → 'PAID'; else → 'PARTIAL'. (4) generate_invoice_number(invoice_date: date, sales_header_id: int) → str: f'INV-{invoice_date.strftime(\"%Y%m%d\")}-{sales_header_id:05d}'. No I/O, no SQLAlchemy, no HTTP.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": ["TC-176", "TC-177", "TC-178", "TC-179", "TC-180", "TC-181", "TC-182", "TC-183", "TC-184"],
+  "decisions_referenced": ["DS-007", "DS-022", "DS-023"],
+  "success_criteria": {
+    "manual": "python -c 'from src.domain.invoice import compute_line_total, generate_invoice_number; from decimal import Decimal; from datetime import date; print(compute_line_total(10, Decimal(\"150\")), generate_invoice_number(date(2026,7,2), 42))' → Decimal('1500.00') INV-20260702-00042",
+    "automated": "TC-176..TC-184 unit tests pass (no DB needed).",
+    "definition_of_done": "4 functions exported. compute_line_total raises ValueError on qty<=0 or price<0. compute_invoice_total raises ValueError on empty list. All Decimal results quantized to 2dp. generate_invoice_number is deterministic."
+  },
+  "checkout_prompt": "domain/invoice.py created. 4 pure functions: compute_line_total, compute_invoice_total, compute_invoice_status, generate_invoice_number. No I/O. Ready for T-084 (InvoiceService)."
+}

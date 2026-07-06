@@ -1,0 +1,17 @@
+{
+  "task_id": "T-090",
+  "title": "routers/pricing.py — GET /prices (any auth), POST /prices (SUPERVISOR), PATCH /prices/{id} (SUPERVISOR)",
+  "module_ref": "M-011",
+  "output_files": ["backend/src/presentation/api/routers/pricing.py"],
+  "scope": "FastAPI router with prefix='/prices', tags=['pricing']. 3 endpoints: GET '' (list all prices via svc.list_prices(), auth: get_current_user); POST '' 201 (create price entry via svc.create_price(payload), auth: require_supervisor); PATCH '/{price_id}' (partial update via svc.update_price(price_id, payload), auth: require_supervisor). No DELETE endpoint — deactivation handled via PATCH with {is_active: false} in PriceMasterUpdate.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-083", "T-089"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-019", "DS-022"],
+  "success_criteria": {
+    "manual": "python -c \"from src.presentation.api.routers.pricing import router; print(len(router.routes))\"  # expect 3",
+    "automated": "No dedicated router TCs. TC-201 covers PricingService. Router correctness verified indirectly by TC-202..206 (InvoiceService tests fetch prices via PricingService).",
+    "definition_of_done": "pricing.py with 3 routes. GET open to any auth. POST/PATCH SUPERVISOR-only. PricingService wired. No DELETE (soft-deactivate via PATCH per DS-008)."
+  },
+  "checkout_prompt": "routers/pricing.py created. GET /prices (any auth) + POST/PATCH SUPERVISOR-only. 3 routes. PricingService wired. DS-019 RBAC + DS-022 price snapshot compliance."
+}

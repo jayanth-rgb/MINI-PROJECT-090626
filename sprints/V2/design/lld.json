@@ -1,0 +1,1368 @@
+{
+  "$schema": "ases/v3.0/lld",
+  "document": "lld",
+  "produced_by": "/ases-lld V2",
+  "consumed_by": ["/ases-schema", "/ases-test-spec", "/ases-sprint-gate", "/ases-analyze", "/ases-tasks", "/ases-dev"],
+  "sprint_id": "V2",
+  "schema_note": "sprint_id pattern ^S\\d+$ in lld.schema.json applies to V1 sprints only; V2 introduces a major-version identifier. Schema will be updated at /ases-schema V2.",
+  "scope_features": ["F-013", "F-014", "F-015", "F-016", "F-017", "F-018", "F-019"],
+  "scope_modules": ["M-008", "M-009", "M-010", "M-011"],
+  "scope_summary": "V2 completes the four items deferred from V1 (roadmap.deferred[]). F-013/F-014 (M-008) retrofit authentication and RBAC across all API endpoints using JWT + OAuth2PasswordBearer; three roles: STAFF (data entry), VERIFIER (read-only), SUPERVISOR (full access + user management). F-015 (M-009) adds the Inward Report as a dual-pane Consolidation + Transactions read-only view mirroring the S3 Sales Report pattern. F-016 (M-010) adds PDF and Excel export for both Sales and Inward reports via StreamingResponse. F-017/F-018/F-019 (M-011) introduce a Price Master per (design, grade) and an Invoicing + Payment module built on top of existing S2 sales data. All V1 endpoints acquire auth guards in main.py with zero changes to V1 router files. TD-008 (first-row insert race) verified closed by DS-015 advisory lock — a test TC is added for coverage.",
+
+  "module_definitions": {
+    "M-008": "Authentication & Authorization — JWT-based login, user CRUD, role enforcement across all endpoints",
+    "M-009": "Inward Report — read-only dual-pane (Consolidation + Transactions) mirroring M-005 Sales Report",
+    "M-010": "Report Export — PDF and Excel streaming export for Sales and Inward reports",
+    "M-011": "Pricing & Invoicing — Price Master CRUD, Invoice generation from sales data, Payment recording"
+  },
+
+  "files": [
+    {
+      "path": "backend/src/infrastructure/db/models/auth.py",
+      "purpose": "SQLAlchemy 2.x ORM model for tbl_user_master. Stores login credentials and role assignment for V2 auth.",
+      "layer": "infrastructure",
+      "module_ref": "M-008",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "UserModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "Base" }],
+          "description": "__tablename__ = 'tbl_user_master'. Columns: id (Integer PK autoincrement), username (String(100) UNIQUE NOT NULL), password_hash (String(255) NOT NULL), role (Enum('STAFF','VERIFIER','SUPERVISOR') NOT NULL), is_active (Boolean DEFAULT True NOT NULL), created_at (DateTime(timezone=True) server_default=func.now()). Index: ix_user_master_username on username. Inherits TimestampMixin for created_at per DS-014."
+        }
+      ],
+      "interfaces": {
+        "exports": ["UserModel"],
+        "expects": ["infrastructure.db.base.Base", "infrastructure.db.base.TimestampMixin"]
+      },
+      "depends_on": ["backend/src/infrastructure/db/base.py"],
+      "test_required": false
+    },
+
+    {
+      "path": "backend/src/infrastructure/db/repositories/auth.py",
+      "purpose": "UserRepository — thin data-access layer for tbl_user_master. Extends BaseRepository[UserModel].",
+      "layer": "infrastructure",
+      "module_ref": "M-008",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "UserRepository.get_by_username",
+          "inputs": [{ "name": "username", "type": "str" }],
+          "outputs": [{ "name": "user", "type": "UserModel | None" }],
+          "description": "SELECT * FROM tbl_user_master WHERE username = :username LIMIT 1. Case-sensitive match. Returns None if not found."
+        },
+        {
+          "name": "UserRepository.list_active",
+          "inputs": [],
+          "outputs": [{ "name": "users", "type": "list[UserModel]" }],
+          "description": "SELECT * FROM tbl_user_master WHERE is_active = true ORDER BY username ASC."
+        }
+      ],
+      "interfaces": {
+        "exports": ["UserRepository"],
+        "expects": ["BaseRepository (S1)", "UserModel"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/base.py",
+        "backend/src/infrastructure/db/models/auth.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/domain/auth.py",
+      "purpose": "Pure domain functions for password hashing and JWT token lifecycle. No I/O, no SQLAlchemy — fully unit-testable in isolation.",
+      "layer": "domain",
+      "module_ref": "M-008",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "get_password_hash",
+          "inputs": [{ "name": "plain_password", "type": "str" }],
+          "outputs": [{ "name": "hashed", "type": "str" }],
+          "description": "Returns bcrypt hash of the plain password via passlib.context.CryptContext(schemes=['bcrypt'])."
+        },
+        {
+          "name": "verify_password",
+          "inputs": [
+            { "name": "plain_password", "type": "str" },
+            { "name": "hashed_password", "type": "str" }
+          ],
+          "outputs": [{ "name": "valid", "type": "bool" }],
+          "description": "Returns True if plain_password matches hashed_password via CryptContext.verify(). Constant-time comparison."
+        },
+        {
+          "name": "create_access_token",
+          "inputs": [
+            { "name": "data", "type": "dict" },
+            { "name": "expires_delta", "type": "timedelta | None", "required": false }
+          ],
+          "outputs": [{ "name": "token", "type": "str" }],
+          "description": "Creates a signed JWT with sub=username, role=role, exp=now+expires_delta (default 8h per DS-018). Signed with SECRET_KEY from config using HS256. Uses python-jose.",
+          "raises": ["ValueError if SECRET_KEY not configured"]
+        },
+        {
+          "name": "decode_access_token",
+          "inputs": [{ "name": "token", "type": "str" }],
+          "outputs": [{ "name": "payload", "type": "dict | None" }],
+          "description": "Decodes and validates a JWT. Returns the payload dict on success; returns None on expired or malformed token. Never raises — callers check None and raise HTTPException 401."
+        }
+      ],
+      "interfaces": {
+        "exports": ["get_password_hash", "verify_password", "create_access_token", "decode_access_token"],
+        "expects": ["passlib (bcrypt)", "python-jose (HS256)"]
+      },
+      "depends_on": [],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/application/services/auth_service.py",
+      "purpose": "Auth business logic: login verification, user creation, listing, fetch-by-id, partial update, and canonical soft-deactivation. Delegates DB access to UserRepository and password ops to domain.auth.",
+      "layer": "application",
+      "module_ref": "M-008",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "AuthService.authenticate",
+          "inputs": [
+            { "name": "username", "type": "str" },
+            { "name": "password", "type": "str" }
+          ],
+          "outputs": [{ "name": "token", "type": "TokenResponse" }],
+          "description": "Looks up user by username; raises HTTPException 401 if not found or is_active=false. Verifies password via verify_password; raises 401 on mismatch. Returns TokenResponse with access_token, token_type='bearer', role.",
+          "raises": ["HTTPException 401 invalid credentials", "HTTPException 403 account deactivated"]
+        },
+        {
+          "name": "AuthService.get_current_user",
+          "inputs": [{ "name": "token", "type": "str" }],
+          "outputs": [{ "name": "user", "type": "UserModel" }],
+          "description": "Decodes JWT via decode_access_token; raises HTTPException 401 if None. Fetches user from DB by payload['sub']; raises 401 if not found or is_active=false.",
+          "raises": ["HTTPException 401"]
+        },
+        {
+          "name": "AuthService.create_user",
+          "inputs": [{ "name": "data", "type": "UserCreate" }],
+          "outputs": [{ "name": "user", "type": "UserModel" }],
+          "description": "Checks username uniqueness via get_by_username; raises HTTPException 409 on conflict. Hashes password via get_password_hash. Persists via UserRepository.create(). Returns created UserModel.",
+          "raises": ["HTTPException 409 username already exists"]
+        },
+        {
+          "name": "AuthService.list_users",
+          "inputs": [],
+          "outputs": [{ "name": "users", "type": "list[UserModel]" }],
+          "description": "Returns UserRepository.list_active() — active users only, ordered by username."
+        },
+        {
+          "name": "AuthService.update_user",
+          "inputs": [
+            { "name": "user_id", "type": "int" },
+            { "name": "data", "type": "UserUpdate" }
+          ],
+          "outputs": [{ "name": "user", "type": "UserModel" }],
+          "description": "Fetches user by id; raises HTTPException 404 if not found. Applies is_active and/or role updates. If new_password provided, rehashes via get_password_hash. Returns updated UserModel.",
+          "raises": ["HTTPException 404"]
+        },
+        {
+          "name": "AuthService.get_user",
+          "inputs": [{ "name": "user_id", "type": "int" }],
+          "outputs": [{ "name": "user", "type": "UserModel" }],
+          "description": "Read-only fetch by id via UserRepository.get(user_id). No commit — HTTP-safe per RFC 9110 §9.2.1. Raises HTTPException 404 (NotFoundError bubbles through global handler) if user is absent.",
+          "raises": ["HTTPException 404"]
+        },
+        {
+          "name": "AuthService.deactivate_user",
+          "inputs": [{ "name": "user_id", "type": "int" }],
+          "outputs": [{ "name": "user", "type": "UserModel" }],
+          "description": "Canonical soft-delete per DS-008. Calls UserRepository.soft_delete(user_id) (sets is_active=False via BaseRepository primitive) then commits. Raises HTTPException 404 if user_id is unknown.",
+          "raises": ["HTTPException 404"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["AuthService"],
+        "expects": ["UserRepository", "domain.auth.*", "schemas.auth.TokenResponse", "schemas.auth.UserCreate", "schemas.auth.UserUpdate"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/auth.py",
+        "backend/src/domain/auth.py",
+        "backend/src/presentation/schemas/auth.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/presentation/schemas/auth.py",
+      "purpose": "Pydantic v2 schemas for auth and user management request/response bodies.",
+      "layer": "presentation",
+      "module_ref": "M-008",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "LoginRequest",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: username (str), password (str, min_length=1). Used as the form body for POST /auth/login."
+        },
+        {
+          "name": "TokenResponse",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: access_token (str), token_type (Literal['bearer']), role (str). Returned by POST /auth/login."
+        },
+        {
+          "name": "UserCreate",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: username (str, min_length=1, max_length=100), password (str, min_length=8), role (Literal['STAFF','VERIFIER','SUPERVISOR']). POST /users body."
+        },
+        {
+          "name": "UserRead",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: id (int), username (str), role (str), is_active (bool). ConfigDict(from_attributes=True). Returned by GET /users and GET /auth/me."
+        },
+        {
+          "name": "UserUpdate",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: is_active (bool | None = None), role (str | None = None), new_password (str | None = None). All optional — partial PATCH. PATCH /users/{id} body."
+        }
+      ],
+      "interfaces": {
+        "exports": ["LoginRequest", "TokenResponse", "UserCreate", "UserRead", "UserUpdate"],
+        "expects": ["pydantic.BaseModel", "pydantic.ConfigDict"]
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+
+    {
+      "path": "backend/src/presentation/api/routers/auth.py",
+      "purpose": "Auth endpoints: login (open) and current-user introspection (authenticated). No role restriction beyond valid token on GET /auth/me.",
+      "layer": "presentation",
+      "module_ref": "M-008",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "login",
+          "inputs": [
+            { "name": "data", "type": "LoginRequest" },
+            { "name": "service", "type": "AuthService = Depends(get_auth_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "TokenResponse" }],
+          "description": "POST /auth/login. Open — no Bearer token required. Delegates to AuthService.authenticate(). Returns 200 with TokenResponse or 401 on failure."
+        },
+        {
+          "name": "me",
+          "inputs": [
+            { "name": "current_user", "type": "UserModel = Depends(get_current_user)" }
+          ],
+          "outputs": [{ "name": "response", "type": "UserRead" }],
+          "description": "GET /auth/me. Requires valid Bearer token. Returns UserRead for the authenticated user. 401 if token invalid/expired."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/auth', tags=['auth'])"],
+        "expects": ["AuthService via Depends(get_auth_service)", "UserModel via Depends(get_current_user)", "LoginRequest", "TokenResponse", "UserRead"]
+      },
+      "depends_on": [
+        "backend/src/application/services/auth_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/auth.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/presentation/api/routers/users.py",
+      "purpose": "User management endpoints — SUPERVISOR role only. Allows a supervisor to create staff, change roles, and deactivate accounts.",
+      "layer": "presentation",
+      "module_ref": "M-008",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "list_users",
+          "inputs": [
+            { "name": "service", "type": "AuthService = Depends(get_auth_service)" },
+            { "name": "_", "type": "UserModel = Depends(require_supervisor)" }
+          ],
+          "outputs": [{ "name": "response", "type": "list[UserRead]" }],
+          "description": "GET /users. Returns all active users. SUPERVISOR only — require_supervisor Depends raises 403 for STAFF/VERIFIER."
+        },
+        {
+          "name": "create_user",
+          "inputs": [
+            { "name": "data", "type": "UserCreate" },
+            { "name": "service", "type": "AuthService = Depends(get_auth_service)" },
+            { "name": "_", "type": "UserModel = Depends(require_supervisor)" }
+          ],
+          "outputs": [{ "name": "response", "type": "UserRead" }],
+          "description": "POST /users. Creates a new user. SUPERVISOR only. 201 on success; 409 on duplicate username."
+        },
+        {
+          "name": "get_user",
+          "inputs": [
+            { "name": "user_id", "type": "int" },
+            { "name": "service", "type": "AuthService = Depends(get_auth_service)" },
+            { "name": "_", "type": "UserModel = Depends(require_supervisor)" }
+          ],
+          "outputs": [{ "name": "response", "type": "UserRead" }],
+          "description": "GET /users/{user_id}. Returns a single user by id. SUPERVISOR only. Delegates to AuthService.get_user (read-only, no commit). 404 if user not found."
+        },
+        {
+          "name": "update_user",
+          "inputs": [
+            { "name": "user_id", "type": "int" },
+            { "name": "data", "type": "UserUpdate" },
+            { "name": "service", "type": "AuthService = Depends(get_auth_service)" },
+            { "name": "_", "type": "UserModel = Depends(require_supervisor)" }
+          ],
+          "outputs": [{ "name": "response", "type": "UserRead" }],
+          "description": "PATCH /users/{user_id}. Updates is_active, role, or password. SUPERVISOR only. 404 if user not found."
+        },
+        {
+          "name": "deactivate_user",
+          "inputs": [
+            { "name": "user_id", "type": "int" },
+            { "name": "service", "type": "AuthService = Depends(get_auth_service)" },
+            { "name": "_", "type": "UserModel = Depends(require_supervisor)" }
+          ],
+          "outputs": [{ "name": "response", "type": "None (204 No Content)" }],
+          "description": "DELETE /users/{user_id}. Soft-deactivates the user via AuthService.deactivate_user (canonical BaseRepository.soft_delete per DS-008). SUPERVISOR only. Returns 204 with no body. 404 if user not found."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/users', tags=['users'])"],
+        "expects": ["AuthService via Depends", "require_supervisor Depends factory", "UserCreate", "UserRead", "UserUpdate"]
+      },
+      "depends_on": [
+        "backend/src/application/services/auth_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/auth.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/presentation/api/dependencies.py",
+      "purpose": "MODIFY (S1+S2+S3 file). ADD auth infrastructure: oauth2_scheme (OAuth2PasswordBearer), get_current_user, require_supervisor. ADD 5 new DI factories: get_auth_service, get_inward_report_service, get_report_export_service, get_pricing_service, get_invoice_service. Existing 12 factories (S1+S2+S3) untouched.",
+      "layer": "presentation",
+      "module_ref": "M-008",
+      "modification": "modify",
+      "functions": [
+        {
+          "name": "oauth2_scheme",
+          "inputs": [],
+          "outputs": [{ "name": "scheme", "type": "OAuth2PasswordBearer" }],
+          "description": "OAuth2PasswordBearer(tokenUrl='/api/v1/auth/login'). Extracts Bearer token from Authorization header. Used as Depends() in all protected routes."
+        },
+        {
+          "name": "get_current_user",
+          "inputs": [
+            { "name": "token", "type": "str = Depends(oauth2_scheme)" },
+            { "name": "db", "type": "Session = Depends(get_db)" }
+          ],
+          "outputs": [{ "name": "user", "type": "UserModel" }],
+          "description": "Calls AuthService(db).get_current_user(token). Used as Depends() in all auth-protected routes mounted via include_router in main.py."
+        },
+        {
+          "name": "require_supervisor",
+          "inputs": [
+            { "name": "current_user", "type": "UserModel = Depends(get_current_user)" }
+          ],
+          "outputs": [{ "name": "user", "type": "UserModel" }],
+          "description": "Raises HTTPException 403 if current_user.role != 'SUPERVISOR'. Returns user for pass-through. Used as Depends() on SUPERVISOR-only routes."
+        },
+        {
+          "name": "get_auth_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "AuthService" }],
+          "description": "Returns AuthService(db). Same DI pattern as existing service factories."
+        },
+        {
+          "name": "get_inward_report_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "InwardReportService" }],
+          "description": "Returns InwardReportService(db)."
+        },
+        {
+          "name": "get_report_export_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "ReportExportService" }],
+          "description": "Returns ReportExportService(db)."
+        },
+        {
+          "name": "get_pricing_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "PricingService" }],
+          "description": "Returns PricingService(db)."
+        },
+        {
+          "name": "get_invoice_service",
+          "inputs": [{ "name": "db", "type": "Session = Depends(get_db)" }],
+          "outputs": [{ "name": "service", "type": "InvoiceService" }],
+          "description": "Returns InvoiceService(db)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["oauth2_scheme", "get_current_user", "require_supervisor", "get_auth_service", "get_inward_report_service", "get_report_export_service", "get_pricing_service", "get_invoice_service"],
+        "expects": [
+          "Session via get_db (S1)",
+          "AuthService", "InwardReportService", "ReportExportService", "PricingService", "InvoiceService",
+          "fastapi.security.OAuth2PasswordBearer"
+        ]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/session.py",
+        "backend/src/application/services/auth_service.py",
+        "backend/src/application/services/inward_report_service.py",
+        "backend/src/application/services/report_export_service.py",
+        "backend/src/application/services/pricing_service.py",
+        "backend/src/application/services/invoice_service.py"
+      ],
+      "test_required": false
+    },
+
+    {
+      "path": "backend/src/main.py",
+      "purpose": "MODIFY (S1+S2+S3 file). ADD 6 new include_router calls (auth, users, inward_report, report_export, pricing, invoices). ADD global auth guard: all existing 11 routers + 4 new non-auth routers get dependencies=[Depends(get_current_user)] in their include_router call. auth.router excluded from global guard (open endpoint). auth.router mounted first.",
+      "layer": "presentation",
+      "module_ref": "M-008",
+      "modification": "modify",
+      "functions": [
+        {
+          "name": "create_app (modified)",
+          "inputs": [],
+          "outputs": [{ "name": "app", "type": "FastAPI" }],
+          "description": "Mount order: (1) auth.router — no dependencies (open). (2) All 11 V1 routers (suppliers, staff, dealers, grades, designs, design_grade_map, inward, sales, adjustments, dashboard, sales_report) — each mount adds dependencies=[Depends(get_current_user)]. (3) 5 new V2 routers (users, inward_report, report_export, pricing, invoices) — each also gets dependencies=[Depends(get_current_user)]. SUPERVISOR-only endpoints (users, pricing, invoices) enforce role via inline Depends(require_supervisor) in their route decorators — not at mount level. No changes to CORS, error handlers, or /health endpoint."
+        }
+      ],
+      "interfaces": {
+        "exports": ["create_app (modified) — adds 6 mounts + auth dependency on all protected routers"],
+        "expects": ["get_current_user Depends from dependencies.py", "all V2 routers", "fastapi.FastAPI (existing)"]
+      },
+      "depends_on": [
+        "backend/src/presentation/api/routers/auth.py",
+        "backend/src/presentation/api/routers/users.py",
+        "backend/src/presentation/api/routers/inward_report.py",
+        "backend/src/presentation/api/routers/report_export.py",
+        "backend/src/presentation/api/routers/pricing.py",
+        "backend/src/presentation/api/routers/invoices.py",
+        "backend/src/presentation/api/dependencies.py"
+      ],
+      "test_required": false
+    },
+
+    {
+      "path": "backend/db/migrations/versions/0004_v2_auth_pricing_tables.py",
+      "purpose": "Alembic migration for all 5 V2 tables. ORM-first per DS-009: generated from Base.metadata targeting only V2 model additions.",
+      "layer": "infrastructure",
+      "module_ref": "M-008",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "upgrade",
+          "inputs": [],
+          "outputs": [],
+          "description": "CREATE TABLE tbl_user_master (id SERIAL PK, username VARCHAR(100) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, role VARCHAR(20) NOT NULL CHECK(role IN ('STAFF','VERIFIER','SUPERVISOR')), is_active BOOLEAN DEFAULT TRUE NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()); CREATE INDEX ix_user_master_username ON tbl_user_master(username). CREATE TABLE tbl_price_master (id SERIAL PK, design_id INT NOT NULL REFERENCES tbl_trading_design_master(id), grade_id INT NOT NULL REFERENCES tbl_grade_master(id), unit_price NUMERIC(10,2) NOT NULL CHECK(unit_price >= 0), effective_from DATE NOT NULL, is_active BOOLEAN DEFAULT TRUE NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()); CREATE UNIQUE CONSTRAINT uq_price_design_grade_effective ON tbl_price_master(design_id, grade_id, effective_from). CREATE TABLE tbl_invoice_header (id SERIAL PK, invoice_number VARCHAR(30) UNIQUE NOT NULL, sales_header_id INT NOT NULL REFERENCES tbl_sales_header(id), invoice_date DATE NOT NULL, total_amount NUMERIC(12,2) NOT NULL, status VARCHAR(10) NOT NULL DEFAULT 'PENDING' CHECK(status IN ('PENDING','PARTIAL','PAID')), created_at TIMESTAMPTZ DEFAULT NOW()). CREATE TABLE tbl_invoice_line (id SERIAL PK, invoice_header_id INT NOT NULL REFERENCES tbl_invoice_header(id), sales_line_id INT NOT NULL REFERENCES tbl_sales_line(id), design_id INT NOT NULL, grade_id INT NOT NULL, quantity INT NOT NULL, unit_price NUMERIC(10,2) NOT NULL, line_total NUMERIC(12,2) NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW()). CREATE TABLE tbl_payment (id SERIAL PK, invoice_header_id INT NOT NULL REFERENCES tbl_invoice_header(id), payment_date DATE NOT NULL, amount NUMERIC(12,2) NOT NULL CHECK(amount > 0), notes TEXT, created_at TIMESTAMPTZ DEFAULT NOW())."
+        },
+        {
+          "name": "downgrade",
+          "inputs": [],
+          "outputs": [],
+          "description": "DROP TABLE tbl_payment; DROP TABLE tbl_invoice_line; DROP TABLE tbl_invoice_header; DROP TABLE tbl_price_master; DROP TABLE tbl_user_master."
+        }
+      ],
+      "interfaces": {
+        "exports": ["alembic upgrade head (0004)"],
+        "expects": ["alembic (existing env.py)", "tbl_sales_header + tbl_sales_line (S2)", "tbl_trading_design_master + tbl_grade_master (S1)"]
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+
+    {
+      "path": "backend/scripts/seed_default_user.py",
+      "purpose": "One-shot script to insert the default SUPERVISOR user (admin/admin123). Idempotent — no-ops if admin already exists. Run once after `alembic upgrade head` on a fresh database.",
+      "layer": "infrastructure",
+      "module_ref": "M-008",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "seed_default_user",
+          "inputs": [],
+          "outputs": [],
+          "description": "Checks if username='admin' exists. If not, inserts tbl_user_master row: username='admin', password_hash=get_password_hash('admin123'), role='SUPERVISOR', is_active=True. Prints 'seeded admin user' or 'admin already exists — skipping'. Warn message to change password on first login is printed to stderr."
+        }
+      ],
+      "interfaces": {
+        "exports": ["seed_default_user()"],
+        "expects": ["domain.auth.get_password_hash", "infrastructure.db.session.get_db"]
+      },
+      "depends_on": [
+        "backend/src/domain/auth.py",
+        "backend/src/infrastructure/db/session.py",
+        "backend/src/infrastructure/db/models/auth.py"
+      ],
+      "test_required": false
+    },
+
+    {
+      "path": "backend/src/presentation/schemas/inward_report.py",
+      "purpose": "Pydantic v2 schemas for the Inward Report dual-payload response: Consolidation (grouped by design+grade) + Transactions (per inward line).",
+      "layer": "presentation",
+      "module_ref": "M-009",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "InwardConsolidationRow",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: design_id (int), design_name (str), size (str), grade_id (int), grade_code (str), total_nos (int). Mirrors ConsolidationRow from sales_report.py. ORDER BY design_name ASC, grade_code ASC."
+        },
+        {
+          "name": "InwardTransactionRow",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: purchase_date (date), supplier_id (int), supplier_name (str), place (str — denormalized snapshot per DS-013), design_id (int), design_name (str), size (str), grade_id (int), grade_code (str), nos (int). ORDER BY purchase_date ASC."
+        },
+        {
+          "name": "InwardReportResponse",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: consolidation (list[InwardConsolidationRow]), transactions (list[InwardTransactionRow]). Reconciliation invariant: sum(transactions.nos) == sum(consolidation.total_nos) — asserted in InwardReportService before return."
+        }
+      ],
+      "interfaces": {
+        "exports": ["InwardConsolidationRow", "InwardTransactionRow", "InwardReportResponse"],
+        "expects": ["pydantic.BaseModel", "pydantic.ConfigDict"]
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+
+    {
+      "path": "backend/src/application/services/inward_report_service.py",
+      "purpose": "M-009 use case. Dual-payload inward report with multi-select optional filters (date range, supplier, place, design). Mirrors SalesReportService pattern (DS-017: shared filter predicate guarantees reconciliation invariant).",
+      "layer": "application",
+      "module_ref": "M-009",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "InwardReportService.generate",
+          "inputs": [
+            { "name": "date_from", "type": "date | None", "required": false },
+            { "name": "date_to", "type": "date | None", "required": false },
+            { "name": "supplier_ids", "type": "list[int] | None", "required": false },
+            { "name": "places", "type": "list[str] | None", "required": false },
+            { "name": "design_ids", "type": "list[int] | None", "required": false }
+          ],
+          "outputs": [{ "name": "response", "type": "InwardReportResponse" }],
+          "description": "(1) Build shared filter predicate list from optional params: purchase_date >= date_from, purchase_date <= date_to, supplier_id IN supplier_ids, tbl_inward_header.place IN places, design_id IN design_ids. No filter = full dataset (RULE-018 mirror). (2) Consolidation query: SELECT design_id, design_name, size, grade_id, grade_code, SUM(nos) FROM tbl_inward_line JOIN tbl_inward_header JOIN tbl_trading_design_master JOIN tbl_grade_master JOIN tbl_supplier_master WHERE <predicates> GROUP BY design_id, grade_id, design_name, size, grade_code ORDER BY design_name, grade_code. (3) Transactions query: SELECT purchase_date, supplier_id, supplier_name, place, design_id, design_name, size, grade_id, grade_code, nos FROM <same joins + predicates> ORDER BY purchase_date ASC, inward_header_id ASC. (4) Assert sum(t.nos) == sum(c.total_nos) before return (defense-in-depth per DS-017). Return InwardReportResponse.",
+          "raises": ["AssertionError (internal — signals a filter predicate divergence bug, should never trigger)"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["InwardReportService"],
+        "expects": [
+          "Session (sqlalchemy.orm)",
+          "InwardHeaderModel + InwardLineModel (S2)",
+          "TradingDesignModel + GradeModel + SupplierModel (S1)",
+          "InwardReportResponse schema"
+        ]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/models/transactions.py",
+        "backend/src/infrastructure/db/models/master.py",
+        "backend/src/presentation/schemas/inward_report.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/presentation/api/routers/inward_report.py",
+      "purpose": "GET /reports/inward route. Multi-select supplier filter mirrors Sales Report's dealer filter. Auth guard applied globally in main.py.",
+      "layer": "presentation",
+      "module_ref": "M-009",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "get_inward_report",
+          "inputs": [
+            { "name": "date_from", "type": "date | None = Query(default=None)" },
+            { "name": "date_to", "type": "date | None = Query(default=None)" },
+            { "name": "supplier_ids", "type": "list[int] | None = Query(default=None)" },
+            { "name": "places", "type": "list[str] | None = Query(default=None)" },
+            { "name": "design_ids", "type": "list[int] | None = Query(default=None)" },
+            { "name": "service", "type": "InwardReportService = Depends(get_inward_report_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "InwardReportResponse" }],
+          "description": "GET /reports/inward. Pure delegation: return service.generate(date_from, date_to, supplier_ids, places, design_ids). 200 on success (empty lists valid when no data matches filter)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/reports/inward', tags=['reports'])"],
+        "expects": ["InwardReportService via Depends", "InwardReportResponse"]
+      },
+      "depends_on": [
+        "backend/src/application/services/inward_report_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/inward_report.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/infrastructure/exporters/pdf_exporter.py",
+      "purpose": "Generates PDF byte streams from SalesReportResponse or InwardReportResponse using reportlab. Stateless — pure function calls, no DB I/O.",
+      "layer": "infrastructure",
+      "module_ref": "M-010",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "PdfExporter.export_sales_report",
+          "inputs": [
+            { "name": "data", "type": "SalesReportResponse" },
+            { "name": "filters", "type": "dict" }
+          ],
+          "outputs": [{ "name": "pdf_bytes", "type": "BytesIO" }],
+          "description": "Builds PDF using reportlab SimpleDocTemplate + Table. Layout: (1) Title 'Sales Report' + generated-at timestamp. (2) Filter summary row (date range, dealers, designs etc — 'All' when not filtered). (3) Section header 'Consolidation'. (4) Table: Design | Size | Grade | Total Nos — one row per consolidation entry. (5) Section header 'Transactions'. (6) Table: Date | Supplier | Place | Design | Size | Grade | Nos — one row per transaction. Returns BytesIO seeked to 0."
+        },
+        {
+          "name": "PdfExporter.export_inward_report",
+          "inputs": [
+            { "name": "data", "type": "InwardReportResponse" },
+            { "name": "filters", "type": "dict" }
+          ],
+          "outputs": [{ "name": "pdf_bytes", "type": "BytesIO" }],
+          "description": "Same layout as export_sales_report but with title 'Inward Report' and transactions columns: Date | Supplier | Place | Design | Size | Grade | Nos."
+        }
+      ],
+      "interfaces": {
+        "exports": ["PdfExporter"],
+        "expects": ["reportlab.platypus (SimpleDocTemplate, Table, Paragraph, Spacer)", "SalesReportResponse", "InwardReportResponse"]
+      },
+      "depends_on": [
+        "backend/src/presentation/schemas/sales_report.py",
+        "backend/src/presentation/schemas/inward_report.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/infrastructure/exporters/excel_exporter.py",
+      "purpose": "Generates XLSX byte streams from SalesReportResponse or InwardReportResponse using openpyxl. Two worksheets per export: Consolidation + Transactions.",
+      "layer": "infrastructure",
+      "module_ref": "M-010",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "ExcelExporter.export_sales_report",
+          "inputs": [
+            { "name": "data", "type": "SalesReportResponse" },
+            { "name": "filters", "type": "dict" }
+          ],
+          "outputs": [{ "name": "xlsx_bytes", "type": "BytesIO" }],
+          "description": "Creates openpyxl Workbook with 2 sheets: 'Consolidation' (headers: Design, Size, Grade, Total Nos) and 'Transactions' (headers: Date, Dealer, Place, Design, Size, Grade, Nos). Row 1 = filter summary merged cell. Row 2 = column headers (bold). Row 3+ = data. Returns BytesIO seeked to 0."
+        },
+        {
+          "name": "ExcelExporter.export_inward_report",
+          "inputs": [
+            { "name": "data", "type": "InwardReportResponse" },
+            { "name": "filters", "type": "dict" }
+          ],
+          "outputs": [{ "name": "xlsx_bytes", "type": "BytesIO" }],
+          "description": "Same 2-sheet layout: 'Consolidation' (Design, Size, Grade, Total Nos) and 'Transactions' (Date, Supplier, Place, Design, Size, Grade, Nos)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["ExcelExporter"],
+        "expects": ["openpyxl (Workbook, styles)", "SalesReportResponse", "InwardReportResponse"]
+      },
+      "depends_on": [
+        "backend/src/presentation/schemas/sales_report.py",
+        "backend/src/presentation/schemas/inward_report.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/application/services/report_export_service.py",
+      "purpose": "Orchestrates report generation + export format routing. Calls the appropriate report service then routes to PdfExporter or ExcelExporter based on format param.",
+      "layer": "application",
+      "module_ref": "M-010",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "ReportExportService.export_sales",
+          "inputs": [
+            { "name": "format", "type": "Literal['pdf', 'xlsx']" },
+            { "name": "date_from", "type": "date | None", "required": false },
+            { "name": "date_to", "type": "date | None", "required": false },
+            { "name": "dealer_ids", "type": "list[int] | None", "required": false },
+            { "name": "places", "type": "list[str] | None", "required": false },
+            { "name": "design_ids", "type": "list[int] | None", "required": false }
+          ],
+          "outputs": [{ "name": "result", "type": "tuple[BytesIO, str, str]" }],
+          "description": "Calls SalesReportService(db).generate(filters) then routes to PdfExporter or ExcelExporter. Returns (BytesIO, content_type, filename). content_type: 'application/pdf' or 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'. filename: 'sales_report_YYYY-MM-DD.pdf|xlsx'.",
+          "raises": ["HTTPException 400 if format not in ['pdf','xlsx']"]
+        },
+        {
+          "name": "ReportExportService.export_inward",
+          "inputs": [
+            { "name": "format", "type": "Literal['pdf', 'xlsx']" },
+            { "name": "date_from", "type": "date | None", "required": false },
+            { "name": "date_to", "type": "date | None", "required": false },
+            { "name": "supplier_ids", "type": "list[int] | None", "required": false },
+            { "name": "places", "type": "list[str] | None", "required": false },
+            { "name": "design_ids", "type": "list[int] | None", "required": false }
+          ],
+          "outputs": [{ "name": "result", "type": "tuple[BytesIO, str, str]" }],
+          "description": "Calls InwardReportService(db).generate(filters) then routes to PdfExporter or ExcelExporter. Returns (BytesIO, content_type, filename).",
+          "raises": ["HTTPException 400 if format not in ['pdf','xlsx']"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["ReportExportService"],
+        "expects": ["SalesReportService (S3)", "InwardReportService (V2)", "PdfExporter", "ExcelExporter"]
+      },
+      "depends_on": [
+        "backend/src/application/services/sales_report_service.py",
+        "backend/src/application/services/inward_report_service.py",
+        "backend/src/infrastructure/exporters/pdf_exporter.py",
+        "backend/src/infrastructure/exporters/excel_exporter.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/presentation/api/routers/report_export.py",
+      "purpose": "Export endpoints for Sales and Inward reports. Returns StreamingResponse so large files don't buffer fully in memory.",
+      "layer": "presentation",
+      "module_ref": "M-010",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "export_sales_report",
+          "inputs": [
+            { "name": "format", "type": "str = Query(..., regex='^(pdf|xlsx)$')" },
+            { "name": "date_from", "type": "date | None = Query(default=None)" },
+            { "name": "date_to", "type": "date | None = Query(default=None)" },
+            { "name": "dealer_ids", "type": "list[int] | None = Query(default=None)" },
+            { "name": "places", "type": "list[str] | None = Query(default=None)" },
+            { "name": "design_ids", "type": "list[int] | None = Query(default=None)" },
+            { "name": "service", "type": "ReportExportService = Depends(get_report_export_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "StreamingResponse" }],
+          "description": "GET /reports/sales/export?format=pdf|xlsx&<sales filters>. Calls service.export_sales(format, filters), returns StreamingResponse(BytesIO, media_type=content_type, headers={'Content-Disposition': 'attachment; filename=...'})."
+        },
+        {
+          "name": "export_inward_report",
+          "inputs": [
+            { "name": "format", "type": "str = Query(..., regex='^(pdf|xlsx)$')" },
+            { "name": "date_from", "type": "date | None = Query(default=None)" },
+            { "name": "date_to", "type": "date | None = Query(default=None)" },
+            { "name": "supplier_ids", "type": "list[int] | None = Query(default=None)" },
+            { "name": "places", "type": "list[str] | None = Query(default=None)" },
+            { "name": "design_ids", "type": "list[int] | None = Query(default=None)" },
+            { "name": "service", "type": "ReportExportService = Depends(get_report_export_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "StreamingResponse" }],
+          "description": "GET /reports/inward/export?format=pdf|xlsx&<inward filters>. Same pattern as export_sales_report."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/reports', tags=['export'])"],
+        "expects": ["ReportExportService via Depends", "fastapi.responses.StreamingResponse"]
+      },
+      "depends_on": [
+        "backend/src/application/services/report_export_service.py",
+        "backend/src/presentation/api/dependencies.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/infrastructure/db/models/pricing.py",
+      "purpose": "SQLAlchemy ORM models for all 4 V2 pricing/invoicing tables: tbl_price_master, tbl_invoice_header, tbl_invoice_line, tbl_payment.",
+      "layer": "infrastructure",
+      "module_ref": "M-011",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "PriceMasterModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "Base" }],
+          "description": "__tablename__='tbl_price_master'. Columns: id (PK), design_id (FK tbl_trading_design_master.id), grade_id (FK tbl_grade_master.id), unit_price (Numeric(10,2)), effective_from (Date), is_active (Boolean DEFAULT True), created_at (TIMESTAMPTZ). UniqueConstraint(design_id, grade_id, effective_from, name='uq_price_design_grade_effective'). Relationships: design (TradingDesignModel), grade (GradeModel) — lazy='joined' for name resolution in service."
+        },
+        {
+          "name": "InvoiceHeaderModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "Base" }],
+          "description": "__tablename__='tbl_invoice_header'. Columns: id (PK), invoice_number (VARCHAR(30) UNIQUE), sales_header_id (FK tbl_sales_header.id UNIQUE — one invoice per sale), invoice_date (Date), total_amount (Numeric(12,2)), status (VARCHAR(10) DEFAULT 'PENDING' CHECK IN('PENDING','PARTIAL','PAID')), created_at (TIMESTAMPTZ). Relationship: lines (list[InvoiceLineModel] backref), payments (list[PaymentModel] backref), sales_header (SalesHeaderModel)."
+        },
+        {
+          "name": "InvoiceLineModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "Base" }],
+          "description": "__tablename__='tbl_invoice_line'. Columns: id (PK), invoice_header_id (FK tbl_invoice_header.id), sales_line_id (FK tbl_sales_line.id UNIQUE — one invoice line per sales line), design_id (INT), grade_id (INT), quantity (INT), unit_price (Numeric(10,2) — snapshot per DS-022), line_total (Numeric(12,2) = quantity × unit_price), created_at (TIMESTAMPTZ)."
+        },
+        {
+          "name": "PaymentModel",
+          "inputs": [],
+          "outputs": [{ "name": "model", "type": "Base" }],
+          "description": "__tablename__='tbl_payment'. Columns: id (PK), invoice_header_id (FK tbl_invoice_header.id), payment_date (Date), amount (Numeric(12,2) CHECK > 0), notes (Text nullable), created_at (TIMESTAMPTZ)."
+        }
+      ],
+      "interfaces": {
+        "exports": ["PriceMasterModel", "InvoiceHeaderModel", "InvoiceLineModel", "PaymentModel"],
+        "expects": ["infrastructure.db.base.Base", "SalesHeaderModel + SalesLineModel (S2)", "TradingDesignModel + GradeModel (S1)"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/base.py",
+        "backend/src/infrastructure/db/models/master.py",
+        "backend/src/infrastructure/db/models/transactions.py"
+      ],
+      "test_required": false
+    },
+
+    {
+      "path": "backend/src/infrastructure/db/repositories/pricing.py",
+      "purpose": "Data-access layer for all 4 pricing/invoicing tables. PriceMasterRepository handles active-price lookups with effective_from ordering. InvoiceRepository handles invoice creation with lines in one transaction. PaymentRepository handles payment appends.",
+      "layer": "infrastructure",
+      "module_ref": "M-011",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "PriceMasterRepository.get_active_price",
+          "inputs": [
+            { "name": "design_id", "type": "int" },
+            { "name": "grade_id", "type": "int" }
+          ],
+          "outputs": [{ "name": "price", "type": "PriceMasterModel | None" }],
+          "description": "SELECT * FROM tbl_price_master WHERE design_id=:d AND grade_id=:g AND is_active=true AND effective_from <= today() ORDER BY effective_from DESC LIMIT 1. Returns None if no price configured."
+        },
+        {
+          "name": "PriceMasterRepository.list_all",
+          "inputs": [],
+          "outputs": [{ "name": "prices", "type": "list[PriceMasterModel]" }],
+          "description": "All rows ordered by design_id, grade_id, effective_from DESC. Includes inactive rows so admin can see history."
+        },
+        {
+          "name": "InvoiceRepository.create_with_lines",
+          "inputs": [
+            { "name": "header_data", "type": "dict" },
+            { "name": "lines_data", "type": "list[dict]" }
+          ],
+          "outputs": [{ "name": "invoice", "type": "InvoiceHeaderModel" }],
+          "description": "Inserts tbl_invoice_header + N tbl_invoice_line rows in a single SQLAlchemy flush. invoice_number auto-generated as 'INV-{YYYYMMDD}-{sales_header_id:05d}'. Returns the loaded InvoiceHeaderModel with lines eager-loaded."
+        },
+        {
+          "name": "InvoiceRepository.get",
+          "inputs": [{ "name": "invoice_id", "type": "int" }],
+          "outputs": [{ "name": "invoice", "type": "InvoiceHeaderModel | None" }],
+          "description": "Fetches invoice by id with lines and payments eager-loaded via joinedload."
+        },
+        {
+          "name": "InvoiceRepository.list",
+          "inputs": [
+            { "name": "dealer_id", "type": "int | None", "required": false },
+            { "name": "date_from", "type": "date | None", "required": false },
+            { "name": "date_to", "type": "date | None", "required": false },
+            { "name": "status", "type": "str | None", "required": false }
+          ],
+          "outputs": [{ "name": "invoices", "type": "list[InvoiceHeaderModel]" }],
+          "description": "Filtered list JOIN tbl_sales_header on dealer_id + invoice_date filters. ORDER BY invoice_date DESC."
+        },
+        {
+          "name": "PaymentRepository.create",
+          "inputs": [
+            { "name": "invoice_header_id", "type": "int" },
+            { "name": "data", "type": "PaymentCreate" }
+          ],
+          "outputs": [{ "name": "payment", "type": "PaymentModel" }],
+          "description": "Inserts tbl_payment row and returns it."
+        }
+      ],
+      "interfaces": {
+        "exports": ["PriceMasterRepository", "InvoiceRepository", "PaymentRepository"],
+        "expects": ["BaseRepository (S1)", "PriceMasterModel", "InvoiceHeaderModel", "InvoiceLineModel", "PaymentModel"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/base.py",
+        "backend/src/infrastructure/db/models/pricing.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/domain/invoice.py",
+      "purpose": "Pure domain functions for invoice arithmetic. No SQLAlchemy, no I/O — fully unit-testable.",
+      "layer": "domain",
+      "module_ref": "M-011",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "compute_line_total",
+          "inputs": [
+            { "name": "quantity", "type": "int" },
+            { "name": "unit_price", "type": "Decimal" }
+          ],
+          "outputs": [{ "name": "total", "type": "Decimal" }],
+          "description": "Returns Decimal(quantity) * unit_price rounded to 2dp via ROUND_HALF_UP. Raises ValueError if quantity <= 0 or unit_price < 0."
+        },
+        {
+          "name": "compute_invoice_total",
+          "inputs": [{ "name": "line_totals", "type": "list[Decimal]" }],
+          "outputs": [{ "name": "total", "type": "Decimal" }],
+          "description": "Returns sum(line_totals) rounded to 2dp. Raises ValueError if line_totals is empty."
+        },
+        {
+          "name": "compute_invoice_status",
+          "inputs": [
+            { "name": "total_amount", "type": "Decimal" },
+            { "name": "paid_amounts", "type": "list[Decimal]" }
+          ],
+          "outputs": [{ "name": "status", "type": "Literal['PENDING', 'PARTIAL', 'PAID']" }],
+          "description": "paid_sum = sum(paid_amounts). If paid_sum == 0 → 'PENDING'. If paid_sum >= total_amount → 'PAID'. Else → 'PARTIAL'."
+        },
+        {
+          "name": "generate_invoice_number",
+          "inputs": [
+            { "name": "invoice_date", "type": "date" },
+            { "name": "sales_header_id", "type": "int" }
+          ],
+          "outputs": [{ "name": "invoice_number", "type": "str" }],
+          "description": "Returns 'INV-{YYYYMMDD}-{sales_header_id:05d}'. Deterministic — same inputs always produce the same number. Uniqueness guaranteed by the UNIQUE constraint on tbl_invoice_header.invoice_number."
+        }
+      ],
+      "interfaces": {
+        "exports": ["compute_line_total", "compute_invoice_total", "compute_invoice_status", "generate_invoice_number"],
+        "expects": ["decimal.Decimal", "datetime.date"]
+      },
+      "depends_on": [],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/application/services/pricing_service.py",
+      "purpose": "M-011 use case for Price Master CRUD. Wraps PriceMasterRepository with business rules: no duplicate active price for same (design, grade, effective_from); unit_price must be >= 0.",
+      "layer": "application",
+      "module_ref": "M-011",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "PricingService.list_prices",
+          "inputs": [],
+          "outputs": [{ "name": "prices", "type": "list[PriceMasterModel]" }],
+          "description": "Returns PriceMasterRepository.list_all() — all rows including inactive, ordered by design, grade, effective_from DESC."
+        },
+        {
+          "name": "PricingService.create_price",
+          "inputs": [{ "name": "data", "type": "PriceMasterCreate" }],
+          "outputs": [{ "name": "price", "type": "PriceMasterModel" }],
+          "description": "Validates: design_id exists, grade_id exists, unit_price >= 0. Checks UniqueConstraint via a SELECT before insert to return a clean 409 (rather than catching DB IntegrityError). Inserts and returns PriceMasterModel.",
+          "raises": ["HTTPException 409 duplicate (design_id, grade_id, effective_from)", "HTTPException 404 design or grade not found"]
+        },
+        {
+          "name": "PricingService.update_price",
+          "inputs": [
+            { "name": "price_id", "type": "int" },
+            { "name": "data", "type": "PriceMasterUpdate" }
+          ],
+          "outputs": [{ "name": "price", "type": "PriceMasterModel" }],
+          "description": "Fetches by id, applies is_active and/or unit_price updates. Returns updated row. 404 if not found.",
+          "raises": ["HTTPException 404"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["PricingService"],
+        "expects": ["PriceMasterRepository", "PriceMasterCreate", "PriceMasterUpdate"]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/pricing.py",
+        "backend/src/presentation/schemas/pricing.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/application/services/invoice_service.py",
+      "purpose": "M-011 use case for Invoice creation and Payment recording. Fetches sales lines, looks up active prices, builds invoice header + lines in one transaction.",
+      "layer": "application",
+      "module_ref": "M-011",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "InvoiceService.create_from_sales",
+          "inputs": [{ "name": "sales_header_id", "type": "int" }],
+          "outputs": [{ "name": "invoice", "type": "InvoiceRead" }],
+          "description": "(1) Verify sales_header_id exists; 404 if not. (2) Check no invoice exists for this sales_header_id (FK UNIQUE); 409 if already invoiced. (3) Fetch all sales_line rows for sales_header_id from tbl_sales_line. (4) For each line: get_active_price(design_id, grade_id) — if None, unit_price=0 (price not yet configured; invoice line created with 0 and a warning flag in notes). (5) Compute line_total = compute_line_total(quantity, unit_price). (6) Compute total_amount = compute_invoice_total(line_totals). (7) Generate invoice_number = generate_invoice_number(invoice_date=today, sales_header_id). (8) InvoiceRepository.create_with_lines(header, lines). Returns InvoiceRead.",
+          "raises": ["HTTPException 404 sales header not found", "HTTPException 409 invoice already exists for this sale"]
+        },
+        {
+          "name": "InvoiceService.list_invoices",
+          "inputs": [
+            { "name": "dealer_id", "type": "int | None", "required": false },
+            { "name": "date_from", "type": "date | None", "required": false },
+            { "name": "date_to", "type": "date | None", "required": false },
+            { "name": "status", "type": "str | None", "required": false }
+          ],
+          "outputs": [{ "name": "invoices", "type": "list[InvoiceSummary]" }],
+          "description": "Delegates to InvoiceRepository.list(). Returns InvoiceSummary projection (header-level only, no lines)."
+        },
+        {
+          "name": "InvoiceService.get_invoice",
+          "inputs": [{ "name": "invoice_id", "type": "int" }],
+          "outputs": [{ "name": "invoice", "type": "InvoiceRead" }],
+          "description": "Fetches invoice with lines and payments; raises 404 if not found. Returns full InvoiceRead.",
+          "raises": ["HTTPException 404"]
+        },
+        {
+          "name": "InvoiceService.record_payment",
+          "inputs": [
+            { "name": "invoice_id", "type": "int" },
+            { "name": "data", "type": "PaymentCreate" }
+          ],
+          "outputs": [{ "name": "invoice", "type": "InvoiceRead" }],
+          "description": "(1) Fetch invoice; 404 if not found. (2) Validate payment amount > 0 and total payments do not exceed invoice total_amount; 422 if overpayment. (3) PaymentRepository.create(invoice_id, data). (4) Recompute status via compute_invoice_status and update tbl_invoice_header.status. (5) Return refreshed InvoiceRead.",
+          "raises": ["HTTPException 404", "HTTPException 422 overpayment"]
+        }
+      ],
+      "interfaces": {
+        "exports": ["InvoiceService"],
+        "expects": [
+          "InvoiceRepository", "PriceMasterRepository",
+          "TransactionRepository (S2 — to fetch sales_line rows by header)",
+          "domain.invoice.*",
+          "InvoiceRead", "InvoiceSummary", "PaymentCreate"
+        ]
+      },
+      "depends_on": [
+        "backend/src/infrastructure/db/repositories/pricing.py",
+        "backend/src/infrastructure/db/repositories/transactions.py",
+        "backend/src/domain/invoice.py",
+        "backend/src/presentation/schemas/pricing.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/presentation/schemas/pricing.py",
+      "purpose": "Pydantic v2 schemas for Price Master, Invoice, and Payment request/response bodies.",
+      "layer": "presentation",
+      "module_ref": "M-011",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "PriceMasterCreate",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: design_id (int), grade_id (int), unit_price (Decimal ge=0), effective_from (date). POST /prices body."
+        },
+        {
+          "name": "PriceMasterRead",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: id (int), design_id (int), design_name (str), size (str), grade_id (int), grade_code (str), unit_price (Decimal), effective_from (date), is_active (bool). ConfigDict(from_attributes=True)."
+        },
+        {
+          "name": "PriceMasterUpdate",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: unit_price (Decimal | None = None), is_active (bool | None = None). Partial PATCH."
+        },
+        {
+          "name": "InvoiceLineRead",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: id (int), sales_line_id (int), design_id (int), design_name (str), size (str), grade_id (int), grade_code (str), quantity (int), unit_price (Decimal), line_total (Decimal)."
+        },
+        {
+          "name": "PaymentRead",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: id (int), payment_date (date), amount (Decimal), notes (str | None)."
+        },
+        {
+          "name": "PaymentCreate",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: payment_date (date), amount (Decimal gt=0), notes (str | None = None). POST /invoices/{id}/payments body."
+        },
+        {
+          "name": "InvoiceRead",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: id (int), invoice_number (str), sales_header_id (int), invoice_date (date), total_amount (Decimal), status (str), lines (list[InvoiceLineRead]), payments (list[PaymentRead]). ConfigDict(from_attributes=True)."
+        },
+        {
+          "name": "InvoiceSummary",
+          "inputs": [],
+          "outputs": [{ "name": "schema", "type": "BaseModel" }],
+          "description": "Fields: id (int), invoice_number (str), invoice_date (date), total_amount (Decimal), status (str), sales_header_id (int). Header-level only, no lines — used in list endpoint."
+        }
+      ],
+      "interfaces": {
+        "exports": ["PriceMasterCreate", "PriceMasterRead", "PriceMasterUpdate", "InvoiceLineRead", "PaymentRead", "PaymentCreate", "InvoiceRead", "InvoiceSummary"],
+        "expects": ["pydantic.BaseModel", "pydantic.ConfigDict", "decimal.Decimal"]
+      },
+      "depends_on": [],
+      "test_required": false
+    },
+
+    {
+      "path": "backend/src/presentation/api/routers/pricing.py",
+      "purpose": "Price Master CRUD endpoints — SUPERVISOR role required for POST and PATCH. GET /prices is accessible by any authenticated user.",
+      "layer": "presentation",
+      "module_ref": "M-011",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "list_prices",
+          "inputs": [{ "name": "service", "type": "PricingService = Depends(get_pricing_service)" }],
+          "outputs": [{ "name": "response", "type": "list[PriceMasterRead]" }],
+          "description": "GET /prices. Returns all prices (including inactive). Any authenticated user."
+        },
+        {
+          "name": "create_price",
+          "inputs": [
+            { "name": "data", "type": "PriceMasterCreate" },
+            { "name": "service", "type": "PricingService = Depends(get_pricing_service)" },
+            { "name": "_", "type": "UserModel = Depends(require_supervisor)" }
+          ],
+          "outputs": [{ "name": "response", "type": "PriceMasterRead" }],
+          "description": "POST /prices. SUPERVISOR only. 201 on success; 409 duplicate; 404 design/grade not found."
+        },
+        {
+          "name": "update_price",
+          "inputs": [
+            { "name": "price_id", "type": "int" },
+            { "name": "data", "type": "PriceMasterUpdate" },
+            { "name": "service", "type": "PricingService = Depends(get_pricing_service)" },
+            { "name": "_", "type": "UserModel = Depends(require_supervisor)" }
+          ],
+          "outputs": [{ "name": "response", "type": "PriceMasterRead" }],
+          "description": "PATCH /prices/{price_id}. SUPERVISOR only. 404 if not found."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/prices', tags=['pricing'])"],
+        "expects": ["PricingService via Depends", "require_supervisor Depends", "PriceMasterCreate", "PriceMasterRead", "PriceMasterUpdate"]
+      },
+      "depends_on": [
+        "backend/src/application/services/pricing_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/pricing.py"
+      ],
+      "test_required": true
+    },
+
+    {
+      "path": "backend/src/presentation/api/routers/invoices.py",
+      "purpose": "Invoice management endpoints. Invoice creation and payment recording require SUPERVISOR role; listing and viewing are available to any authenticated user.",
+      "layer": "presentation",
+      "module_ref": "M-011",
+      "modification": "create",
+      "functions": [
+        {
+          "name": "list_invoices",
+          "inputs": [
+            { "name": "dealer_id", "type": "int | None = Query(default=None)" },
+            { "name": "date_from", "type": "date | None = Query(default=None)" },
+            { "name": "date_to", "type": "date | None = Query(default=None)" },
+            { "name": "status", "type": "str | None = Query(default=None, regex='^(PENDING|PARTIAL|PAID)$')" },
+            { "name": "service", "type": "InvoiceService = Depends(get_invoice_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "list[InvoiceSummary]" }],
+          "description": "GET /invoices with optional filters. Returns summary list. Any authenticated user."
+        },
+        {
+          "name": "create_invoice",
+          "inputs": [
+            { "name": "sales_header_id", "type": "int (JSON body)" },
+            { "name": "service", "type": "InvoiceService = Depends(get_invoice_service)" },
+            { "name": "_", "type": "UserModel = Depends(require_supervisor)" }
+          ],
+          "outputs": [{ "name": "response", "type": "InvoiceRead" }],
+          "description": "POST /invoices. Body: {sales_header_id: int}. SUPERVISOR only. 201 on success; 404 sales not found; 409 already invoiced."
+        },
+        {
+          "name": "get_invoice",
+          "inputs": [
+            { "name": "invoice_id", "type": "int" },
+            { "name": "service", "type": "InvoiceService = Depends(get_invoice_service)" }
+          ],
+          "outputs": [{ "name": "response", "type": "InvoiceRead" }],
+          "description": "GET /invoices/{invoice_id}. Full detail with lines and payments. Any authenticated user. 404 if not found."
+        },
+        {
+          "name": "record_payment",
+          "inputs": [
+            { "name": "invoice_id", "type": "int" },
+            { "name": "data", "type": "PaymentCreate" },
+            { "name": "service", "type": "InvoiceService = Depends(get_invoice_service)" },
+            { "name": "_", "type": "UserModel = Depends(require_supervisor)" }
+          ],
+          "outputs": [{ "name": "response", "type": "InvoiceRead" }],
+          "description": "POST /invoices/{invoice_id}/payments. SUPERVISOR only. Appends a payment and recomputes status. 404 if invoice not found; 422 if overpayment."
+        }
+      ],
+      "interfaces": {
+        "exports": ["router (APIRouter prefix='/invoices', tags=['invoices'])"],
+        "expects": ["InvoiceService via Depends", "require_supervisor Depends", "InvoiceRead", "InvoiceSummary", "PaymentCreate"]
+      },
+      "depends_on": [
+        "backend/src/application/services/invoice_service.py",
+        "backend/src/presentation/api/dependencies.py",
+        "backend/src/presentation/schemas/pricing.py"
+      ],
+      "test_required": true
+    }
+  ],
+
+  "new_decisions": [
+    {
+      "id": "DS-018",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "Authentication uses JWT (JSON Web Tokens) signed with HS256 via python-jose, with an 8-hour access token TTL. Credentials are stored as bcrypt hashes via passlib. No refresh tokens in V2. FastAPI OAuth2PasswordBearer extracts the Bearer token from the Authorization header.",
+      "rationale": "JWT is stateless — no session store required, compatible with the existing single-process uvicorn deployment. 8-hour TTL matches a typical trading day, minimising re-login friction without creating overly long-lived tokens. Bcrypt is the industry standard for password hashing. python-jose + passlib are the canonical FastAPI auth stack with extensive documentation. Refresh tokens add complexity (storage, rotation, revocation) with marginal benefit at single-tenant single-site scale.",
+      "tradeoffs": "No token revocation in V2 — a deactivated user's existing token remains valid until expiry. Mitigation: get_current_user always re-fetches is_active from the DB on each request, so deactivation takes effect on the next API call. 8-hour TTL bounds the exposure window.",
+      "alternatives_considered": [
+        "Session-based auth (server-side sessions): rejected — requires a session store (Redis or DB table), adds infrastructure dependency.",
+        "Short TTL (1h) + refresh tokens: rejected — adds client-side token rotation complexity and a refresh endpoint; overkill for V2 internal-network use.",
+        "API key per user: rejected — no per-request expiry, harder to revoke, no standard FastAPI integration."
+      ],
+      "module_refs": ["M-008"],
+      "recall_keywords": ["auth", "jwt", "bcrypt", "oauth2", "token", "v2"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active"
+    },
+    {
+      "id": "DS-019",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "RBAC uses a single role enum column on tbl_user_master — three roles: STAFF (data entry, read reports), VERIFIER (read only: dashboard + reports), SUPERVISOR (full access including user + price + invoice management). No separate roles or permissions tables.",
+      "rationale": "Three fixed roles map directly to the PRD user types (Data Entry Staff, Stock Verifier, Management/Supervisor). A roles table with many-to-many user↔role and a permissions table per endpoint would add 3+ tables and a join on every request for a system with exactly 3 roles. The enum column is O(1) to read from the JWT payload (role is included in the token) and from the DB (single column read in get_current_user). Role expansion beyond 3 would warrant a separate permissions table; V2 scope does not require it.",
+      "tradeoffs": "Role enum is a schema migration if a 4th role is added. Acceptable at V2 scale — migrations are cheap and the ORM change is one field. No fine-grained per-endpoint permission matrix; all SUPERVISOR routes share the same require_supervisor guard.",
+      "alternatives_considered": [
+        "Separate tbl_role + tbl_user_role many-to-many: rejected — 2 extra tables, FK joins, and migration complexity for 3 roles that won't change in V2.",
+        "Permission bitfield per user: rejected — opaque, hard to audit, not readable by non-developers."
+      ],
+      "module_refs": ["M-008"],
+      "recall_keywords": ["rbac", "roles", "supervisor", "staff", "verifier", "permissions"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active"
+    },
+    {
+      "id": "DS-020",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "TD-008 (first-row insert race in tbl_stock_ledger) is CLOSED by DS-015's advisory lock. No code change to domain/stock.py required. V2 adds a new integration test TC covering the concurrent first-row insert scenario to provide explicit regression coverage.",
+      "rationale": "TD-008 described the race: two concurrent sessions inserting the FIRST-EVER ledger row for the same (design, grade) can both succeed with running_balance=delta. DS-015 (S3 LLD) mandated pg_advisory_xact_lock(design_id, grade_id) BEFORE the FOR UPDATE. This transaction-level advisory lock serializes ALL concurrent writes per (design, grade) pair — including the first-row case, because the second session blocks on the advisory lock until the first session commits. The domain.stock._apply function in backend/src/domain/stock.py already implements this (TD-011 closed in S2). The gap was test coverage — TC-087 (S2) assumed a pre-existing row. V2 explicitly adds a TC for empty-ledger concurrent scenario.",
+      "tradeoffs": "No code change — test-only addition. Zero risk of regression. The advisory lock was already live in production at V1 ship.",
+      "alternatives_considered": [
+        "INSERT ... ON CONFLICT DO UPDATE (upsert): considered — would also handle first-row, but changes the ledger's insert-only semantics.",
+        "Lock the design_grade_map row as sentinel: rejected by DS-015 (couples admin edits to write path)."
+      ],
+      "module_refs": ["M-003"],
+      "recall_keywords": ["TD-008", "first-row", "race", "advisory lock", "stock ledger", "DS-015"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active",
+      "closes_tech_debt": ["TD-008"]
+    },
+    {
+      "id": "DS-021",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "Report export uses reportlab for PDF generation and openpyxl for Excel (XLSX) generation. Both produce BytesIO objects returned via FastAPI StreamingResponse.",
+      "rationale": "reportlab: mature Python PDF library, pure Python, no external binary dependencies (unlike wkhtmltopdf/weasyprint), generates tabular reports via SimpleDocTemplate + Table without HTML intermediary. openpyxl: pure Python XLSX reader/writer, MIT licence, no LibreOffice/Java dependency, well-maintained, produces native .xlsx format that Excel and Google Sheets open without conversion. StreamingResponse avoids buffering large files fully in memory before sending.",
+      "tradeoffs": "reportlab's API is verbose — building tables requires explicit column widths and styles. Acceptable for 2 report types. openpyxl generates .xlsx only (not .xls); .xlsx has been the default Excel format since 2007 — no concern.",
+      "alternatives_considered": [
+        "weasyprint (HTML→PDF): rejected — requires libpango/libcairo system libraries, complicating the Docker image.",
+        "xlsxwriter (Excel): rejected — write-only, no read capability; openpyxl is more broadly useful if read-back is ever needed.",
+        "pandas.DataFrame.to_excel: rejected — pulls in the pandas dependency for a use-case that doesn't need DataFrame semantics."
+      ],
+      "module_refs": ["M-010"],
+      "recall_keywords": ["export", "pdf", "excel", "xlsx", "reportlab", "openpyxl", "streamingresponse"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active"
+    },
+    {
+      "id": "DS-022",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "Active price for invoice line population = the tbl_price_master row WHERE design_id=X AND grade_id=G AND is_active=True AND effective_from <= invoice_date ORDER BY effective_from DESC LIMIT 1. unit_price is snapshotted onto tbl_invoice_line at invoice creation time (immutable after creation). If no active price exists for a (design, grade), unit_price=0 is used and the line carries a warning note.",
+      "rationale": "Effective-from price lookup gives time-aware pricing: a price change introduced on 2026-08-01 doesn't affect invoices generated before that date. Snapshotting the unit_price on invoice creation (per DS-013 precedent for place denormalisation) gives immutable historical invoices — a price master edit after invoicing never silently retroacts. Zero-price fallback (with warning) prevents invoice creation from blocking when prices are not yet configured, matching the PO's stated workflow where prices may be back-filled.",
+      "tradeoffs": "If a price is misconfigured, an invoice with unit_price=0 is created silently (with warning note). Admin must notice the warning and re-invoice. Alternative: block invoice creation when price is missing — rejected because it would prevent supervisors from invoicing newly introduced design-grade combinations during a price-configuration catch-up window.",
+      "alternatives_considered": [
+        "Block invoice if price missing: rejected — couples invoice creation to price configuration completeness; creates operational friction.",
+        "Use latest active price regardless of effective_from: rejected — removes the time-aware pricing capability.",
+        "Store price as a FK reference on invoice_line: rejected — FK to price master row allows retroactive price edits to silently change historical invoices."
+      ],
+      "module_refs": ["M-011"],
+      "recall_keywords": ["pricing", "invoice", "unit_price", "effective_from", "snapshot", "DS-013"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active"
+    },
+    {
+      "id": "DS-023",
+      "stage": "lld",
+      "sprint_id": "V2",
+      "decision": "Invoices are created on-demand by SUPERVISOR via POST /invoices {sales_header_id} — NOT auto-triggered during sales saves. One invoice per sales transaction enforced by UNIQUE(sales_header_id) on tbl_invoice_header.",
+      "rationale": "Auto-triggering invoice creation on every POST /sales would require prices to be configured for all (design, grade) pairs before any sale can be saved — blocking the data-entry flow that was operational in V1. On-demand creation gives the supervisor control over the invoicing timeline and accommodates the common scenario where prices are configured after sales are entered. The UNIQUE constraint prevents double-invoicing. invoice_number is deterministic (INV-{date}-{sales_header_id}) so accidental duplicate creation attempts get a clear 409.",
+      "tradeoffs": "Invoices must be created manually per sale — a supervisor could forget to invoice some transactions. Mitigation: GET /invoices can filter by uninvoiced sales (LEFT JOIN on sales_header_id IS NULL) — implementable in V3 as a convenience endpoint.",
+      "alternatives_considered": [
+        "Auto-create invoice in sales save transaction: rejected — blocks sales entry when prices are missing; tight coupling between M-002 (transactions) and M-011 (invoicing).",
+        "Batch invoice creation (invoice all un-invoiced sales): considered for V3 — useful but out of V2 scope."
+      ],
+      "module_refs": ["M-011"],
+      "recall_keywords": ["invoice", "on-demand", "sales", "supervisor", "unique constraint"],
+      "made_by": "architect",
+      "timestamp": "2026-07-02",
+      "status": "active"
+    }
+  ],
+
+  "rules_referenced": [
+    "DS-005: V1 no-auth decision superseded in V2 — all V1 endpoints get auth guard via include_router dependencies in main.py",
+    "DS-007: Four-layer architecture preserved — all V2 files follow presentation/application/domain/infrastructure separation",
+    "DS-008: Soft-delete only — PriceMasterModel uses is_active=false, not DELETE",
+    "DS-009: ORM-first migrations — 0004 autogenerated from new ORM models",
+    "DS-012: BaseRepository[T] extended by UserRepository, PriceMasterRepository, InvoiceRepository, PaymentRepository",
+    "DS-013: place column snapshotted on tbl_inward_header — used as-is by InwardReportService (no re-join to supplier master for place)",
+    "DS-015: Advisory lock pattern inherited — any future ledger write must compose pg_advisory_xact_lock + FOR UPDATE",
+    "DS-017: Shared filter predicate pattern from SalesReportService replicated in InwardReportService to guarantee reconciliation invariant",
+    "DS-022: unit_price snapshotted on invoice_line — same immutability pattern as DS-013 place snapshot"
+  ],
+
+  "dependency_graph_summary": {
+    "no_circular_dependencies": true,
+    "layer_violations": [],
+    "cross_sprint_deps": [
+      "M-008 modifies dependencies.py + main.py (S1+S2+S3 files) to add auth guards without touching individual V1 router files",
+      "M-009 InwardReportService reads InwardHeaderModel + InwardLineModel (S2) and SupplierModel + DesignModel + GradeModel (S1) — read-only, no modifications",
+      "M-010 ReportExportService imports SalesReportService (S3) — read-only composition",
+      "M-011 InvoiceService reads SalesHeaderModel + SalesLineModel (S2 repositories) — read-only"
+    ],
+    "new_tables_count": 5,
+    "new_backend_files_count": 25,
+    "modified_backend_files": ["backend/src/presentation/api/dependencies.py", "backend/src/main.py"],
+    "frontend_ui_track_note": "V2 frontend ships via the UI track (/ases-ui-design V2 → /ases-ui-review V2 → /ases-ui-scaffold V2). New pages needed: /login (open), /admin/users (SUPERVISOR), /admin/prices (SUPERVISOR), /admin/invoices (all authenticated), /admin/invoices/{id} (all authenticated), /admin/reports/inward (all authenticated). Export buttons added to existing /admin/reports/sales and new /admin/reports/inward pages. All pages must include JWT Bearer header in fetch calls. Auth state stored in localStorage or httpOnly cookie — decision deferred to /ases-ui-design V2."
+  },
+
+  "depends_on_completed_sprints": [
+    "S1 (M-001 masters, M-007 persistence — tbl_trading_design_master, tbl_grade_master, tbl_supplier_master, BaseRepository, TimestampMixin)",
+    "S2 (M-002 transaction forms, M-003 stock ledger — tbl_inward_header, tbl_inward_line, tbl_sales_header, tbl_sales_line, domain.stock._apply with advisory lock)",
+    "S3 (M-004 dashboard, M-005 sales report — SalesReportService, SalesReportResponse schemas)"
+  ],
+
+  "next": "/ases-schema V2"
+}

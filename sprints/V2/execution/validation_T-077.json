@@ -1,0 +1,54 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "produced_by": "/ases-validate T-077 V2",
+  "task_id": "T-077",
+  "sprint_id": "V2",
+  "target_file": "backend/src/application/services/inward_report_service.py",
+  "task_type": "create",
+  "timestamp": "2026-07-03",
+  "verdict": "PROCEED",
+
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "files_checked": [
+        { "path": "backend/src/infrastructure/db/models/transactions.py",  "exists": true },
+        { "path": "backend/src/infrastructure/db/models/master.py",        "exists": true },
+        { "path": "backend/src/presentation/schemas/inward_report.py",     "exists": true }
+      ]
+    },
+
+    "interface_contract_intact": {
+      "status": "PASS",
+      "lld_ref": "lld.json files[12]",
+      "contracts_verified": [
+        { "symbol": "InwardHeaderModel",    "source": "backend/src/infrastructure/db/models/transactions.py:23",  "status": "FOUND" },
+        { "symbol": "InwardLineModel",      "source": "backend/src/infrastructure/db/models/transactions.py:52",  "status": "FOUND" },
+        { "symbol": "SupplierModel",        "source": "backend/src/infrastructure/db/models/master.py:7",          "status": "FOUND" },
+        { "symbol": "GradeModel",           "source": "backend/src/infrastructure/db/models/master.py:51",         "status": "FOUND" },
+        { "symbol": "TradingDesignModel",   "source": "backend/src/infrastructure/db/models/master.py:67",         "status": "FOUND" },
+        { "symbol": "InwardReportResponse", "source": "backend/src/presentation/schemas/inward_report.py:31",      "status": "FOUND" }
+      ],
+      "drift_detected": false
+    },
+
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "output_file": "backend/src/application/services/inward_report_service.py",
+      "in_progress_tasks": [],
+      "overlap_detected": false
+    },
+
+    "no_circular_dependency": {
+      "status": "PASS",
+      "depends_on": [
+        { "task_id": "T-076", "file": "backend/src/presentation/schemas/inward_report.py", "status": "complete", "blocking": false }
+      ],
+      "incomplete_count": 0
+    }
+  },
+
+  "previous_verdict": "HOLD (T-076 was pending — now resolved)",
+  "next": "/ases-dev T-077 V2"
+}

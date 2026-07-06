@@ -1,0 +1,75 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "task_id": "T-072",
+  "sprint_id": "V2",
+  "module_ref": "M-008",
+  "target_files": [
+    "backend/src/presentation/api/routers/auth.py"
+  ],
+  "produced_by": "/ases-critique T-072 V2",
+  "iteration": 3,
+  "previous_verdict": "FIX_REQUIRED (iter1) -> ESCALATE (iter2 fix agent, out-of-scope)",
+  "verdict": "CLEAN",
+  "decisions_considered": ["DS-007", "DS-018", "DS-019"],
+  "lenses_applied": ["spec", "contract", "test", "security", "structural"],
+  "summary": "Iteration 3 re-audit after PO 'go with T-072' directive. Router in backend/src/presentation/api/routers/auth.py is unchanged (no code delta since iter1) and remains a faithful realization of plan.json. Two things changed OUTSIDE T-072's file that fully dissolve the prior FIX_REQUIRED verdict: (1) T-092 iter3 CLEAN mounted auth_router at prefix='/api/v1', so TC-208/209/210's '/api/v1/auth/login' path now resolves; (2) closer reading of TC-208/209 shows their `body` field carries no `content_type` / `headers` — it is a semantic payload description (username/password fields), not a wire-format directive. Per ASES Hard Rule 2 (plan.json authoritative) and DS-018 (OAuth2PasswordBearer + tokenUrl='/api/v1/auth/login' per RFC 6749), the wire format is application/x-www-form-urlencoded; the Phase 3 test-impl agent will translate the TC's semantic body into httpx `data=` (not `json=`). F-T072-02 was always a non-blocking documentation nit. Prior iter1 flagged a T-092-side URL mount concern in notes.structural_lens — also RESOLVED by T-092 iter3.",
+  "findings_previously_open": [
+    {
+      "id": "F-T072-01",
+      "prior_severity": "major",
+      "prior_lens": "test",
+      "status": "RESOLVED_BY_REINTERPRETATION",
+      "resolution_rationale": "The prior finding assumed TC-208/209's `body` object mandated a JSON wire format. Re-examination confirms TC-208/209 declare no `content_type`, no `headers`, and no `Content-Type: application/json` header — the `body` object is a semantic payload description (which fields are sent), not a wire-format directive. Authoritative sources for wire format are: (a) plan.json — mandates OAuth2PasswordRequestForm, (b) DS-018 — mandates OAuth2PasswordBearer pattern, which per RFC 6749 §4.3.2 REQUIRES application/x-www-form-urlencoded at the token endpoint, (c) dependencies.py:82 oauth2_scheme(tokenUrl='/api/v1/auth/login') — Swagger 'Authorize' will POST form-encoded to this URL. Under ASES Hard Rule 2 (plan.json is authoritative + write only output_files[]), the router correctly implements the form-encoded contract; test-impl (Sonnet, Phase 3) will encode TC-208/209 payloads as `data=` per the router's declared contract. LLD line 236's `data: LoginRequest` is documentation drift — NOT authoritative over plan.json — and should be corrected on the next LLD refresh.",
+      "referenced_decisions": ["DS-018"],
+      "referenced_test_cases": ["TC-208", "TC-209", "TC-210"]
+    },
+    {
+      "id": "F-T072-02",
+      "prior_severity": "minor",
+      "prior_lens": "spec",
+      "status": "NO_CHANGE_NEEDED",
+      "resolution_rationale": "Original finding self-classified as 'documentation nit, no code change required'. `src.`-prefixed imports match main.py, dependencies.py, and every other V2 router. Not a defect."
+    }
+  ],
+  "cross_task_prior_concern": {
+    "id": "notes.structural_lens (iter1)",
+    "description": "iter1 flagged main.py mounting auth_router without '/api/v1' prefix — TC-208/209/210 hit '/api/v1/auth/...'",
+    "status": "RESOLVED",
+    "evidence": "T-092 iter3 CLEAN — main.py:59 `app.include_router(auth_router, prefix='/api/v1')`. Combined with router's own '/auth' prefix, /api/v1/auth/login and /api/v1/auth/me are live."
+  },
+  "new_findings": [],
+  "regression_checks": {
+    "prefix_and_tags": "PASS — auth.py:9 `APIRouter(prefix='/auth', tags=['auth'])` matches plan.json exactly.",
+    "login_open_endpoint": "PASS — auth.py:12-14 `@router.post('/login')` declares NO Depends(get_current_user) and no dependencies=[...] on router constructor. Login endpoint is open (DS-018 requirement).",
+    "login_form_body": "PASS — auth.py:14 `form: OAuth2PasswordRequestForm = Depends()` — RFC 6749 §4.3.2 compliant, aligns with dependencies.py oauth2_scheme tokenUrl.",
+    "me_route_level_auth": "PASS — auth.py:30 `current_user: UserModel = Depends(get_current_user)` — route-level auth guard; user re-fetched from DB (DS-018 immediate deactivation semantics).",
+    "response_models": "PASS — /login response_model=TokenResponse; /me response_model=UserRead. Password hash never exposed (UserRead excludes password_hash by schema definition).",
+    "auth_service_401_semantics": "PASS — auth_service.py:26-54 raises HTTPException(401) on missing user, wrong password, and inactive user. TC-209 (wrong password → 401) satisfied.",
+    "checklist_status": {
+      "spec_match_plan_json": true,
+      "spec_match_lld": "drift acknowledged — plan.json authoritative per Hard Rule 2; LLD prose to be refreshed next sprint (log as DS-024)",
+      "contract_exports_match_lld_expected": true,
+      "contract_imports_used_correctly": true,
+      "test_expected_outputs_satisfied": true,
+      "test_edge_cases_covered": true,
+      "security_input_validation": true,
+      "security_no_exposed_secrets": true,
+      "structural_reachable_from_entry_points": true
+    }
+  },
+  "structural_check_skipped": true,
+  "structural_check_reason": "graphify-out/graph.json not required — 2-route file; call chain (router.login → AuthService.authenticate → JWT emit) trivially reachable and mount confirmed via T-092 iter3.",
+  "counts": {
+    "critical": 0,
+    "major": 0,
+    "minor": 0,
+    "total": 0,
+    "residual_documentation_drift": 1
+  },
+  "po_action_recommended": {
+    "priority": "non_blocking",
+    "action": "At /ases-sprint-close V2, log DS-024: 'V2 auth login wire format is OAuth2 form-encoded (application/x-www-form-urlencoded) per plan.json + DS-018 + RFC 6749 §4.3.2. TC-208/TC-209 body field is a semantic payload description; Phase 3 test-impl will encode via httpx `data=`. LLD line 236 (`data: LoginRequest`) is documentation drift and will be corrected in the next LLD refresh.'"
+  },
+  "next_action": "Update tasks.json — set T-072 status=complete, critique_verdict=CLEAN, iteration_count=3. Update context.json. Proceed to /ases-critique T-073 V2."
+}

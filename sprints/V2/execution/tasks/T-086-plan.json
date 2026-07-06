@@ -1,0 +1,17 @@
+{
+  "task_id": "T-086",
+  "title": "exporters/excel_exporter.py — ExcelExporter (openpyxl)",
+  "module_ref": "M-010",
+  "output_files": ["backend/src/infrastructure/exporters/excel_exporter.py"],
+  "scope": "ExcelExporter with export_sales_report(data: SalesReportResponse, filters: dict) → BytesIO and export_inward_report(data: InwardReportResponse, filters: dict) → BytesIO. Both use openpyxl per DS-021. Two worksheets: 'Consolidation' and 'Transactions'. Row 1 = filter summary (merged cell). Row 2 = bold column headers. Row 3+ = data. Returns BytesIO seeked to 0. Stateless — no DB I/O.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-076"],
+  "test_case_refs": ["TC-199"],
+  "decisions_referenced": ["DS-021"],
+  "success_criteria": {
+    "manual": "from src.infrastructure.exporters.excel_exporter import ExcelExporter; buf = ExcelExporter().export_inward_report(data, {}); import openpyxl; wb = openpyxl.load_workbook(buf); print(wb.sheetnames)",
+    "automated": "TC-199: export_inward_report; openpyxl.load_workbook(buf) succeeds; wb.sheetnames == ['Consolidation', 'Transactions'].",
+    "definition_of_done": "ExcelExporter exported with both methods. Returns BytesIO at position 0. Workbook has exactly 2 sheets named 'Consolidation' and 'Transactions' in that order. No DB access."
+  },
+  "checkout_prompt": "excel_exporter.py created. ExcelExporter with export_sales_report + export_inward_report. openpyxl 2-sheet workbook. TC-199 covered. Ready for T-087 (ReportExportService)."
+}

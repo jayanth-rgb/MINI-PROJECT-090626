@@ -1,0 +1,6 @@
+{
+  "task_id": "T-071",
+  "test_case_refs": ["TC-190", "TC-191", "TC-192", "TC-193", "TC-194"],
+  "priority": "critical",
+  "notes": "All integration tests requiring PostgreSQL (testcontainers). TC-190: seed admin/admin123/SUPERVISOR/active; authenticate → TokenResponse with token_type='bearer', role='SUPERVISOR', access_token non-empty. TC-191: seed admin/admin123; authenticate with wrong password → HTTPException 401. TC-192: seed inactiveuser/pass123/STAFF/is_active=False; authenticate → HTTPException 401. TC-193: seed admin/SUPERVISOR/active; create valid JWT for 'admin'; get_current_user(token) → UserModel username='admin', role='SUPERVISOR'. TC-194: seed dupuser/STAFF; create_user with same username 'dupuser' → HTTPException 409."
+}

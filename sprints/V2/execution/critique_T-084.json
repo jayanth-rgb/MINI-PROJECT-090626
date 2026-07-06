@@ -1,0 +1,46 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-084",
+  "sprint_id": "V2",
+  "iteration": 3,
+  "verdict": "CLEAN",
+  "critical_count": 0,
+  "major_count": 0,
+  "minor_count": 0,
+  "issues_remaining": 0,
+  "issues": [],
+  "resolved_issues": [
+    {
+      "id": "I-001",
+      "original_severity": "critical",
+      "resolution": "InvoiceLineRead now assembled manually inside _to_invoice_read helper (lines 42–81) via IN-query lookups on TradingDesignModel and GradeModel. All three response paths (create_from_sales, get_invoice, record_payment) route through the helper. ValidationError at runtime is eliminated."
+    },
+    {
+      "id": "I-002",
+      "original_severity": "major",
+      "resolution": "Duplicate-invoice check replaced with targeted O(1) scalar existence query: `self._db.scalar(select(InvoiceHeaderModel.id).where(...).limit(1))` at lines 91–96. No full-table scan."
+    },
+    {
+      "id": "I-003",
+      "original_severity": "minor",
+      "resolution": "Interim warning: `logger.warning('Invoice line for design_id=%s grade_id=%s created with unit_price=0 — no active price found', ...)` at lines 112–117. Full notes-column fix remains blocked on T-081/T-082 scope boundary — accepted per iteration-1 precedent."
+    },
+    {
+      "id": "I-004",
+      "original_severity": "minor",
+      "resolution": "`.order_by(SalesLineModel.line_id)` added to the sales-lines select statement (line 104). TC-202 line-ordering assertions (line_0_unit_price=100.00, line_1_unit_price=80.00) are now deterministic across VACUUM FULL, concurrent INSERT, and replica WAL reorder scenarios."
+    }
+  ],
+  "lens_summary": {
+    "spec": "PASS — All 4 methods implemented per plan.json scope. 404/409/422 guards correct. Price snapshot via get_active_price at creation time. commit+refresh after create_with_lines and record_payment.",
+    "contract": "PASS — All imports from depends_on[T-079, T-080, T-081, T-082] used correctly. InvoiceService exported. DS-007 direct ORM access on SalesHeaderModel/SalesLineModel is accepted ADR trade-off (documented iteration-1, ds007_direct_orm_access note).",
+    "test": "PASS — TC-202: total=1400.00, ordered line_0=100.00/line_1=80.00 ✓. TC-203: 409 scalar guard ✓. TC-204: unit_price immutable after price master PATCH ✓. TC-205: full-payment → PAID status ✓. TC-206: overpayment 422 ✓.",
+    "security": "PASS — All DB queries parameterized via SQLAlchemy. Integer IDs in HTTPException detail (no PII/secrets). Pydantic validates PaymentCreate.amount (gt=0). No hardcoded credentials.",
+    "structural": "PASS — InvoiceService not yet wired into main.py (correct by DAG; T-089 + T-091 are downstream). All internal call edges present. _to_invoice_read called from all 3 response paths. No dead imports."
+  },
+  "decisions_checked": ["DS-007", "DS-022", "DS-023"],
+  "adr_tradeoffs_accepted": [
+    "DS-007 — direct ORM on SalesHeaderModel/SalesLineModel: TransactionRepository has no get_by_pk/list_by_header interface in S2 scope",
+    "DS-022 — zero-price warning via logger (notes column fix blocked on T-081/T-082)"
+  ]
+}

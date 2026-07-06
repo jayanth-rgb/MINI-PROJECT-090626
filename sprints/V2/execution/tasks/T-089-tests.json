@@ -1,0 +1,6 @@
+{
+  "task_id": "T-089",
+  "test_case_refs": [],
+  "priority": "low",
+  "notes": "No dedicated TCs for dependencies.py. Auth guard behavior verified transitively: TC-208 (valid login -> 200) exercises the oauth2_scheme + get_current_user pathway; TC-212 (STAFF token on SUPERVISOR endpoint -> 403) exercises require_supervisor; TC-213 (V1 endpoint without token -> 401) exercises get_current_user on V1 mounts. All TC-208..TC-217 implicitly test these deps."
+}

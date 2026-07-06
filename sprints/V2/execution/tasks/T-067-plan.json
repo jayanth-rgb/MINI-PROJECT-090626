@@ -1,0 +1,17 @@
+{
+  "task_id": "T-067",
+  "title": "UserModel SQLAlchemy ORM — tbl_user_master",
+  "module_ref": "M-008",
+  "output_files": ["backend/src/infrastructure/db/models/auth.py"],
+  "scope": "Single SQLAlchemy 2.x model class UserModel for tbl_user_master. Six columns: id (Integer PK autoincrement), username (String(100) UNIQUE NOT NULL), password_hash (String(255) NOT NULL), role (Enum 'STAFF'/'VERIFIER'/'SUPERVISOR' NOT NULL), is_active (Boolean DEFAULT True NOT NULL), created_at (TIMESTAMPTZ via TimestampMixin). Index ix_user_master_username on username. Inherits Base + TimestampMixin per DS-014.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-014", "DS-019"],
+  "success_criteria": {
+    "manual": "python -c 'from src.infrastructure.db.models.auth import UserModel; print(UserModel.__tablename__, [c.name for c in UserModel.__table__.columns])' → 'tbl_user_master' + 6 column names.",
+    "automated": "T-070 integration tests (TC-185, TC-186) instantiate UserModel rows via UserRepository and assert field values.",
+    "definition_of_done": "File exists with UserModel inheriting Base+TimestampMixin, __tablename__='tbl_user_master', 6 columns, UNIQUE on username, Index on username. Exported as UserModel."
+  },
+  "checkout_prompt": "UserModel created. tbl_user_master, 6 columns, UNIQUE username, TimestampMixin. Ready for T-070 (UserRepository)."
+}

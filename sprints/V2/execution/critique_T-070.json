@@ -1,0 +1,37 @@
+{
+  "task_id": "T-070",
+  "sprint_id": "V2",
+  "title": "repositories/auth.py — UserRepository",
+  "iteration": 3,
+  "reviewed_file": "backend/src/infrastructure/db/repositories/auth.py",
+  "decisions_checked": ["DS-007", "DS-012", "DS-018", "DS-019"],
+  "issues": [],
+  "resolved_issues": [
+    {
+      "id": "I-001",
+      "resolved_in_iteration": 2,
+      "description": "repositories/auth.py missing src. prefix on imports (iteration 1 flag).",
+      "resolution": "Confirmed fixed in iteration 2 — imports carry src. prefix."
+    },
+    {
+      "id": "I-002",
+      "resolved_in_iteration": 3,
+      "description": "T-067's models/auth.py had 'from infrastructure.db.base import Base, TimestampMixin' missing the src. prefix — caused ModuleNotFoundError at pytest collection time for TC-185/TC-186.",
+      "resolution": "Verified fixed: backend/src/infrastructure/db/models/auth.py line 4 now reads 'from src.infrastructure.db.base import Base, TimestampMixin'. Import chain is intact; TC-185 and TC-186 can collect and run."
+    }
+  ],
+  "lens_summary": {
+    "spec": "CLEAN — get_by_username(username: str) → UserModel | None implemented as SELECT WHERE username == :u LIMIT 1 via scalar_one_or_none (case-sensitive ORM == on varchar, returns None if not found). list_active() → list[UserModel] implemented as WHERE is_active IS True ORDER BY username ASC. Both signatures match plan.json and LLD files[1] exactly. Extends BaseRepository[UserModel] — __class_getitem__ binds model=UserModel. Single output file respected (no scope creep).",
+    "contract": "CLEAN — UserRepository exported at module level. BaseRepository imported from src.infrastructure.db.repositories.base (src. prefix correct). UserModel imported from src.infrastructure.db.models.auth (src. prefix correct). Method signatures and return types match LLD interfaces.exports. T-071 (AuthService) depends_on T-070 and will find UserRepository.get_by_username and UserRepository.list_active as specified.",
+    "test": "CLEAN — TC-185 (get_by_username returns UserModel for existing user): scalar_one_or_none() returns the seeded row matching WHERE username == 'teststaff'. TC-186 (get_by_username returns None for unknown username): scalar_one_or_none() returns None when no row matches. Transitive import blocker (I-002) is resolved — models/auth.py import of Base + TimestampMixin now uses correct src. prefix. Collection will succeed.",
+    "security": "CLEAN — SQLAlchemy ORM parameterizes username via == operator preventing SQL injection. is_active.is_(True) uses IS operator (correct for boolean columns in SQLAlchemy 2.x, avoids NULL ambiguity). No secrets exposed. Case-sensitive exact match on username is appropriate for authentication lookups.",
+    "structural": "SKIPPED — single-file task with clear import chain; no graphify-out/graph.json check required"
+  },
+  "verdict": "CLEAN",
+  "critical_count": 0,
+  "major_count": 0,
+  "minor_count": 0,
+  "issues_remaining": 0,
+  "previous_issues_remaining": 1,
+  "next_action": "Mark T-070 complete in tasks.json → proceed to next pending task (T-071 AuthService or next parallel group task)"
+}

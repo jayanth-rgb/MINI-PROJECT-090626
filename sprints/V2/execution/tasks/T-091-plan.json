@@ -1,0 +1,17 @@
+{
+  "task_id": "T-091",
+  "title": "routers/invoices.py — Invoice CRUD + payment recording (4 endpoints)",
+  "module_ref": "M-011",
+  "output_files": ["backend/src/presentation/api/routers/invoices.py"],
+  "scope": "FastAPI router with prefix='/invoices', tags=['invoices']. 4 endpoints: GET '' (list invoices, any auth, returns list[InvoiceSummary]); POST '' 201 (create invoice, sales_header_id as Query param not body, SUPERVISOR only, returns InvoiceRead); GET '/{invoice_id}' (detail with nested lines+payments, any auth, returns InvoiceRead); POST '/{invoice_id}/payments' 201 (record payment, body=PaymentCreate, SUPERVISOR only, returns updated InvoiceRead). DS-023: invoicing is on-demand only — no auto-trigger logic.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-084", "T-089"],
+  "test_case_refs": ["TC-217"],
+  "decisions_referenced": ["DS-007", "DS-019", "DS-022", "DS-023"],
+  "success_criteria": {
+    "manual": "python -c \"from src.presentation.api.routers.invoices import router; print(len(router.routes))\"  # expect 4",
+    "automated": "TC-217 (POST /invoices?sales_header_id=1 with SUPERVISOR -> 201, invoice_number starts 'INV-', total_amount correct, status=PENDING).",
+    "definition_of_done": "invoices.py with 4 routes. GET endpoints any-auth. POST endpoints SUPERVISOR-only. sales_header_id as Query param on create. InvoiceService wired."
+  },
+  "checkout_prompt": "routers/invoices.py created. 4 endpoints: list, create (sales_header_id query param), get detail, record-payment. SUPERVISOR gate on create+payment. TC-217 covered."
+}

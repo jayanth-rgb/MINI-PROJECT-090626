@@ -1,0 +1,17 @@
+{
+  "task_id": "T-089",
+  "title": "MODIFY dependencies.py — OAuth2 scheme, get_current_user, require_supervisor, V2 DI factories",
+  "module_ref": "M-008",
+  "output_files": ["backend/src/presentation/api/dependencies.py"],
+  "scope": "MODIFY (not create). Read existing file first. APPEND at end: (1) oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login'); (2) get_current_user(token=Depends(oauth2_scheme), db=Depends(get_db)) -> UserModel — decodes JWT via decode_access_token, fetches user via UserRepository, raises HTTPException 401 if token invalid/user not found/inactive; (3) require_supervisor(current_user=Depends(get_current_user)) -> UserModel — raises HTTPException 403 if user.role != 'SUPERVISOR'; (4) 5 DI factories: get_auth_service, get_inward_report_service, get_pricing_service, get_invoice_service, get_report_export_service — each takes db=Depends(get_db) and returns the service instance. All existing content must be preserved exactly.",
+  "do_not_touch": ["any other file", "existing lines in dependencies.py — append-only modification"],
+  "depends_on": ["T-071", "T-077", "T-083", "T-084", "T-087"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-018", "DS-019"],
+  "success_criteria": {
+    "manual": "python -c \"from src.presentation.api.dependencies import get_current_user, require_supervisor, get_auth_service; print('ok')\"",
+    "automated": "Verified transitively by TC-208..TC-217 (all router integration tests exercise these deps).",
+    "definition_of_done": "dependencies.py exports get_current_user (401 on bad/expired token, 401 on inactive user per DS-018), require_supervisor (403 on non-SUPERVISOR per DS-019), and 5 V2 DI factories. All existing content intact."
+  },
+  "checkout_prompt": "dependencies.py modified. oauth2_scheme + get_current_user (401 guard, re-fetches is_active per DS-018) + require_supervisor (403 guard per DS-019) + 5 V2 DI factories appended. Wave 5 router tasks unblocked."
+}

@@ -1,0 +1,32 @@
+{
+  "task_id": "T-091",
+  "sprint_id": "V2",
+  "timestamp": "2026-07-04T00:00:00Z",
+  "checks": {
+    "input_files_exist": {
+      "verdict": "PASS",
+      "details": [
+        "backend/src/application/services/invoice_service.py — EXISTS",
+        "backend/src/presentation/api/dependencies.py — EXISTS (get_invoice_service, require_supervisor, get_current_user all present)",
+        "backend/src/presentation/schemas/pricing.py — EXISTS (InvoiceRead, InvoiceSummary, PaymentCreate all exported)"
+      ]
+    },
+    "interface_contract_intact": {
+      "verdict": "PASS",
+      "details": "LLD files[23] specifies router prefix='/invoices', tags=['invoices'], 4 functions: list_invoices (GET ''), create_invoice (POST '' 201 SUPERVISOR), get_invoice (GET '/{invoice_id}'), record_payment (POST '/{invoice_id}/payments' 201 SUPERVISOR). Plan pseudo-code matches LLD contract."
+    },
+    "scope_boundary_clear": {
+      "verdict": "PASS",
+      "details": "Output file backend/src/presentation/api/routers/invoices.py not owned by any in-progress task. No overlap detected."
+    },
+    "no_circular_dependency": {
+      "verdict": "PASS",
+      "details": [
+        "T-084 — status: complete",
+        "T-089 — status: in_progress but output file dependencies.py is fully implemented with all required exports. File functional."
+      ]
+    }
+  },
+  "overall_verdict": "PROCEED",
+  "hold_reason": null
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "T-082",
+  "title": "schemas/pricing.py — Pydantic v2 pricing + invoice schemas",
+  "module_ref": "M-011",
+  "output_files": ["backend/src/presentation/schemas/pricing.py"],
+  "scope": "Eight Pydantic v2 BaseModel classes. PriceMasterCreate: design_id (int), grade_id (int), unit_price (Decimal ge=0), effective_from (date). PriceMasterRead: id, design_id, design_name (str), size (str), grade_id, grade_code (str), unit_price (Decimal), effective_from (date), is_active (bool); ConfigDict(from_attributes=True). PriceMasterUpdate: unit_price (Decimal | None = None), is_active (bool | None = None) — partial PATCH. InvoiceLineRead: id, sales_line_id, design_id, design_name, size, grade_id, grade_code, quantity (int), unit_price (Decimal), line_total (Decimal); from_attributes=True. PaymentRead: id (int), payment_date (date), amount (Decimal), notes (str | None); from_attributes=True. PaymentCreate: payment_date (date), amount (Decimal gt=0), notes (str | None = None). InvoiceRead: id, invoice_number (str), sales_header_id (int), invoice_date (date), total_amount (Decimal), status (str), lines (list[InvoiceLineRead]), payments (list[PaymentRead]); from_attributes=True. InvoiceSummary: id, invoice_number, invoice_date, total_amount, status, sales_header_id; from_attributes=True. No project imports.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-022", "DS-023"],
+  "success_criteria": {
+    "manual": "from src.presentation.schemas.pricing import InvoiceRead; len(InvoiceRead.model_fields) == 8 and InvoiceRead.model_config.get('from_attributes').",
+    "automated": "T-083 (pricing_service) and T-084 (invoice_service) tests (TC-201..TC-206) serialize ORM instances through these schemas.",
+    "definition_of_done": "8 schemas exported. InvoiceRead, InvoiceLineRead, PaymentRead, PriceMasterRead all have from_attributes=True. PaymentCreate.amount has gt=0 validator. PriceMasterCreate.unit_price has ge=0 validator."
+  },
+  "checkout_prompt": "schemas/pricing.py created. 8 Pydantic v2 schemas for pricing and invoicing. Ready for T-083 (PricingService) and T-084 (InvoiceService)."
+}

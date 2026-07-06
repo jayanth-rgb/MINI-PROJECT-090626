@@ -1,0 +1,1 @@
+{"task_id": "T-075", "test_case_refs": [], "priority": "n/a", "notes": "test_required=false per LLD files[10]. Seed script correctness verified transitively via TC-208 (POST /auth/login with admin/admin123 returns 200 when run against a seeded DB). Script must be run manually by PO before /ases-integration-test V2 — not part of automated test suite."}

@@ -1,0 +1,6 @@
+{
+  "task_id": "T-087",
+  "test_case_refs": ["TC-200"],
+  "priority": "high",
+  "notes": "Integration test (requires DB for SalesReportService call path, though the 400 is raised before DB access). TC-200: call export_sales(format='csv') with any filter values; assert raises HTTPException with status_code=400. The format validation is the first check — DB is never queried. Could also be implemented as unit test by mocking the report service."
+}

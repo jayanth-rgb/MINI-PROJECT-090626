@@ -1,0 +1,28 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "task_id": "T-081",
+  "sprint_id": "V2",
+  "produced_by": "/ases-validate T-081 V2",
+  "timestamp": "2026-07-03",
+  "verdict": "PROCEED",
+  "checks": {
+    "input_files_exist": {
+      "status": "PASS",
+      "detail": "reads_from[] is empty — no input files required for this pure-domain task."
+    },
+    "interface_contract_intact": {
+      "status": "PASS",
+      "detail": "LLD files[17] exports match plan exactly: [compute_line_total, compute_invoice_total, compute_invoice_status, generate_invoice_number]. depends_on [] in both LLD and task. No drift detected."
+    },
+    "scope_boundary_clear": {
+      "status": "PASS",
+      "detail": "Output file backend/src/domain/invoice.py is not claimed by any other task. No tasks have status in_progress."
+    },
+    "no_circular_dependency": {
+      "status": "PASS",
+      "detail": "depends_on[] is empty — no upstream dependencies to verify."
+    }
+  },
+  "next": "/ases-dev T-081 V2"
+}

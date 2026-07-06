@@ -1,0 +1,34 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-076",
+  "sprint_id": "V2",
+  "iteration": 1,
+  "file_reviewed": "backend/src/presentation/schemas/inward_report.py",
+  "decisions_read": ["DS-007", "DS-013", "DS-017"],
+  "issues": [
+    {
+      "id": "I-001",
+      "lens": "spec",
+      "severity": "minor",
+      "file": "backend/src/presentation/schemas/inward_report.py",
+      "line_ref": "31-33",
+      "description": "Plan scope and DoD say 'All ConfigDict(from_attributes=True)'. InwardReportResponse has no model_config assignment. The two sibling row schemas (InwardConsolidationRow, InwardTransactionRow) both have it; InwardReportResponse does not.",
+      "fix_instruction": "Not required — intentional mirror of SalesReportResponse, which also omits from_attributes=True on the outer response class. InwardReportResponse is always constructed explicitly from Python lists in service code, never from an ORM object, so from_attributes=True is unnecessary. The plan's 'mirror SalesReportResponse pattern' instruction takes precedence over the loosely-worded 'All ConfigDict' phrase. Mark as pattern-consistent and closed.",
+      "spec_ref": "T-076-plan.json success_criteria.definition_of_done",
+      "is_adr_tradeoff": true
+    }
+  ],
+  "verdict": "CLEAN",
+  "critical_count": 0,
+  "major_count": 0,
+  "minor_count": 1,
+  "notes": [
+    "All three schemas export the exact field set specified in lld.json files[11] and the plan scope.",
+    "InwardConsolidationRow mirrors ConsolidationRow (sales_report.py) field-for-field, substituting no new columns.",
+    "InwardTransactionRow.place is typed str (not Optional, not enum) — correct DS-013 snapshot semantics.",
+    "No project imports; only datetime.date + pydantic.BaseModel + pydantic.ConfigDict.",
+    "Field names match all downstream consumers: InwardReportService (T-077), PdfExporter (T-085), ExcelExporter (T-086), inward_report.py router (T-080).",
+    "TC-195..TC-197 field access patterns (t.nos, c.total_nos, purchase_date, design_name) all satisfied by the implemented schema.",
+    "InwardReportResponse.model_config absence is pattern-consistent with SalesReportResponse — I-001 closed as ADR tradeoff."
+  ]
+}

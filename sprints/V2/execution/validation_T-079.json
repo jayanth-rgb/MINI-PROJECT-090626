@@ -1,0 +1,29 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "task_id": "T-079",
+  "sprint_id": "V2",
+  "checked_at": "2026-07-03",
+  "checks": [
+    {
+      "check": "input_files_exist",
+      "status": "pass",
+      "details": "All 3 reads_from files confirmed: backend/src/infrastructure/db/base.py (exports Base + TimestampMixin(DateTime timezone=True)), backend/src/infrastructure/db/models/master.py (exports TradingDesignModel, GradeModel), backend/src/infrastructure/db/models/transactions.py (exports SalesHeaderModel, SalesLineModel). All FK targets reachable."
+    },
+    {
+      "check": "interface_contract_intact",
+      "status": "pass",
+      "details": "LLD lld.json files[15] specifies exports=[PriceMasterModel, InvoiceHeaderModel, InvoiceLineModel, PaymentModel] and expects=[Base, TimestampMixin (base.py), SalesHeaderModel+SalesLineModel (transactions.py), TradingDesignModel+GradeModel (master.py)]. All expected symbols present in their source files. Output file backend/src/infrastructure/db/models/pricing.py does not yet exist — clean slate for creation. Downstream consumers T-080 (repositories) and T-074 (migration) are both pending and not yet referencing this file."
+    },
+    {
+      "check": "scope_boundary_clear",
+      "status": "pass",
+      "details": "output_files=[backend/src/infrastructure/db/models/pricing.py] is a new file with no existing content. No other task is currently in_progress. do_not_touch=['any other file'] is unambiguous. No overlap with any pending or complete task's output_files."
+    },
+    {
+      "check": "no_circular_dependency",
+      "status": "pass",
+      "details": "depends_on=[] — T-079 has no dependencies. Unconditionally unblocked."
+    }
+  ],
+  "verdict": "PROCEED"
+}

@@ -1,0 +1,6 @@
+{
+  "task_id": "T-070",
+  "test_case_refs": ["TC-185", "TC-186"],
+  "priority": "critical",
+  "notes": "Both are integration tests requiring a live PostgreSQL session (testcontainers). TC-185: seed a user with username='teststaff', role='STAFF', is_active=True; call get_by_username('teststaff'); assert returned UserModel has correct username/role/is_active. TC-186: call get_by_username('nonexistent_user_xyz_abc') with no seeded user; assert result is None."
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "T-068",
+  "title": "domain/auth.py — JWT + bcrypt pure domain functions",
+  "module_ref": "M-008",
+  "output_files": ["backend/src/domain/auth.py"],
+  "scope": "Four pure functions. No SQLAlchemy, no HTTP, no I/O. (1) get_password_hash(plain) → str: CryptContext(schemes=['bcrypt']).hash(plain). (2) verify_password(plain, hashed) → bool: pwd_context.verify(plain, hashed) — constant-time. (3) create_access_token(data: dict, expires_delta: timedelta | None = None) → str: merges data with {'exp': now+delta}, jose.jwt.encode(to_encode, SECRET_KEY, algorithm='HS256'); default delta = timedelta(hours=ACCESS_TOKEN_EXPIRE_HOURS from config, fallback 8h). (4) decode_access_token(token: str) → dict | None: jose.jwt.decode(token, SECRET_KEY, algorithms=['HS256']); catches JWTError + ExpiredSignatureError → returns None (never raises).",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": ["TC-171", "TC-172", "TC-173", "TC-174", "TC-175"],
+  "decisions_referenced": ["DS-007", "DS-018"],
+  "success_criteria": {
+    "manual": "python -c 'from src.domain.auth import get_password_hash, verify_password; h=get_password_hash(\"abc\"); print(verify_password(\"abc\",h), verify_password(\"xyz\",h))'  → True False",
+    "automated": "TC-171..TC-175 unit tests pass (no DB needed).",
+    "definition_of_done": "File exports exactly 4 functions. No class definitions, no SQLAlchemy imports, no HTTP imports. verify_password is constant-time. decode_access_token never raises — returns None on any JWTError."
+  },
+  "checkout_prompt": "domain/auth.py created. 4 pure functions: hash, verify, create_token, decode_token. No I/O. Ready for T-071 (AuthService)."
+}

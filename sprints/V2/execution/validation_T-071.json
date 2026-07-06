@@ -1,0 +1,29 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "task_id": "T-071",
+  "sprint_id": "V2",
+  "produced_by": "/ases-validate T-071 V2",
+  "checks": [
+    {
+      "check": "input_files_exist",
+      "status": "pass",
+      "details": "All 3 reads_from files confirmed present: backend/src/infrastructure/db/repositories/auth.py (UserRepository with get_by_username + list_active), backend/src/domain/auth.py (get_password_hash, verify_password, create_access_token, decode_access_token), backend/src/presentation/schemas/auth.py (LoginRequest, TokenResponse, UserCreate, UserRead, UserUpdate)."
+    },
+    {
+      "check": "interface_contract_intact",
+      "status": "pass",
+      "details": "LLD files[3] expects UserRepository.get_by_username + list_active — both present with correct signatures. domain/auth.*: all 4 functions exported matching LLD spec (bcrypt hashing via passlib, HS256 JWT via python-jose, decode returns dict|None never raises). schemas/auth: TokenResponse/UserCreate/UserUpdate present with correct Pydantic v2 shapes. No interface drift detected."
+    },
+    {
+      "check": "scope_boundary_clear",
+      "status": "pass",
+      "details": "T-071 output file backend/src/application/services/auth_service.py is not claimed by any other task. No tasks are currently in_progress. No scope overlap."
+    },
+    {
+      "check": "no_circular_dependency",
+      "status": "pass",
+      "details": "depends_on [T-067, T-068, T-069, T-070] — all status=complete. T-067 (UserModel ORM), T-068 (domain/auth.py), T-069 (schemas/auth.py), T-070 (UserRepository) all delivered."
+    }
+  ],
+  "verdict": "PROCEED"
+}

@@ -1,0 +1,1 @@
+{"task_id": "T-079", "test_case_refs": [], "priority": "n/a", "notes": "test_required=false per LLD files[15]. Model correctness verified transitively via T-080 (TC-187..TC-189: PriceMasterRepository + InvoiceRepository integration tests insert and query these models) and T-074 (migration creates matching DDL with all constraints)."}

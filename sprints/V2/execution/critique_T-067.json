@@ -1,0 +1,33 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-067",
+  "sprint_id": "V2",
+  "iteration": 1,
+  "file_reviewed": "backend/src/infrastructure/db/models/auth.py",
+  "reviewer": "ases-critique (Opus)",
+  "reviewed_at": "2026-07-02",
+  "decisions_read": ["DS-007", "DS-009", "DS-014", "DS-019"],
+  "issues": [],
+  "verdict": "CLEAN",
+  "critical_count": 0,
+  "major_count": 0,
+  "minor_count": 0,
+  "lens_summary": {
+    "spec": "PASS — All 6 columns present with correct types. __tablename__='tbl_user_master', UNIQUE on username, ix_user_master_username index defined, Base+TimestampMixin inherited per DS-014. TimestampMixin confirmed to emit DateTime(timezone=True) server_default=func.now() satisfying TIMESTAMPTZ requirement. SQLAlchemy 2.x Mapped+mapped_column syntax correct.",
+    "contract": "PASS — UserModel exported at module level. Imports from infrastructure.db.base (Base, TimestampMixin) match lld.json interfaces.expects. All imported SQLAlchemy symbols (Boolean, Enum, Index, Integer, String, Mapped, mapped_column) are consumed.",
+    "test": "PASS — LLD marks file test_required: false. T-067 test_case_refs: []. TC-185 and TC-186 (integration tests that exercise UserModel via UserRepository) fall under T-070 scope — not T-067's responsibility.",
+    "security": "PASS — No injection vectors at ORM level. No embedded secrets. Enum type constrains role values to STAFF/VERIFIER/SUPERVISOR at DB level. password_hash column name is explicit (not 'password'). is_active boolean supports DS-018 runtime deactivation check on every request."
+  },
+  "adr_notes": [
+    {
+      "adr_ref": "DS-019",
+      "note": "Enum uses name='user_role_enum' — creates a named PostgreSQL enum type. This is correct ORM practice and better than anonymous enum types. The migration LLD description showing VARCHAR(20)+CHECK is informal; per DS-009 the ORM is source of truth and will autogenerate the native enum type.",
+      "is_adr_tradeoff": true
+    },
+    {
+      "adr_ref": "DS-014",
+      "note": "TimestampMixin confirmed to emit DateTime(timezone=True) with server_default=func.now(). TIMESTAMPTZ requirement satisfied. TD-007 closed.",
+      "is_adr_tradeoff": false
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "task_id": "T-076",
+  "title": "schemas/inward_report.py — Pydantic v2 inward report schemas",
+  "module_ref": "M-009",
+  "output_files": ["backend/src/presentation/schemas/inward_report.py"],
+  "scope": "Three Pydantic v2 BaseModel classes mirroring SalesReportResponse pattern. InwardConsolidationRow: design_id (int), design_name (str), size (str), grade_id (int), grade_code (str), total_nos (int). InwardTransactionRow: purchase_date (date), supplier_id (int), supplier_name (str), place (str), design_id (int), design_name (str), size (str), grade_id (int), grade_code (str), nos (int). InwardReportResponse: consolidation (list[InwardConsolidationRow]), transactions (list[InwardTransactionRow]). All ConfigDict(from_attributes=True). No project imports.",
+  "do_not_touch": ["any other file"],
+  "depends_on": [],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-007", "DS-013", "DS-017"],
+  "success_criteria": {
+    "manual": "from src.presentation.schemas.inward_report import InwardReportResponse; InwardReportResponse.model_fields.keys() → {'consolidation','transactions'}.",
+    "automated": "TC-195..TC-197 (T-077 InwardReportService) return InwardReportResponse instances and assert field values.",
+    "definition_of_done": "File exports 3 schemas. InwardTransactionRow.place mirrors DS-013 snapshot (str field, no enum). All have from_attributes=True."
+  },
+  "checkout_prompt": "schemas/inward_report.py created. 3 Pydantic v2 schemas matching SalesReportResponse dual-pane pattern. Ready for T-077 (InwardReportService)."
+}

@@ -1,0 +1,6 @@
+{
+  "task_id": "T-068",
+  "test_case_refs": ["TC-171", "TC-172", "TC-173", "TC-174", "TC-175"],
+  "priority": "critical",
+  "notes": "All 5 TCs are unit tests — no DB required. TC-171: verify_password returns True on matching bcrypt hash. TC-172: verify_password returns False on wrong plain password. TC-173: create_access_token JWT payload contains sub and role and exp is in future. TC-174: decode_access_token returns None when token was created with negative expires_delta (immediately expired). TC-175: decode_access_token returns None when given a non-JWT string."
+}

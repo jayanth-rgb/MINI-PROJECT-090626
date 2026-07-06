@@ -1,0 +1,51 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-089",
+  "sprint_id": "V2",
+  "module_ref": "M-008",
+  "target_file": "backend/src/presentation/api/dependencies.py",
+  "verdict": "CLEAN",
+  "summary": "V2 auth guards (oauth2_scheme, get_current_user, require_supervisor) and 5 DI factories appended cleanly. All existing V1/V2/V3 factories preserved intact. Imports resolve, signatures match LLD, DS-018/DS-019 semantics correctly implemented.",
+  "lenses": {
+    "spec": {
+      "status": "pass",
+      "notes": "All 8 required exports present (oauth2_scheme, get_current_user, require_supervisor, get_auth_service, get_inward_report_service, get_pricing_service, get_invoice_service, get_report_export_service). Function signatures match lld.functions[] exactly. tokenUrl='/api/v1/auth/login' matches LLD prose (not the plan MD's shorter '/auth/login') — this is correct per DS-010 API versioning."
+    },
+    "contract": {
+      "status": "pass",
+      "notes": "Imports use 'src.' prefix consistent with the existing file (plan MD showed unprefixed as illustrative). All imported symbols exist and resolve: src.domain.auth.decode_access_token (verified), src.infrastructure.db.repositories.auth.UserRepository.get_by_username (verified), all 5 V2 services accept a single db=Session constructor argument (verified). Existing 12 V1/V2/V3 factories untouched — append-only rule honoured."
+    },
+    "test": {
+      "status": "pass",
+      "notes": "test_case_refs is empty by design (transitive coverage via Wave 5 router tests TC-208..TC-217). Manual DoD test 'from src.presentation.api.dependencies import get_current_user, require_supervisor, get_auth_service' will succeed."
+    },
+    "security": {
+      "status": "pass",
+      "notes": "DS-018 satisfied: decode_access_token result checked for None (invalid/expired), sub claim checked for presence, then UserRepository.get_by_username re-fetches user and re-checks is_active on every request (deactivation takes effect immediately). WWW-Authenticate: Bearer header on all 401 responses (RFC 6750). DS-019 satisfied: require_supervisor raises 403 for non-SUPERVISOR role, matching the CHECK constraint literal 'SUPERVISOR' in the migration. No credentials logged, no secrets embedded, no injection vector (username is used as a bound parameter in the repository)."
+    },
+    "structural": {
+      "status": "pass",
+      "notes": "New symbols are reachable via main.py include_router wiring (Wave 5 routers depend on these DI factories per LLD). No orphaned functions — every added symbol is consumed by at least one downstream router or dependency chain (require_supervisor -> get_current_user -> oauth2_scheme + get_db; 5 factories each Depends'd from their respective routers)."
+    }
+  },
+  "findings": [],
+  "adr_alignment": [
+    {
+      "decision_id": "DS-007",
+      "aligned": true,
+      "note": "Presentation layer (dependencies.py) constructs services which construct repositories — no router-to-repository shortcut."
+    },
+    {
+      "decision_id": "DS-018",
+      "aligned": true,
+      "note": "OAuth2PasswordBearer + JWT decode via decode_access_token; is_active re-checked on every request; 401 with Bearer challenge."
+    },
+    {
+      "decision_id": "DS-019",
+      "aligned": true,
+      "note": "Role check against string literal 'SUPERVISOR' matches the enum column values in tbl_user_master."
+    }
+  ],
+  "iteration": 1,
+  "should_escalate": false
+}

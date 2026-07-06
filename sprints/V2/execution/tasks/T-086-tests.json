@@ -1,0 +1,6 @@
+{
+  "task_id": "T-086",
+  "test_case_refs": ["TC-199"],
+  "priority": "critical",
+  "notes": "Unit test — no DB required. TC-199: construct InwardReportResponse with 1 consolidation + 1 transaction row; call ExcelExporter().export_inward_report(data, {}); call openpyxl.load_workbook(buf); assert wb.sheetnames == ['Consolidation', 'Transactions'] and len(wb.sheetnames) == 2."
+}

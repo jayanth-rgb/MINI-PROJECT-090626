@@ -1,0 +1,17 @@
+{
+  "task_id": "T-083",
+  "title": "services/pricing_service.py — PricingService",
+  "module_ref": "M-011",
+  "output_files": ["backend/src/application/services/pricing_service.py"],
+  "scope": "PricingService with 3 methods. list_prices(): PriceMasterRepository.list_all() — all rows including inactive, ordered by design+grade+effective_from DESC. create_price(data: PriceMasterCreate): validate design_id exists (404), validate grade_id exists (404), uniqueness SELECT before insert (409 on dup (design_id, grade_id, effective_from)), insert PriceMasterModel, return PriceMasterModel. update_price(price_id, data: PriceMasterUpdate): fetch by id (404 if missing), apply non-None unit_price/is_active patches, return updated row. DS-008: no hard delete endpoint.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-079", "T-080", "T-082"],
+  "test_case_refs": ["TC-201"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-012", "DS-022"],
+  "success_criteria": {
+    "manual": "from src.application.services.pricing_service import PricingService; print(hasattr(PricingService, 'create_price'))",
+    "automated": "TC-201: seed existing price row; create_price with same (design_id, grade_id, effective_from) → HTTPException 409.",
+    "definition_of_done": "PricingService exported with 3 methods. create_price does SELECT-before-insert for 409 (not IntegrityError catch). update_price partial-patch safe. No raw SQL."
+  },
+  "checkout_prompt": "PricingService created. list_prices, create_price (409 via SELECT), update_price (partial patch). TC-201 covered. Ready for T-090 (pricing router)."
+}

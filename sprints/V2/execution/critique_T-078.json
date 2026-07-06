@@ -1,0 +1,57 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "task_id": "T-078",
+  "sprint_id": "V2",
+  "module_ref": "M-009",
+  "target_file": "backend/src/presentation/api/routers/inward_report.py",
+  "produced_by": "/ases-critique",
+  "consumed_by": ["/ases-sprint-close"],
+  "iteration": 2,
+  "previous_verdict": "FIX_REQUIRED",
+  "lenses_applied": ["spec", "contract", "test", "security", "structural"],
+  "verdict": "CLEAN",
+  "summary": "F1 (critical, non-src-prefixed imports) has been fixed — all four imports on lines 19-22 now carry the 'src.' prefix and resolve cleanly against the project's package layout. main.py can now import inward_report_router at startup without raising ModuleNotFoundError. F2 and F3 from iteration 1 were minor traceability notes with fix_instruction 'No change required'; the divergences trace to the task plan (which the implementer followed) and the runtime behavior is spec-compliant. TC-214 handler wiring is preserved. All five lenses pass.",
+  "findings": [],
+  "resolved_findings": [
+    {
+      "id": "F1",
+      "prev_severity": "critical",
+      "resolution": "FIXED",
+      "location": "backend/src/presentation/api/routers/inward_report.py:19-22",
+      "verification": "All four imports now use the 'src.' prefix: 'from src.presentation.api.dependencies import get_current_user, get_inward_report_service' (line 19); 'from src.application.services.inward_report_service import InwardReportService' (line 20); 'from src.presentation.schemas.inward_report import InwardReportResponse' (line 21); 'from src.infrastructure.db.models.auth import UserModel' (line 22). Confirmed against sales_report.py convention and main.py line 25 import expectation. Module now importable at app startup — TC-214 unblocked."
+    },
+    {
+      "id": "F2",
+      "prev_severity": "minor",
+      "resolution": "ACCEPTED_AS_PLAN",
+      "location": "backend/src/presentation/api/routers/inward_report.py:31-33",
+      "verification": "Multi-select Query params retain 'list[int] = Query(default=[])' / 'list[str] = Query(default=[])' per the task plan (T-078-plan.json scope: 'supplier_ids (list[int] multi-value via Query(default=[]))... Empty list params passed as None to service'). Empty-list-to-None normalization on lines 51-53 preserves the LLD's runtime contract (list[int] | None flows into InwardReportService.generate). Behavior is functionally identical to the LLD signature; divergence is signature-only and traces to the plan. No change required — this is not blocking for TC-214 and the AC-050 invariant is preserved by the service layer."
+    },
+    {
+      "id": "F3",
+      "prev_severity": "minor",
+      "resolution": "ACCEPTED_AS_PLAN",
+      "location": "backend/src/presentation/api/routers/inward_report.py:35",
+      "verification": "Route-level '_: UserModel = Depends(get_current_user)' guard is retained per plan (T-078-plan.json: 'get_current_user at route level (any role)') and confirmed consistent with main.py lines 65-66 (inward_report_router mounted WITHOUT dependencies=[Depends(get_current_user)] precisely because each V2 router carries its own route-level guard — comment at main.py:64). Divergence from LLD lines 551-553 (mount-level guard) was resolved in the plan's favor. No change required."
+    }
+  ],
+  "clean_lenses": ["spec", "contract", "test", "security", "structural"],
+  "lens_notes": {
+    "spec": "Router prefix ('/reports/inward'), tags (['reports']), single GET '' endpoint, response_model=InwardReportResponse, all five query params present with correct types and defaults, empty-list-to-None normalization applied at the handler boundary before delegating to InwardReportService.generate — matches the plan verbatim. Plan-vs-LLD divergences on Query defaults (F2) and auth guard placement (F3) are traceability notes only; the plan is authoritative and the implementation follows it.",
+    "contract": "Imports (line 19-22) now use the 'src.' prefix and match main.py:25 expectation ('from src.presentation.api.routers.inward_report import router as inward_report_router'). All four imported symbols exist and are exported at the declared paths — get_current_user + get_inward_report_service at src/presentation/api/dependencies.py lines 85 and 139; InwardReportService at src/application/services/inward_report_service.py; InwardReportResponse at src/presentation/schemas/inward_report.py; UserModel at src/infrastructure/db/models/auth.py:7. Router export ('router') matches lld.json files[13] interfaces.exports and main.py include_router expectation.",
+    "test": "TC-214 handler wiring is intact: authenticated GET /reports/inward with date_from + supplier_ids will resolve get_current_user (any role, SUPERVISOR seed satisfies), invoke InwardReportService.generate(date_from, date_to=None, supplier_ids=[seeded_id], places=None, design_ids=None), and return an InwardReportResponse with consolidation + transactions lists. The DS-017 invariant sum(t.nos) == sum(c.total_nos) is guaranteed by the service's shared filter predicate — the router just forwards. TC-214 is unblocked by the F1 fix.",
+    "security": "Auth guard present at route level via Depends(get_current_user) — verified against dependencies.py lines 85-116 (JWT decode + is_active re-fetch per DS-018). FastAPI enforces type coercion on all Query params; no unvalidated string flows to the service. No secrets in the module. SQL construction is fully delegated to InwardReportService via parameterized SQLAlchemy — zero injection surface at the router layer. Mount order in main.py:65-66 prevents /reports/inward/export from being swallowed by the empty-path GET.",
+    "structural": "Router is reachable from main.py (line 25 import, line 66 include_router). Module has no orphaned functions, no dead imports. graphify-out/graph.json read skipped (not required by the plan and not affected by the surgical import fix)."
+  },
+  "adr_matches": [
+    {"decision_id": "DS-017", "note": "Shared filter predicate rationale — delegated to InwardReportService, not the router. Compliant."},
+    {"decision_id": "DS-007", "note": "Presentation layer purity — router → service only, no repository shortcut. Compliant."},
+    {"decision_id": "DS-018", "note": "get_current_user re-fetches is_active per request — inherited from dependencies.py. Compliant."}
+  ],
+  "counts": {"critical": 0, "major": 0, "minor": 0},
+  "iterations_summary": {
+    "iteration_1": {"verdict": "FIX_REQUIRED", "critical": 1, "major": 0, "minor": 2},
+    "iteration_2": {"verdict": "CLEAN", "critical": 0, "major": 0, "minor": 0, "issues_remaining_delta": -3}
+  }
+}

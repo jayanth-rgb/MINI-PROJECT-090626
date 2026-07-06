@@ -151,3 +151,117 @@ Old `APP_*` / `NEXT_PUBLIC_API_BASE_URL` lines retained for back-compat.
 ## Next step
 
 → `/ases-tasks S1`
+
+---
+
+# Sprint S2 — Sprint-Scaffold Addendum (2026-06-22)
+
+Produced by `/ases-sprint-scaffold S2`. Companion entry: [`contracts/scaffold.json` → `sprint_S2`](../contracts/scaffold.json).
+
+1 new file: `backend/tests/unit/domain/__init__.py` — package marker for domain test directory.
+No dep changes, no migrations applied. All 16 S2 source files deferred to `/ases-dev`.
+
+→ `/ases-tasks S2`
+
+---
+
+# Sprint S3 — Sprint-Scaffold Addendum (2026-06-26)
+
+Produced by `/ases-sprint-scaffold S3`. Companion entry: [`contracts/scaffold.json` → `sprint_S3`](../contracts/scaffold.json).
+
+0 files created. S3 reuses existing S1+S2 scaffold directories and the S1+S2 dependency stack. All 10 S3 source files deferred to `/ases-dev`.
+
+→ `/ases-tasks S3`
+
+---
+
+# Sprint V2 — Sprint-Scaffold Addendum (2026-07-02)
+
+Produced by `/ases-sprint-scaffold V2`. Companion entry: [`contracts/scaffold.json` → `sprint_V2`](../contracts/scaffold.json).
+
+## What this pass produced
+
+| Step | Status | Notes |
+|---|---|---|
+| **A** — Write scaffold_spec | ✅ Pass | [`sprints/V2/design/scaffold_spec.json`](../sprints/V2/design/scaffold_spec.json) |
+| **B** — Create 25 stub files | ✅ Pass | 24 `.py` stubs + 1 migration stub across 4 modules |
+| **B** — Create exporters dir | ✅ Pass | `backend/src/infrastructure/exporters/` (new package) |
+| **B** — Append deps to requirements.txt | ✅ Pass | 4 packages added (python-jose, passlib, reportlab, openpyxl) |
+| **B** — pip install | ✅ Pass | All 4 packages + transitive deps installed cleanly |
+| **B.5** — Apply migrations | ⏭ Skipped | `0004_v2_auth_pricing_tables.py` is a stub; DDL filled by `/ases-dev` |
+| **B.6** — graphify update | ⏭ Deferred | Optional; run `/ases-graphify` before `/ases-critique V2` |
+| **C** — Update scaffold manifest | ✅ Pass | `contracts/scaffold.json` → `sprint_V2` block added |
+
+## Files created (25)
+
+### Domain (2)
+- `backend/src/domain/auth.py` — M-008 password hashing + JWT lifecycle
+- `backend/src/domain/invoice.py` — M-011 invoice arithmetic
+
+### Infrastructure — DB models (2)
+- `backend/src/infrastructure/db/models/auth.py` — M-008 UserModel
+- `backend/src/infrastructure/db/models/pricing.py` — M-011 PriceMasterModel + 3 invoice models
+
+### Infrastructure — DB repositories (2)
+- `backend/src/infrastructure/db/repositories/auth.py` — M-008 UserRepository
+- `backend/src/infrastructure/db/repositories/pricing.py` — M-011 PriceMasterRepository, InvoiceRepository, PaymentRepository
+
+### Infrastructure — Exporters (3, new package)
+- `backend/src/infrastructure/exporters/__init__.py`
+- `backend/src/infrastructure/exporters/pdf_exporter.py` — M-010 reportlab PDF
+- `backend/src/infrastructure/exporters/excel_exporter.py` — M-010 openpyxl XLSX
+
+### Application services (5)
+- `backend/src/application/services/auth_service.py` — M-008
+- `backend/src/application/services/inward_report_service.py` — M-009
+- `backend/src/application/services/report_export_service.py` — M-010
+- `backend/src/application/services/pricing_service.py` — M-011
+- `backend/src/application/services/invoice_service.py` — M-011
+
+### Presentation — schemas (3)
+- `backend/src/presentation/schemas/auth.py` — M-008
+- `backend/src/presentation/schemas/inward_report.py` — M-009
+- `backend/src/presentation/schemas/pricing.py` — M-011
+
+### Presentation — routers (6)
+- `backend/src/presentation/api/routers/auth.py` — M-008
+- `backend/src/presentation/api/routers/users.py` — M-008
+- `backend/src/presentation/api/routers/inward_report.py` — M-009
+- `backend/src/presentation/api/routers/report_export.py` — M-010
+- `backend/src/presentation/api/routers/pricing.py` — M-011
+- `backend/src/presentation/api/routers/invoices.py` — M-011
+
+### Migration stub (1)
+- `backend/db/migrations/versions/0004_v2_auth_pricing_tables.py` — DDL filled by `/ases-dev`
+
+### Script (1)
+- `backend/scripts/seed_default_user.py` — default SUPERVISOR seed (run after alembic upgrade head)
+
+## Dependency changes — backend
+
+| Package | Version | Reason |
+|---------|---------|--------|
+| `python-jose[cryptography]` | 3.3.0 | M-008 JWT signing/decoding (DS-018) |
+| `passlib[bcrypt]` | 1.7.4 | M-008 bcrypt password hashing (DS-018) |
+| `reportlab` | 4.4.1 | M-010 PDF report generation (DS-021) |
+| `openpyxl` | 3.1.5 | M-010 Excel/XLSX report generation (DS-021) |
+
+Frontend: no dep changes (V2 frontend ships via UI track).
+
+## Files explicitly deferred to `/ases-dev`
+
+| Path | Why |
+|------|-----|
+| `backend/src/presentation/api/dependencies.py (MODIFY)` | Add oauth2_scheme, get_current_user, require_supervisor + 5 new DI factories — implementation code. |
+| `backend/src/main.py (MODIFY)` | Mount 6 V2 routers + add auth dependency to all 11 V1 routers — implementation code. |
+
+## Gaps noted
+
+| Gap | Notes |
+|-----|-------|
+| NB-V2-001 | `lld.json` missing explicit `new_dependencies[]` field — deps inferred from `interfaces.expects`. Architect to add `new_dependencies[]` to LLD template for future sprints. |
+| NB-V2-002 | graphify graph stale since S1-era commit. Run `/ases-graphify` before `/ases-critique V2`. |
+
+## Next step
+
+→ `/ases-tasks V2`

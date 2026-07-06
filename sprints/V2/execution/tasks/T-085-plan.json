@@ -1,0 +1,17 @@
+{
+  "task_id": "T-085",
+  "title": "exporters/pdf_exporter.py — PdfExporter (reportlab)",
+  "module_ref": "M-010",
+  "output_files": ["backend/src/infrastructure/exporters/pdf_exporter.py"],
+  "scope": "PdfExporter with export_sales_report(data: SalesReportResponse, filters: dict) → BytesIO and export_inward_report(data: InwardReportResponse, filters: dict) → BytesIO. Both use reportlab SimpleDocTemplate + Table per DS-021. Layout: (1) Title + generated-at timestamp. (2) Filter summary row ('All' when not filtered). (3) 'Consolidation' header + table (Design|Size|Grade|Total Nos). (4) 'Transactions' header + table (sales: Date|Dealer|Place|Design|Size|Grade|Nos; inward: Date|Supplier|Place|Design|Size|Grade|Nos). Returns BytesIO seeked to 0. Stateless — no DB I/O.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-076"],
+  "test_case_refs": ["TC-198"],
+  "decisions_referenced": ["DS-021"],
+  "success_criteria": {
+    "manual": "from src.infrastructure.exporters.pdf_exporter import PdfExporter; import io; buf = PdfExporter().export_sales_report(sample_data, {}); print(buf.read(5))",
+    "automated": "TC-198: export_sales_report with 1-row SalesReportResponse; assert first 5 bytes == b'%PDF-' (PDF magic number), size > 0.",
+    "definition_of_done": "PdfExporter exported with both methods. Returns BytesIO seeked to 0. PDF magic number b'%PDF-' in first 5 bytes. No DB access."
+  },
+  "checkout_prompt": "pdf_exporter.py created. PdfExporter.export_sales_report + export_inward_report. reportlab SimpleDocTemplate. BytesIO seeked to 0. TC-198 covered. Ready for T-087 (ReportExportService)."
+}

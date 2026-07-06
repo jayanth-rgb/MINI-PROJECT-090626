@@ -1,0 +1,6 @@
+{
+  "task_id": "T-084",
+  "test_case_refs": ["TC-202", "TC-203", "TC-204", "TC-205", "TC-206"],
+  "priority": "critical",
+  "notes": "All integration tests requiring PostgreSQL (testcontainers). TC-202: seed sales_header(id=1) + 2 lines (nos=10 price=100.00, nos=5 price=80.00); create_from_sales(1) → total_amount=1400.00, status=PENDING, lines_count=2, invoice_number starts 'INV-', line_0.unit_price=100.00. TC-203: seed existing invoice for sales_header_id=1; create_from_sales(1) again → HTTPException 409. TC-204: seed invoice; update price master after creation; get_invoice → line unit_price unchanged at 100.00. TC-205: seed invoice total=500.00; record_payment(amount=500.00) → status=PAID, payments_count=1. TC-206: seed invoice total=500.00, existing payment=400.00; record_payment(amount=200.00) → HTTPException 422 (would exceed 500.00)."
+}

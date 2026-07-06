@@ -1,0 +1,17 @@
+{
+  "task_id": "T-071",
+  "title": "services/auth_service.py — AuthService",
+  "module_ref": "M-008",
+  "output_files": ["backend/src/application/services/auth_service.py"],
+  "scope": "AuthService with 5 methods per LLD. authenticate(username, password): UserRepository.get_by_username → verify_password → create_access_token → TokenResponse (401 if not found or inactive, 401 if wrong password). get_current_user(token): decode_access_token → None→401; DB fetch by sub→401 if inactive. create_user(data): uniqueness check→409; get_password_hash; UserRepository.create; return UserModel. list_users(): UserRepository.list_active(). update_user(user_id, data): fetch→404; apply non-None patches (is_active, role, new_password); return updated UserModel.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-067", "T-068", "T-069", "T-070"],
+  "test_case_refs": ["TC-190", "TC-191", "TC-192", "TC-193", "TC-194"],
+  "decisions_referenced": ["DS-007", "DS-018", "DS-019"],
+  "success_criteria": {
+    "manual": "from src.application.services.auth_service import AuthService; print(hasattr(AuthService, 'authenticate'))",
+    "automated": "TC-190 (valid creds → TokenResponse), TC-191 (wrong password → 401), TC-192 (inactive user → 401), TC-193 (get_current_user valid JWT → UserModel), TC-194 (create_user dup username → 409).",
+    "definition_of_done": "AuthService exported with 5 methods. authenticate returns TokenResponse. get_current_user never leaks JWT details in error message. create_user hashes before persisting. No raw SQL."
+  },
+  "checkout_prompt": "AuthService created. 5 methods: authenticate, get_current_user, create_user, list_users, update_user. TC-190..TC-194 covered. Ready for T-072 (auth router) and T-073 (users router)."
+}

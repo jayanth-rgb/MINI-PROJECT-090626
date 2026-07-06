@@ -46,7 +46,18 @@
       "Bash(backend/.venv/Scripts/python.exe -c ' *)",
       "Bash(DATABASE_URL=postgresql+psycopg://x:x@localhost/x API_CORS_ORIGINS=http://localhost:3000 .venv/Scripts/python.exe -c ' *)",
       "Bash(DATABASE_URL=postgresql+psycopg://x:x@localhost/x API_CORS_ORIGINS='[\"http://localhost:3000\"]' .venv/Scripts/python.exe -c ' *)",
-      "Bash(graphify update *)"
+      "Bash(graphify update *)",
+      "Skill(ases-test-spec)",
+      "Skill(ases-test-spec:*)",
+      "Skill(ases-sprint-gate)",
+      "Skill(ases-sprint-gate:*)",
+      "Bash(python .claude/hooks/validate_schema.py sprints/V2/design/lld.json lld)",
+      "Bash(python .claude/hooks/validate_schema.py sprints/V2/design/schema.json schema)",
+      "Bash(python .claude/hooks/validate_schema.py sprints/V2/design/test_cases.json test_cases)",
+      "Bash(python .claude/hooks/validate_schema.py sprints/V2/design/deps_manifest.json deps_manifest)",
+      "Bash(python -c \"import json; s=json.load\\(open\\('format/json/test_cases.schema.json'\\)\\); print\\(json.dumps\\(s.get\\('properties', {}\\).get\\('test_cases', {}\\), indent=2\\)[:2000]\\)\")",
+      "Bash(python -c \"import json; s=json.load\\(open\\('format/json/deps_manifest.schema.json'\\)\\); print\\(json.dumps\\(s.get\\('properties', {}\\), indent=2\\)[:3000]\\)\")",
+      "Bash(python -c \"import json; s=json.load\\(open\\('format/json/sprint_gate.schema.json'\\)\\); print\\(json.dumps\\(s, indent=2\\)[:3000]\\)\")"
     ]
   }
 }

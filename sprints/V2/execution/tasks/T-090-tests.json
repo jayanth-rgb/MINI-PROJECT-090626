@@ -1,0 +1,6 @@
+{
+  "task_id": "T-090",
+  "test_case_refs": [],
+  "priority": "medium",
+  "notes": "No dedicated router-level TCs for pricing.py. TC-201 covers PricingService.create_price directly (validation, 409 on duplicate). Router correctness is validated indirectly by TC-202..TC-206 (InvoiceService tests fetch active prices via PricingService). For manual smoke test: POST /prices with SUPERVISOR auth and valid PriceMasterCreate payload -> 201; GET /prices with any auth -> 200 list."
+}

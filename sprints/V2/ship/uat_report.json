@@ -1,0 +1,70 @@
+{
+  "$schema": "ases/v3.0/uat_report",
+  "sprint_id": "V2",
+  "schema_note": "sprint_id 'V2' intentionally deviates from the ^S\\d+$ pattern in uat_report.schema.json — same acknowledged deviation as lld.json, schema.json, sprint_summary.json for this major-version sprint.",
+  "reviewer": "Jayanth (PO)",
+  "reviewed_by": "Jayanth (PO)",
+  "reviewed_at": "2026-07-06T00:00:00Z",
+  "verdict": "CONDITIONAL",
+  "conditional_notes": [
+    "AC-066 accepted_with_notes: F-016 unsupported-format contract fulfilled at 4xx (STR ST-021 16/16 green, TC-200 green) but the router returns 422 (FastAPI Query regex validation) rather than the literal 400 specified in the AC text. Fix path is either PRD text relaxation to '4xx' or a router-side explicit 400 pre-check — filed as TD-011 for next PRD update. Non-blocking for /ases-devops V2."
+  ],
+  "rejected_items": [],
+  "items": [
+    { "ac_ref": "AC-054", "feature_ref": "F-013", "description": "POST /auth/login valid credentials → 200 TokenResponse", "verdict": "accepted", "tests": ["TC-185", "TC-208"], "system_tests": ["ST-013"] },
+    { "ac_ref": "AC-055", "feature_ref": "F-013", "description": "POST /auth/login wrong password / unknown user → 401", "verdict": "accepted", "tests": ["TC-186"], "system_tests": ["ST-018"] },
+    { "ac_ref": "AC-056", "feature_ref": "F-013", "description": "POST /auth/login deactivated user → 401", "verdict": "accepted", "tests": ["TC-186"] },
+    { "ac_ref": "AC-057", "feature_ref": "F-014", "description": "GET /auth/me valid Bearer → 200 UserRead", "verdict": "accepted", "tests": ["TC-209"], "integration_scenarios": ["IS-013"] },
+    { "ac_ref": "AC-058", "feature_ref": "F-014", "description": "All V1+V2 endpoints except /auth/login require Bearer; unauthenticated → 401", "verdict": "accepted", "tests": ["TC-213"], "system_tests": ["ST-002", "ST-011", "ST-015", "ST-016", "ST-017"], "notes": "DS-025 supersedes DS-005 (V1 no-auth). ST-002 + ST-011 rewritten under PO Option A; 214/214 backend tests green." },
+    { "ac_ref": "AC-059", "feature_ref": "F-014", "description": "require_supervisor guard → 403 for STAFF/VERIFIER; SUPERVISOR passes", "verdict": "accepted", "tests": ["TC-211", "TC-212"], "system_tests": ["ST-019", "ST-020"] },
+    { "ac_ref": "AC-060", "feature_ref": "F-014", "description": "SUPERVISOR POST /users (201) and PATCH /users/{id} (200)", "verdict": "accepted", "tests": ["TC-212"], "notes": "T-073 iter4 CLEAN with PO Option A scope amendment (auth_service.py get_user + deactivate_user)." },
+    { "ac_ref": "AC-061", "feature_ref": "F-015", "description": "GET /reports/inward no filters → all data; sum(transactions.nos) == sum(consolidation.total_nos)", "verdict": "accepted", "tests": ["TC-195"], "system_tests": ["ST-014"], "structural_evidence": "DS-017 shared filter predicate reused from S3 sales-report." },
+    { "ac_ref": "AC-062", "feature_ref": "F-015", "description": "Multi-select filters narrow both consolidation + transactions via identical predicate", "verdict": "accepted", "tests": ["TC-196", "TC-214"] },
+    { "ac_ref": "AC-063", "feature_ref": "F-015", "description": "Consolidation ordered design_name ASC, grade_code ASC; transactions ordered purchase_date ASC", "verdict": "accepted", "tests": ["TC-197"] },
+    { "ac_ref": "AC-064", "feature_ref": "F-016", "description": "GET /reports/sales/export?format=pdf → 200 application/pdf with %PDF- magic bytes", "verdict": "accepted", "tests": ["TC-198", "TC-215"] },
+    { "ac_ref": "AC-065", "feature_ref": "F-016", "description": "GET /reports/inward/export?format=xlsx → 200 XLSX MIME with 2-sheet workbook", "verdict": "accepted", "tests": ["TC-199", "TC-216"] },
+    { "ac_ref": "AC-066", "feature_ref": "F-016", "description": "Unsupported format → 400", "verdict": "accepted_with_notes", "tests": ["TC-200"], "system_tests": ["ST-021"], "notes": "Actual response is 422 (FastAPI Query regex) — 4xx contract fulfilled but literal 400 text in AC does not match. Documentation drift, non-blocking. Filed as TD-011 for next PRD update." },
+    { "ac_ref": "AC-067", "feature_ref": "F-017", "description": "Duplicate (design_id, grade_id, effective_from) price → 409", "verdict": "accepted", "tests": ["TC-201"], "system_tests": ["ST-023"] },
+    { "ac_ref": "AC-068", "feature_ref": "F-017", "description": "Active price lookup: most recent effective_from ≤ today; None → unit_price=0 fallback (DS-022)", "verdict": "accepted", "tests": ["TC-187", "TC-188"], "notes": "Zero-price fallback surfaced as RI-V2-002 informational risk for supervisor visibility." },
+    { "ac_ref": "AC-069", "feature_ref": "F-018", "description": "POST /invoices → INV-YYYYMMDD-NNNNN, total_amount=Σ line_totals, status=PENDING", "verdict": "accepted", "tests": ["TC-176", "TC-177", "TC-178", "TC-179", "TC-180", "TC-184", "TC-189", "TC-217"] },
+    { "ac_ref": "AC-070", "feature_ref": "F-018", "description": "Second invoice for same sales_header_id → 409", "verdict": "accepted", "tests": ["TC-202"], "system_tests": ["ST-024"] },
+    { "ac_ref": "AC-071", "feature_ref": "F-018", "description": "Invoice line unit_price is immutable snapshot; price master edits don't retroact (DS-022)", "verdict": "accepted", "tests": ["TC-203"] },
+    { "ac_ref": "AC-072", "feature_ref": "F-019", "description": "POST /invoices/{id}/payments → status recomputed (PENDING→PARTIAL or PAID)", "verdict": "accepted", "tests": ["TC-181", "TC-182", "TC-183", "TC-204", "TC-205"], "system_tests": ["ST-022"] },
+    { "ac_ref": "AC-073", "feature_ref": "F-019", "description": "Overpayment → 422", "verdict": "accepted", "tests": ["TC-206"], "system_tests": ["ST-022"] },
+    { "ac_ref": "AC-074", "feature_ref": "DS-020", "description": "Concurrent first-row tbl_stock_ledger inserts serialized by advisory lock; running_balance=80, 0 errors (closes TD-008)", "verdict": "accepted", "tests": ["TC-207"], "notes": "TD-008 CLOSED via existing DS-015 advisory-lock pattern shipped in S2 — TC-207 regression added in V2 to lock it in." }
+  ],
+  "cross_cutting_review": [
+    { "id": "DS-018", "status": "accepted", "note": "JWT HS256 · 8h TTL · no cache-in-token — ST-015 (expired) + ST-019 (deactivated) + ST-016 (tampered) + ST-017 (alg=none) all green" },
+    { "id": "DS-019", "status": "accepted", "note": "Three-role RBAC — ST-020 STAFF blocked on POST /users, /prices, /invoices; TC-211/212 confirm both sides of the guard" },
+    { "id": "DS-020", "status": "accepted", "note": "TD-008 closed by advisory-lock pattern (already live from S2 DS-015); TC-207 regression green" },
+    { "id": "DS-021", "status": "accepted", "note": "reportlab + openpyxl export — TC-198/199/200/215/216 green; ST-021 16/16 boundary matrix green" },
+    { "id": "DS-022", "status": "accepted", "note": "Immutable unit_price snapshot on invoice line; zero-price fallback — TC-187/188/203 green; RI-V2-002 raised as informational" },
+    { "id": "DS-023", "status": "accepted", "note": "On-demand invoicing + UNIQUE sales_header_id — TC-217, ST-024 green" },
+    { "id": "DS-024", "status": "accepted", "note": "Login wire format = application/x-www-form-urlencoded per RFC 6749 §4.3.2 — TC-208/209 + IS-013 green" },
+    { "id": "DS-025", "status": "accepted", "note": "V1 no-auth (DS-005) formally superseded; global JWT guard authoritative — 214/214 backend tests green under Option A rewrite" },
+    { "id": "ST-013 perf", "status": "accepted", "note": "POST /auth/login median = 370.0 ms (< 500 ms NFR); bcrypt verify dominates" },
+    { "id": "ST-014 perf", "status": "accepted", "note": "GET /reports/inward median = 16.7 ms on 36 headers (< 2000 ms NFR); reconciliation invariant verified on first call" },
+    { "id": "ST-018 security", "status": "accepted", "note": "4/4 SQL-injection payloads at login → 401 with no 500 leak; tbl_user_master row for real_admin intact post-run" }
+  ],
+  "tech_debt_observed": [
+    { "id": "TD-011", "status": "open", "severity": "minor", "target": "next PRD update", "note": "AC-066 text says 400 but /reports/{sales,inward}/export unsupported-format response is 422 (FastAPI Query regex). Either relax AC text to '4xx' or add explicit 400 pre-check in the router. Non-blocking for /ases-devops V2." },
+    { "id": "TD-012", "status": "open", "severity": "minor", "target": "next LLD update", "note": "V2 LLD line 236 documents `data: LoginRequest` on POST /auth/login but the actual signature is OAuth2PasswordRequestForm per DS-024. LLD prose vs main.py mount-level auth dep drift (DS-025). Both flagged in sprint_summary next_sprint_inputs.carry_forward_tasks." },
+    { "id": "RI-V2-001", "status": "open", "severity": "informational", "target": "production deploy checklist", "note": "SECRET_KEY handling — must set a strong SECRET_KEY env var before enabling auth in a shared/production environment. Scaffold defaults are development-only." },
+    { "id": "RI-V2-002", "status": "open", "severity": "informational", "target": "SUPERVISOR UI visibility", "note": "DS-022 zero-price fallback — invoices created before price configuration carry unit_price=0 lines. Consider surfacing a supervisor-side warning in UI so re-invoice / PATCH prices is a conscious action." },
+    { "id": "TD-001", "status": "open", "severity": "minor", "target": "V2 UI-track (deferred)", "note": "shadcn calendar.tsx classNames patch — carried forward from S3 UI scaffold." },
+    { "id": "CF-001", "status": "open", "severity": "minor", "target": "PO manual smoke", "note": "Long-lived PG bring-up + alembic upgrade + seed still pending for manual API smoke. Testcontainers covered all V2 tests. Not a UAT blocker." }
+  ],
+  "phase_3_test_totals": {
+    "backend_pytest_suite": "214/214 PASS (0 failed, 0 errors, 0 skipped, 182.09s)",
+    "v2_scope_test_cases_TC_171_to_TC_217": "47/47 PASS",
+    "regression_cases_S1_S2_S3": "167/167 PASS",
+    "integration_scenarios_IS_013_to_IS_018": "6/6 PASS",
+    "system_test_scenarios_ST_013_to_ST_024": "12/12 PASS",
+    "system_pytest_items_after_parametrization": "35/35 PASS",
+    "regressions": 0,
+    "preflight_fixes_applied_in_phase_3": 3,
+    "regression_remediation_note": "PO Option A confirmed DS-025 as source of truth. S1/S2/S3 tests re-authored (conftest fixture + ST-002 + ST-011 + TC-213) to inject Bearer JWT by default. Zero src/ changes."
+  },
+  "notes": "20 of 21 ACs accepted on first PO review. 1 accepted_with_notes (AC-066 documentation drift on 400 vs 422 — 4xx contract fulfilled). 0 rejected. Verdict CONDITIONAL because AC-066 has an open PRD-text carry-forward (TD-011). All new tech debt is minor/informational and non-blocking for /ases-devops V2. TD-008 CLOSED. 214/214 backend tests green with substantial perf and security headroom (bcrypt-bound auth ~ 24 %+ under budget; inward report ~ 120× under budget; 4/4 SQL-injection payloads neutralised). V2 introduces the first authenticated shipping baseline for the product — DS-025 formally supersedes DS-005 with PO sign-off logged in test_run_report.po_decision_2026_07_06.",
+  "next": "/ases-devops V2"
+}

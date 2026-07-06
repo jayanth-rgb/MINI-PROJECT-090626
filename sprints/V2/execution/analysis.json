@@ -1,0 +1,157 @@
+{
+  "$schema": "ases/v3.0/analysis",
+  "sprint_id": "V2",
+  "verdict": "READY",
+  "produced_by": "/ases-analyze V2",
+  "timestamp": "2026-07-02T00:00:00Z",
+  "graph_assisted": true,
+  "scope_under_test": {
+    "lld_files_total": 26,
+    "lld_files_new": 24,
+    "lld_files_modified": 2,
+    "modules": ["M-008 (new — Auth)", "M-009 (new — Inward Report)", "M-010 (new — Report Export)", "M-011 (new — Pricing & Invoicing)", "M-002 (modify — dependencies.py + main.py only)"],
+    "features": ["F-013", "F-014", "F-015", "F-016", "F-017", "F-018", "F-019"]
+  },
+  "checks_performed": [
+    {
+      "check": "deps_manifest_packages_vs_installed",
+      "status": "fail",
+      "classification": "non_blocking",
+      "details": "4 new Python packages listed in deps_manifest.packages are absent from backend/.venv and missing from backend/requirements.txt: passlib[bcrypt]>=1.7.4, python-jose[cryptography]>=3.3.0, reportlab>=4.0, openpyxl>=3.1. Confirmed via `python -c 'import passlib, jose, reportlab, openpyxl'` → ModuleNotFoundError: passlib. requirements.txt currently lists only the 9 S1-era packages. All 4 are needed before any M-008 (auth.py, auth_service.py) or M-010 (pdf_exporter.py, excel_exporter.py) task can be executed.",
+      "gap_id": "DEP-V2-001",
+      "resolution": "/ases-sprint-scaffold V2 must: (1) run `backend/.venv/Scripts/pip install passlib[bcrypt] python-jose[cryptography] reportlab openpyxl`; (2) pin exact installed versions in backend/requirements.txt. Verify with `python -c 'import passlib, jose, reportlab, openpyxl; print(\"v2_deps_ok\")'`."
+    },
+    {
+      "check": "deps_manifest_migrations_vs_alembic_versions",
+      "status": "pass",
+      "details": "deps_manifest.migrations[0] = 0004_v2_auth_pricing_tables.py (new — create). No file at backend/db/migrations/versions/0004_*.py exists yet — this is expected (created at /ases-dev for M-008). Existing migration chain (0001_baseline.sql → 0002_master_tables.py → 0003_transaction_and_ledger_tables.py) is intact and unmodified. No collision or out-of-order risk."
+    },
+    {
+      "check": "lld_files_new_do_not_pre_exist",
+      "status": "pass",
+      "details": "All 24 LLD-new files are absent from the working tree. Checked: backend/src/infrastructure/db/models/auth.py, backend/src/infrastructure/db/repositories/auth.py, backend/src/domain/auth.py, backend/src/application/services/auth_service.py, backend/src/presentation/schemas/auth.py, backend/src/presentation/api/routers/auth.py, backend/src/presentation/api/routers/users.py, backend/src/presentation/schemas/inward_report.py, backend/src/application/services/inward_report_service.py, backend/src/presentation/api/routers/inward_report.py, backend/src/infrastructure/exporters/pdf_exporter.py, backend/src/infrastructure/exporters/excel_exporter.py, backend/src/application/services/report_export_service.py, backend/src/presentation/api/routers/report_export.py, backend/src/infrastructure/db/models/pricing.py, backend/src/infrastructure/db/repositories/pricing.py, backend/src/domain/invoice.py, backend/src/application/services/pricing_service.py, backend/src/application/services/invoice_service.py, backend/src/presentation/schemas/pricing.py, backend/src/presentation/api/routers/pricing.py, backend/src/presentation/api/routers/invoices.py, backend/db/migrations/versions/0004_v2_auth_pricing_tables.py, backend/scripts/seed_default_user.py. Zero collisions; safe to create in /ases-dev."
+    },
+    {
+      "check": "lld_files_modified_exist_with_expected_surface",
+      "status": "pass",
+      "details": "Both LLD-modify targets present and verified: (1) backend/src/presentation/api/dependencies.py — exists with 12 existing DI factories (get_db, get_supplier_service, get_staff_service, get_dealer_service, get_grade_service, get_design_service, get_design_grade_map_service, get_inward_service, get_sales_service, get_adjustment_service, get_design_grade_cb_service, get_dashboard_service, get_sales_report_service from S1+S2+S3). LLD adds oauth2_scheme, get_current_user, require_supervisor, get_auth_service, get_inward_report_service, get_report_export_service, get_pricing_service, get_invoice_service — all purely additive. (2) backend/src/main.py — exists with 11 existing include_router mounts (suppliers, staff, dealers, grades, designs, design_grade_map, inward, sales, adjustments, dashboard, sales_report from S1+S2+S3). LLD adds 6 new mounts (auth, users, inward_report, report_export, pricing, invoices) plus auth dependency injection on existing 15 routers — additive at the mount level, V1 router files untouched per LLD scope."
+    },
+    {
+      "check": "lld_depends_on_resolves_to_existing_code",
+      "status": "pass",
+      "details": "All existing depends_on anchors verified in working tree: backend/src/infrastructure/db/base.py (S1, TimestampMixin) ✓; backend/src/infrastructure/db/repositories/base.py (S1, BaseRepository[T]) ✓; backend/src/infrastructure/db/models/master.py (S1, TradingDesignModel, GradeModel, SupplierModel) ✓; backend/src/infrastructure/db/models/transactions.py (S2, SalesHeaderModel, SalesLineModel, InwardHeaderModel, InwardLineModel) ✓; backend/src/infrastructure/db/repositories/transactions.py (S2, TransactionRepository) ✓; backend/src/infrastructure/db/session.py (S1, get_db) ✓; backend/src/application/services/sales_report_service.py (S3, SalesReportService) ✓; backend/src/presentation/schemas/sales_report.py (S3, SalesReportResponse) ✓. All V2-new depends_on[] entries (auth.py, invoice.py, pricing.py repositories, inward_report.py schemas) correctly reference future V2 files — no dangling edges among existing code."
+    },
+    {
+      "check": "config_py_v2_settings_fields",
+      "status": "fail",
+      "classification": "non_blocking",
+      "details": "backend/src/config.py Settings class (pydantic-settings BaseSettings) currently defines: database_url: str, api_cors_origins: list[str] = [], api_env: str = 'development'. It is missing 2 fields required by V2: secret_key: str (required, no default — used by domain/auth.py create_access_token via HS256 signing) and access_token_expire_hours: int = 8 (optional, used by domain/auth.py TTL). These fields are NOT declared in any LLD file's output scope, meaning no /ases-dev task will write them. Auth domain implementation (domain/auth.py) will reference undefined config fields and fail at import or runtime.",
+      "gap_id": "CFG-V2-001",
+      "resolution": "/ases-sprint-scaffold V2 must modify backend/src/config.py Settings class to add: `secret_key: str` (required) and `access_token_expire_hours: int = 8` (optional with default). This is a 2-field append to the existing Settings class — analogous to the ENV-001 env-example appends in S1 sprint-scaffold. Verify with: `python -c 'from backend.src.config import Settings; s=Settings(); print(s.secret_key)' 2>&1 | grep -E '(secret_key|error)'`."
+    },
+    {
+      "check": "exporters_directory_exists",
+      "status": "fail",
+      "classification": "non_blocking",
+      "details": "backend/src/infrastructure/exporters/ directory does not exist. LLD files backend/src/infrastructure/exporters/pdf_exporter.py and backend/src/infrastructure/exporters/excel_exporter.py (M-010) target this directory. /ases-dev will fail to write these files if the directory is absent.",
+      "gap_id": "DIR-V2-001",
+      "resolution": "/ases-sprint-scaffold V2 must create: backend/src/infrastructure/exporters/ and backend/src/infrastructure/exporters/__init__.py (empty). Consistent with sprint-scaffold's directory-creation role from S1 and S2."
+    },
+    {
+      "check": "env_vars_present_in_env_example",
+      "status": "partial",
+      "classification": "non_blocking",
+      "details": "DATABASE_URL (required, inherited from S1) — present in backend/.env.example. NEXT_PUBLIC_API_URL (required, inherited from S1) — expected in frontend/.env.example. SECRET_KEY (required, NEW in V2) — absent from both .env.example (root) and backend/.env.example. ACCESS_TOKEN_EXPIRE_HOURS (optional, NEW in V2, default 8) — absent from .env.example files (acceptable given its default). Current .env (root) has only DB_NAME, DB_USER, DB_PASSWORD, APP_ENV, LOG_LEVEL — SECRET_KEY is missing, which will prevent backend startup once auth is wired into main.py.",
+      "gap_id": "ENV-V2-001",
+      "resolution": "/ases-sprint-scaffold V2 must append `SECRET_KEY=` (with comment: 'Generate with: openssl rand -hex 32. Required for JWT signing.') and `ACCESS_TOKEN_EXPIRE_HOURS=8` (with comment: 'JWT TTL in hours, default 8') to both .env.example and backend/.env.example. PO must set a real SECRET_KEY value in .env before /ases-test-run V2. (Resolves OI-V2-001 from deps_manifest.)"
+    },
+    {
+      "check": "no_drift_from_previous_sprints",
+      "status": "pass",
+      "details": "S1 master CRUD surface intact (models/master.py, repositories/master.py, 7 master routers, BaseRepository pattern). S2 transactions surface intact (models/transactions.py, repositories/transactions.py, domain/stock.py with pg_advisory_xact_lock-first write contract per DS-015/DS-020, 3 transaction routers). S3 reporting surface intact (sales_report_service.py, dashboard_service.py, schemas/sales_report.py, ledger_aggregates repository — all confirmed present). V2 LLD explicitly reads these without modification, matching the cross_sprint_deps analysis in lld.json. Last commit is 79e54568 (S3 UI track final audit); no uncommitted modifications to closed-sprint files detected."
+    },
+    {
+      "check": "carry_forward_items_acknowledged",
+      "status": "pass",
+      "details": "CF-001 (W5: PO PG bring-up + alembic upgrade head) — still pending from S1. V2 adds migration 0004 (5 new tables); PO must run `alembic upgrade head` then `python scripts/seed_default_user.py` before /ases-test-run. Test layer uses testcontainers — no long-lived PG required for dev. TD-008 (first-row insert race) — CLOSED by DS-020 (advisory lock already live, test TC-207 added at test_spec). TD-001 (shadcn calendar.tsx patch) — UI-track tech debt, not in V2 backend scope. TD-010 (Radix jsdom) — UI-track, deferred to V2 UI track (/ases-ui-design V2 + /ases-ui-scaffold V2)."
+    },
+    {
+      "check": "graph_assisted_dependency_cross_check",
+      "status": "pass",
+      "details": "Graph built at df03a51b (S3 shipped, 1 commit behind HEAD 79e54568 — S3 UI supplemental). Graph covers S1+S2+S3 backend structure. Key V2 integration points cross-checked: (1) dependencies.py is a high-centrality hub node in the graph — 12 outbound edges to service factories, 11 inbound edges from router files. V2 adds 8 new exports without removing any existing node; no edge breakage risk. (2) main.py is the graph's application entry-point god node — 11 outbound mounts. V2 adds 6 more and applies auth dependency to all existing mounts; the LLD scope (inject only in include_router call, never inside router files) keeps the community structure intact. (3) SalesReportService appears as a community-boundary node shared between M-005 cluster (S3) and M-010 cluster (V2). The LLD's read-only composition (ReportExportService calls SalesReportService) is consistent with the graph's existing directed edge from sales_report router → sales_report_service. No circular dependency risk. graph_assisted: true."
+    }
+  ],
+  "blocking_gaps": [],
+  "non_blocking_gaps": [
+    {
+      "id": "DEP-V2-001",
+      "description": "4 Python packages (passlib[bcrypt], python-jose[cryptography], reportlab, openpyxl) not installed in backend/.venv and not listed in backend/requirements.txt. M-008 and M-010 tasks will ImportError without them.",
+      "impact": "medium",
+      "owner": "sprint-scaffold",
+      "resolution": "Run `pip install passlib[bcrypt] python-jose[cryptography] reportlab openpyxl` in the venv and pin exact versions in requirements.txt at /ases-sprint-scaffold V2."
+    },
+    {
+      "id": "CFG-V2-001",
+      "description": "backend/src/config.py Settings class is missing secret_key: str and access_token_expire_hours: int = 8. No LLD task declares config.py as an output_file, so these fields will not be added by /ases-dev unless explicitly handled at sprint-scaffold.",
+      "impact": "medium",
+      "owner": "sprint-scaffold",
+      "resolution": "Append 2 fields to Settings class at /ases-sprint-scaffold V2: secret_key: str (required) and access_token_expire_hours: int = 8 (optional with default)."
+    },
+    {
+      "id": "DIR-V2-001",
+      "description": "backend/src/infrastructure/exporters/ directory does not exist. M-010 tasks (pdf_exporter.py, excel_exporter.py) target this directory.",
+      "impact": "low",
+      "owner": "sprint-scaffold",
+      "resolution": "Create backend/src/infrastructure/exporters/__init__.py at /ases-sprint-scaffold V2."
+    },
+    {
+      "id": "ENV-V2-001",
+      "description": "SECRET_KEY is absent from .env.example and backend/.env.example. Also missing from .env — backend will not start once auth is wired after /ases-dev.",
+      "impact": "medium (runtime, not dev-time)",
+      "owner": "sprint-scaffold + PO",
+      "resolution": "Sprint-scaffold appends SECRET_KEY= stub to both .env.example files. PO sets a real value (openssl rand -hex 32) in .env before /ases-test-run V2. Resolves OI-V2-001."
+    },
+    {
+      "id": "NB-V2-001",
+      "description": "Knowledge graph is 1 commit stale: built at df03a51b (S3 base shipped), current HEAD is 79e54568 (S3 UI track supplemental, final commit). Graph covers all S1-S3 backend structure relevant to V2 analysis. Staleness is minimal (UI JS files only in the delta).",
+      "impact": "negligible",
+      "owner": "optional",
+      "resolution": "Run /ases-graphify after /ases-sprint-scaffold V2 to capture new V2 file community. Not required before /ases-tasks."
+    },
+    {
+      "id": "NB-V2-002",
+      "description": "CF-001 / W5 (long-lived PG bring-up by PO) still pending from S1. V2 migration 0004 adds 5 new tables. PO must run `cd backend && alembic upgrade head` then `python scripts/seed_default_user.py` before any live API smoke testing or /ases-integration-test. No impact on /ases-dev or /ases-test-run (testcontainers provides ephemeral PG per test run).",
+      "impact": "low (dev-phase only)",
+      "owner": "PO",
+      "resolution": "PO action before /ases-test-run V2: `docker-compose up -d db && alembic upgrade head && python scripts/seed_default_user.py`. Change admin password immediately after first login."
+    }
+  ],
+  "codebase_drift": [],
+  "graph_summary": {
+    "graph_built_at_commit": "df03a51b",
+    "current_head_commit": "79e54568",
+    "drift": "1 commit behind (S3 UI track supplemental — frontend JS files only, no backend structural change)",
+    "graph_assisted_analysis": "Used to verify hub-node integration strategy for dependencies.py (centality check) and main.py (god-node check), and to confirm SalesReportService community membership is consistent with V2 read-only composition pattern",
+    "recommendation": "Run /ases-graphify after /ases-sprint-scaffold V2 to add V2 file nodes — useful for /ases-critique V2 cross-file checks"
+  },
+  "scope_summary": {
+    "ac_coverage_at_sprint_gate": "47/47 TCs with framework=pytest (sprint_gate PASS 2026-07-02)",
+    "test_cases_total": 47,
+    "new_backend_packages": 4,
+    "new_migrations": 1,
+    "new_env_vars": 2,
+    "files_to_create": 24,
+    "files_to_modify": 2,
+    "modules_new": ["M-008", "M-009", "M-010", "M-011"],
+    "modules_modified": ["M-002 (dependencies.py + main.py only)"],
+    "sprint_scaffold_mandatory_actions": [
+      "DEP-V2-001: pip install 4 packages + pin in requirements.txt",
+      "CFG-V2-001: append secret_key + access_token_expire_hours to backend/src/config.py Settings",
+      "DIR-V2-001: create backend/src/infrastructure/exporters/__init__.py",
+      "ENV-V2-001: append SECRET_KEY + ACCESS_TOKEN_EXPIRE_HOURS stubs to .env.example files"
+    ]
+  },
+  "next_command_on_READY": "/ases-sprint-scaffold V2",
+  "po_approval_required": false,
+  "summary_one_line": "V2 design is structurally sound and consistent with the S1-S3 codebase: 24 new files have zero collisions, 2 modify-targets exist with stable additive surfaces, all cross-sprint depends_on anchors are present; 4 non-blocking gaps (missing packages, config.py fields, exporters dir, SECRET_KEY env stub) are mandatory sprint-scaffold actions that gate READY without blocking /ases-tasks generation."
+}

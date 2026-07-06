@@ -1,0 +1,6 @@
+{
+  "task_id": "T-091",
+  "test_case_refs": ["TC-217"],
+  "priority": "critical",
+  "notes": "Integration test using FastAPI TestClient + testcontainers PostgreSQL. TC-217: seed dealer, sales_header, 2 sales_lines (qty=10 design_A_grade_X, qty=5 design_B_grade_Y), and corresponding price master entries (100.00 and 80.00). POST /invoices?sales_header_id=<seeded_id> with SUPERVISOR auth -> 201. Assert: invoice_number starts with 'INV-'; total_amount == Decimal('1400.00') (10*100 + 5*80); status == 'PENDING'; response.lines has 2 items; each line.unit_price is snapshotted value (DS-022). Requires seeded admin user."
+}

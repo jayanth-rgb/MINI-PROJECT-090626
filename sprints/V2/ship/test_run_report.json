@@ -1,0 +1,112 @@
+{
+  "$schema": "ases/v3.0/test_run_report",
+  "document": "test_run_report",
+  "produced_by": "/ases-test-run V2",
+  "consumed_by": ["/ases-integration-test", "PO"],
+  "sprint_id": "V2",
+  "executed_at": "2026-07-06T00:00:00Z",
+  "runner": "pytest 8.3.4 (backend/.venv)",
+  "run_cmd": "pytest backend/tests/ --tb=short",
+  "run_log": "scratchpad/pytest_full4.log",
+  "total_tests": 214,
+  "passed": 214,
+  "failed": 0,
+  "errors": 0,
+  "skipped": 0,
+  "duration_seconds": 182.09,
+  "v2_scope_summary": {
+    "total_v2_cases": 47,
+    "passed_v2_cases": 47,
+    "failed_v2_cases": 0,
+    "coverage": "TC-171 through TC-217 — all V2 acceptance criteria",
+    "verdict": "V2 SCOPE PASS"
+  },
+  "regression_summary": {
+    "total_regression_cases": 167,
+    "passed_regression_cases": 167,
+    "failed_regression_cases": 0,
+    "verdict": "REGRESSION GATE PASS"
+  },
+  "po_decision_2026_07_06": {
+    "verdict": "Option A — DS-025 stands as the source of truth. V1 APIs require JWT authentication.",
+    "consequence": "S1/S2/S3 test suites needed re-authoring against the new contract. Scope confined to backend/tests/ (no source changes).",
+    "adr_status": "DS-025 confirmed authoritative; DS-005 formally superseded (V1 no-auth posture ended at V2 T-092)."
+  },
+  "preflight_fixes_applied": [
+    {
+      "id": "PF-1",
+      "cause": "python-multipart missing from requirements.txt — V2 auth router uses OAuth2PasswordRequestForm (Form dep); src.main import failed",
+      "impact_before_fix": "79 setup errors across S1/S2/S3 API tests + all V2 API tests",
+      "fix": "backend/requirements.txt: add python-multipart==0.0.20",
+      "impact_after_fix": "All 79 setup errors resolved"
+    },
+    {
+      "id": "PF-2",
+      "cause": "bcrypt 5.0.0 incompatible with passlib 1.7.4 backend-detection (72-byte length check)",
+      "impact_before_fix": "8 auth tests failed with ValueError: password cannot be longer than 72 bytes",
+      "fix": "backend/requirements.txt: pin bcrypt==4.2.1",
+      "impact_after_fix": "TC-171, TC-172, TC-185, TC-190..TC-194 pass"
+    },
+    {
+      "id": "PF-3",
+      "cause": "InvoiceRepository.get uses joinedload against two collections then .scalar_one_or_none() — SQLAlchemy 2.0 requires .unique()",
+      "impact_before_fix": "5 pricing tests failed with InvalidRequestError",
+      "fix": "backend/src/infrastructure/db/repositories/pricing.py:69 — insert .unique() before .scalar_one_or_none()",
+      "impact_after_fix": "TC-189, TC-202, TC-204, TC-205, TC-206 pass"
+    }
+  ],
+  "regression_remediation_applied": {
+    "trigger": "PO Option A — DS-025 (V1 requires JWT) confirmed as source of truth",
+    "root_cause": "T-092 attaches Depends(get_current_user) to all 11 V1 routers in src/main.py:45-55. Pre-V2 test suites (S1/S2/S3 API tests, IS-001..IS-012 scenarios, ST-001..ST-012 system tests) were written against DS-005 (V1 open) and issued unauthenticated requests, receiving 401 instead of their pre-V2 expected status codes.",
+    "changes": [
+      {
+        "file": "backend/tests/conftest.py",
+        "kind": "fixture",
+        "description": "SECRET_KEY seeded at import (mirrors DATABASE_URL pattern). Module-level _DEFAULT_SUPERVISOR_PASSWORD_HASH precomputed once via bcrypt to amortise cost across the whole session. client fixture now seeds a __test_default_supervisor__ UserModel row into db_session, mints an 8h HS256 JWT via create_access_token, and attaches Authorization: Bearer <token> to TestClient.headers so every legacy S1/S2/S3 client.<verb>(...) call authenticates by default. Added unauthenticated_client fixture (no default header) for the two negative-path tests below."
+      },
+      {
+        "file": "backend/tests/system/test_system_st002_no_auth_required_v1.py",
+        "kind": "test contract inversion",
+        "description": "Rewrote parametrized test to use unauthenticated_client and assert status_code == 401 with WWW-Authenticate: Bearer header (RFC 6750). Docstring updated to cite DS-025 supersession of DS-005. Function renamed test_st002_list_endpoints_require_auth (was ..._no_auth_required)."
+      },
+      {
+        "file": "backend/tests/system/test_system_st011_s3_endpoints_no_auth.py",
+        "kind": "test contract inversion",
+        "description": "Rewrote 4 assertions to expect 401 against unauthenticated_client (no header + bogus Bearer, on /dashboard and /reports/sales). Added a 5th positive-control assertion using the authenticated client fixture to confirm the guard is not blanket-blocking. Function renamed test_st011_s3_endpoints_require_auth."
+      },
+      {
+        "file": "backend/tests/integration/v2/test_api_main.py",
+        "kind": "fixture rewire",
+        "description": "TC-213 (unauthenticated V1 endpoint returns 401) was implicitly authenticated by the new default client fixture. Switched to unauthenticated_client so the assertion tests the intended contract."
+      }
+    ],
+    "changes_not_needed": [
+      "33 S1/S2/S3 API integration tests, 10 IS-001..IS-012 scenarios, 24 remaining system/security tests — all pass unmodified because they consume the client fixture which now authenticates by default. Zero test-body edits required in that set."
+    ],
+    "coverage_confirmation": "Full backend/tests/ suite executes in 182.09 s and reports 214 passed, 0 failed, 0 errors."
+  },
+  "fix_attempts": [
+    {
+      "batch": "preflight",
+      "attempts": 1,
+      "outcome": "Green on first re-run (PF-1..PF-3 resolved 79 errors and 13 assert failures)."
+    },
+    {
+      "batch": "regression_remediation (post-PO)",
+      "attempts": 2,
+      "outcome": "First pass added conftest fixture + inverted ST-002/ST-011 → 213 passed, 1 failed (TC-213 was still using default authenticated client). Second pass rewired TC-213 to unauthenticated_client → 214 passed."
+    }
+  ],
+  "gate_verdict": "PASS",
+  "gate_details": {
+    "critical_priority_gate": "PASS — all critical-priority tests green",
+    "regression_gate": "PASS — 167/167 pre-V2 regression tests pass against the DS-025 contract",
+    "v2_scope_gate": "PASS — 47/47 V2 acceptance-criteria tests pass"
+  },
+  "warnings_observed": [
+    "src/presentation/api/routers/report_export.py:32,66 — FastAPI Query(regex=...) deprecated; use pattern=. Cosmetic.",
+    "src/infrastructure/exporters/pdf_exporter.py:120 and python-jose/jwt.py:311 — datetime.utcnow() deprecated in Python 3.12. Cosmetic.",
+    "backend/tests/conftest.py:102 — SAWarning transaction already deassociated on 7 DB-constraint-violation tests. Pre-existing S1/S2 rollback pattern."
+  ],
+  "next_step": "/ases-integration-test V2"
+}

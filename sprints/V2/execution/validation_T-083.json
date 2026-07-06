@@ -1,0 +1,39 @@
+{
+  "$schema": "ases/v3.0/validation",
+  "document": "validation",
+  "task_id": "T-083",
+  "sprint_id": "V2",
+  "produced_by": "/ases-validate T-083 V2",
+  "timestamp": "2026-07-04",
+  "verdict": "PROCEED",
+
+  "checks": [
+    {
+      "check": "input_files_exist",
+      "status": "pass",
+      "details": "backend/src/infrastructure/db/repositories/pricing.py EXISTS and fully implemented (T-080 complete — PriceMasterRepository with get_active_price + list_all, InvoiceRepository with create_with_lines + get + list, PaymentRepository with create). backend/src/presentation/schemas/pricing.py EXISTS and fully implemented (T-082 complete — PriceMasterCreate, PriceMasterRead, PriceMasterUpdate, InvoiceLineRead, PaymentRead, PaymentCreate, InvoiceRead, InvoiceSummary)."
+    },
+    {
+      "check": "interface_contract_intact",
+      "status": "pass",
+      "details": "LLD files[18] for pricing_service.py: expects PriceMasterRepository (exports get_active_price, list_all — both present), PriceMasterCreate (design_id, grade_id, unit_price Decimal ge=0, effective_from date — matches schema), PriceMasterUpdate (unit_price/is_active Optional — matches schema). No LLD drift detected. Note: pricing_service.py exists as an untracked file (git status ??), likely a sprint-scaffold stub — /ases-dev will overwrite it."
+    },
+    {
+      "check": "scope_boundary_clear",
+      "status": "pass",
+      "details": "T-083 output is backend/src/application/services/pricing_service.py — unique output target. No task is currently in_progress. No other pending task writes to this file. T-089 and T-090 read from it but do not write to it."
+    },
+    {
+      "check": "no_circular_dependency",
+      "status": "pass",
+      "details": "T-083 depends_on: [T-079, T-080, T-082]. T-079: status=complete ✓. T-080: status=complete ✓ (was blocking HOLD on previous run — now resolved). T-082: status=complete ✓. All upstream tasks complete."
+    }
+  ],
+
+  "previous_hold_resolved": "T-080 was pending at last validation (2026-07-03). It is now complete — PriceMasterRepository, InvoiceRepository, PaymentRepository fully implemented. HOLD lifted.",
+
+  "notes": [
+    "pricing_service.py appears as ?? (untracked) in git status — sprint-scaffold stub. /ases-dev will create/overwrite with full implementation.",
+    "PricingService does NOT need to import InvoiceRepository or PaymentRepository — those are for T-084 (invoice_service). T-083 scope is Price Master CRUD only (list_prices, create_price, update_price)."
+  ]
+}

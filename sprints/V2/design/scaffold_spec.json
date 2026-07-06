@@ -1,0 +1,243 @@
+{
+  "$schema": "ases/v3.0/scaffold_spec",
+  "document": "scaffold_spec",
+  "sprint_id": "V2",
+  "produced_by": "/ases-sprint-scaffold V2 Step A (Sonnet)",
+  "consumed_by": ["/ases-sprint-scaffold V2 Step B", "/ases-tasks V2"],
+  "ready_for_step_b": true,
+
+  "diff_note": "Files compared: lld.json files[] (modification=create only) vs contracts/scaffold.json files[] + sprint_S1/S2/S3 files_created[]. MODIFY targets (dependencies.py, main.py) are excluded — handled by /ases-dev. The new backend/src/infrastructure/exporters/ package has no prior scaffold entry.",
+
+  "new_directories": [
+    "backend/src/infrastructure/exporters"
+  ],
+
+  "files_to_create": [
+    {
+      "path": "backend/src/domain/auth.py",
+      "type": "stub",
+      "content": "# auth domain module\n",
+      "module_ref": "M-008",
+      "reason": "New domain module — password hashing + JWT lifecycle (no I/O)"
+    },
+    {
+      "path": "backend/src/domain/invoice.py",
+      "type": "stub",
+      "content": "# invoice domain module\n",
+      "module_ref": "M-011",
+      "reason": "New domain module — invoice arithmetic (no I/O)"
+    },
+    {
+      "path": "backend/src/infrastructure/db/models/auth.py",
+      "type": "stub",
+      "content": "# auth models module\n",
+      "module_ref": "M-008",
+      "reason": "New ORM model — UserModel (tbl_user_master)"
+    },
+    {
+      "path": "backend/src/infrastructure/db/models/pricing.py",
+      "type": "stub",
+      "content": "# pricing models module\n",
+      "module_ref": "M-011",
+      "reason": "New ORM models — PriceMasterModel, InvoiceHeaderModel, InvoiceLineModel, PaymentModel"
+    },
+    {
+      "path": "backend/src/infrastructure/db/repositories/auth.py",
+      "type": "stub",
+      "content": "# auth repositories module\n",
+      "module_ref": "M-008",
+      "reason": "New repository — UserRepository (get_by_username, list_active)"
+    },
+    {
+      "path": "backend/src/infrastructure/db/repositories/pricing.py",
+      "type": "stub",
+      "content": "# pricing repositories module\n",
+      "module_ref": "M-011",
+      "reason": "New repositories — PriceMasterRepository, InvoiceRepository, PaymentRepository"
+    },
+    {
+      "path": "backend/src/infrastructure/exporters/__init__.py",
+      "type": "init",
+      "content": "# exporters module\n",
+      "module_ref": "M-010",
+      "reason": "New package marker for backend/src/infrastructure/exporters/ (no prior scaffold entry)"
+    },
+    {
+      "path": "backend/src/infrastructure/exporters/pdf_exporter.py",
+      "type": "stub",
+      "content": "# pdf exporter module\n",
+      "module_ref": "M-010",
+      "reason": "New infrastructure exporter — PDF byte stream via reportlab"
+    },
+    {
+      "path": "backend/src/infrastructure/exporters/excel_exporter.py",
+      "type": "stub",
+      "content": "# excel exporter module\n",
+      "module_ref": "M-010",
+      "reason": "New infrastructure exporter — XLSX byte stream via openpyxl"
+    },
+    {
+      "path": "backend/src/application/services/auth_service.py",
+      "type": "stub",
+      "content": "# auth service module\n",
+      "module_ref": "M-008",
+      "reason": "New service — authenticate, get_current_user, create_user, list_users, update_user"
+    },
+    {
+      "path": "backend/src/application/services/inward_report_service.py",
+      "type": "stub",
+      "content": "# inward report service module\n",
+      "module_ref": "M-009",
+      "reason": "New service — dual-pane inward report with shared filter predicate (DS-017)"
+    },
+    {
+      "path": "backend/src/application/services/report_export_service.py",
+      "type": "stub",
+      "content": "# report export service module\n",
+      "module_ref": "M-010",
+      "reason": "New service — routes report data to PdfExporter or ExcelExporter"
+    },
+    {
+      "path": "backend/src/application/services/pricing_service.py",
+      "type": "stub",
+      "content": "# pricing service module\n",
+      "module_ref": "M-011",
+      "reason": "New service — Price Master CRUD with uniqueness enforcement"
+    },
+    {
+      "path": "backend/src/application/services/invoice_service.py",
+      "type": "stub",
+      "content": "# invoice service module\n",
+      "module_ref": "M-011",
+      "reason": "New service — invoice creation from sales, payment recording, status recompute"
+    },
+    {
+      "path": "backend/src/presentation/schemas/auth.py",
+      "type": "stub",
+      "content": "# auth schemas module\n",
+      "module_ref": "M-008",
+      "reason": "New Pydantic schemas — LoginRequest, TokenResponse, UserCreate, UserRead, UserUpdate"
+    },
+    {
+      "path": "backend/src/presentation/schemas/inward_report.py",
+      "type": "stub",
+      "content": "# inward report schemas module\n",
+      "module_ref": "M-009",
+      "reason": "New Pydantic schemas — InwardConsolidationRow, InwardTransactionRow, InwardReportResponse"
+    },
+    {
+      "path": "backend/src/presentation/schemas/pricing.py",
+      "type": "stub",
+      "content": "# pricing schemas module\n",
+      "module_ref": "M-011",
+      "reason": "New Pydantic schemas — PriceMasterCreate/Read/Update, InvoiceLineRead, PaymentRead/Create, InvoiceRead, InvoiceSummary"
+    },
+    {
+      "path": "backend/src/presentation/api/routers/auth.py",
+      "type": "stub",
+      "content": "# auth router module\n",
+      "module_ref": "M-008",
+      "reason": "New router — POST /auth/login (open), GET /auth/me (authenticated)"
+    },
+    {
+      "path": "backend/src/presentation/api/routers/users.py",
+      "type": "stub",
+      "content": "# users router module\n",
+      "module_ref": "M-008",
+      "reason": "New router — GET /users, POST /users, PATCH /users/{id} (SUPERVISOR only)"
+    },
+    {
+      "path": "backend/src/presentation/api/routers/inward_report.py",
+      "type": "stub",
+      "content": "# inward report router module\n",
+      "module_ref": "M-009",
+      "reason": "New router — GET /reports/inward with multi-select filters"
+    },
+    {
+      "path": "backend/src/presentation/api/routers/report_export.py",
+      "type": "stub",
+      "content": "# report export router module\n",
+      "module_ref": "M-010",
+      "reason": "New router — GET /reports/sales/export and GET /reports/inward/export (StreamingResponse)"
+    },
+    {
+      "path": "backend/src/presentation/api/routers/pricing.py",
+      "type": "stub",
+      "content": "# pricing router module\n",
+      "module_ref": "M-011",
+      "reason": "New router — GET /prices (any auth), POST /prices + PATCH /prices/{id} (SUPERVISOR)"
+    },
+    {
+      "path": "backend/src/presentation/api/routers/invoices.py",
+      "type": "stub",
+      "content": "# invoices router module\n",
+      "module_ref": "M-011",
+      "reason": "New router — GET /invoices, POST /invoices, GET /invoices/{id}, POST /invoices/{id}/payments"
+    },
+    {
+      "path": "backend/db/migrations/versions/0004_v2_auth_pricing_tables.py",
+      "type": "migration_stub",
+      "content": "# V2 auth + pricing migration stub — body filled by /ases-dev\n",
+      "module_ref": "M-008",
+      "reason": "Alembic migration stub for 5 V2 tables (tbl_user_master, tbl_price_master, tbl_invoice_header, tbl_invoice_line, tbl_payment). DDL filled by /ases-dev per DS-009 ORM-first flow."
+    },
+    {
+      "path": "backend/scripts/seed_default_user.py",
+      "type": "stub",
+      "content": "# seed default user module\n",
+      "module_ref": "M-008",
+      "reason": "One-shot seed script — inserts default SUPERVISOR (admin/admin123) after alembic upgrade head"
+    }
+  ],
+
+  "modify_targets": [
+    {
+      "path": "backend/src/presentation/api/dependencies.py",
+      "modification": "modify",
+      "note": "Add oauth2_scheme, get_current_user, require_supervisor, get_auth_service, get_inward_report_service, get_report_export_service, get_pricing_service, get_invoice_service. Deferred to /ases-dev (business logic)."
+    },
+    {
+      "path": "backend/src/main.py",
+      "modification": "modify",
+      "note": "Mount 6 new V2 routers; add dependencies=[Depends(get_current_user)] to all 11 V1 routers and 4 new non-auth V2 routers. Deferred to /ases-dev."
+    }
+  ],
+
+  "migrations_to_apply": [],
+  "migrations_note": "0004_v2_auth_pricing_tables.py is a stub at sprint-scaffold time. DDL is filled by /ases-dev task and applied via Step 4.5 in /ases-dev. Empty stubs are NOT applied here per skill rule.",
+
+  "dependency_changes": {
+    "_note": "LLD does not contain an explicit new_dependencies[] top-level field. Dependencies below are inferred from lld.json files[].interfaces.expects entries per DS-018 (python-jose, passlib) and DS-021 (reportlab, openpyxl). No frontend V2 dependencies required — V2 frontend ships via the UI track.",
+    "backend": {
+      "add": [
+        {
+          "name": "python-jose[cryptography]",
+          "version": "3.3.0",
+          "reason": "M-008 JWT signing and decoding (DS-018). OAuth2PasswordBearer + HS256 token lifecycle in domain.auth."
+        },
+        {
+          "name": "passlib[bcrypt]",
+          "version": "1.7.4",
+          "reason": "M-008 bcrypt password hashing via CryptContext (DS-018). get_password_hash + verify_password in domain.auth."
+        },
+        {
+          "name": "reportlab",
+          "version": "4.4.1",
+          "reason": "M-010 PDF report generation (DS-021). SimpleDocTemplate + Table in PdfExporter."
+        },
+        {
+          "name": "openpyxl",
+          "version": "3.1.5",
+          "reason": "M-010 XLSX report generation (DS-021). Workbook + styles in ExcelExporter."
+        }
+      ],
+      "remove": [],
+      "bump": []
+    },
+    "frontend": {
+      "add": [],
+      "remove": [],
+      "bump": []
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-073",
+  "sprint_id": "V2",
+  "module_ref": "M-008",
+  "file_under_review": [
+    "backend/src/presentation/api/routers/users.py",
+    "backend/src/application/services/auth_service.py"
+  ],
+  "critic_agent": "opus-4.7",
+  "verdict": "CLEAN",
+  "iteration": 4,
+  "summary": "Iteration 4 critique against the post-Option-A code state. All 6 findings from iter3 are resolved. The PO-authorized bounded scope amendment (2026-07-05) added backend/src/application/services/auth_service.py to T-073 output_files[] solely to introduce two methods: AuthService.get_user (read-only, no commit) and AuthService.deactivate_user (BaseRepository.soft_delete + commit per DS-008). LLD amended in the same commit — files[auth_service.py] now declares 7 methods, files[users.py] now declares 5 endpoints. Router now calls svc.get_user on GET /{user_id} (F-073-01/02 root fixes), svc.deactivate_user on DELETE /{user_id} (F-073-03 root fix), workaround comment removed (F-073-04), Response import + explicit Response(204) removed (F-073-05); LLD/plan divergence closed (F-073-06). All 4 lenses PASS. Structural lens confirms router mounted at main.py:70 and both new AuthService methods reachable through the router. T-073 marked complete.",
+  "findings": [],
+  "lens_results": {
+    "spec": "PASS — users.py exposes 5 endpoints (list, create, get, update, deactivate) all wrapped in require_supervisor Depends. Handler bindings match plan.json line 10 verbatim: GET '' → svc.list_users, POST '' 201 → svc.create_user, GET '/{user_id}' → svc.get_user, PATCH '/{user_id}' → svc.update_user, DELETE '/{user_id}' 204 → svc.deactivate_user then return None. auth_service.py adds get_user (self._repo.get(user_id), no commit — HTTP-safe per RFC 9110 §9.2.1) and deactivate_user (self._repo.soft_delete(user_id); self._db.commit() — DS-008 canonical primitive). Signatures match sprints/V2/design/lld.json lines 167-181 exactly.",
+    "contract": "PASS — routers/users.py exports 'router' (APIRouter prefix='/users', tags=['users']) consumed at backend/src/main.py:23 (import) + line 70 (include_router). Imports resolve: get_auth_service + require_supervisor from dependencies.py (both present, lines 119 and 135), AuthService from auth_service.py, UserCreate/Read/Update from schemas/auth.py, UserModel from db/models/auth.py. auth_service.py exports AuthService (unchanged surface for authenticate/get_current_user/create_user/list_users/update_user; adds get_user + deactivate_user). depends_on[] T-071 + T-089 consumed correctly. No dangling imports, no orphaned symbols.",
+    "test": "PASS — TC-211 (STAFF token → 403 on GET /api/v1/users): require_supervisor triggers before svc.list_users; role check at dependencies.py:127 raises 403. TC-212 (SUPERVISOR POST /api/v1/users → 201 with UserRead): create_user chain: require_supervisor → svc.create_user (uniqueness check → hash password → repo.create → commit → return UserModel) → FastAPI serializes to UserRead (from_attributes=True). Both TC file_ref/function_ref match implementation. New GET /{id} and DELETE /{id} paths not directly TC-asserted at unit scope, but their bindings are behaviorally correct: GET is read-only (no commit; RFC 9110 HTTP safety restored — F-073-02 latent bug eliminated), DELETE goes through BaseRepository.soft_delete (DS-008 canonical primitive — F-073-03 latent bug eliminated). No edge cases from test_cases.json regressed.",
+    "security": "PASS — All 5 endpoints chain Depends(require_supervisor) which chains get_current_user (JWT verify via decode_access_token + is_active DB re-check per DS-018) + role='SUPERVISOR' guard per DS-019. STAFF/VERIFIER receive 403 before any service call executes. user_id typed as int (path param) — no injection surface. UserCreate/Update Pydantic-validated at ingress. No secrets exposed. Password field on UserCreate hashed via get_password_hash before persistence (auth_service.py:67). auth_service.py get_user + deactivate_user carry no new attack surface: get_user is a pure repo.get with no user-controlled string, deactivate_user calls repo.soft_delete on typed int.",
+    "structural": "PASS — graphify-out/graph.json present. Router mounted at main.py:70 app.include_router(users_router, prefix='/api/v1'). Reachable from FastAPI entry point create_app. New call edges: routers/users.py::get_user → AuthService.get_user → UserRepository.get (inherited BaseRepository.get, raises NotFoundError → 404 via presentation/api/errors.py:9 exception handler); routers/users.py::deactivate_user → AuthService.deactivate_user → UserRepository.soft_delete (inherited BaseRepository.soft_delete) → self._db.commit(). No orphaned functions, no dead imports (Response no longer imported), no missing edges."
+  },
+  "decisions_touched": ["DS-007", "DS-008", "DS-018", "DS-019"],
+  "adr_tradeoffs_confirmed": [
+    "DS-007 four-layer boundary preserved: router → service → repository, no shortcuts.",
+    "DS-008 soft-delete canonicalization: DELETE /users/{id} now goes through BaseRepository.soft_delete via AuthService.deactivate_user — the workaround (svc.update_user with is_active=False) that bypassed DS-008 is gone.",
+    "DS-018 JWT auth chain intact — get_current_user re-fetches is_active on every request; deactivation takes effect immediately.",
+    "DS-019 role check enforced by require_supervisor at all 5 endpoints; STAFF/VERIFIER 403 before service execution."
+  ],
+  "iteration_history": {
+    "iteration_1": {
+      "verdict": "FIX_REQUIRED",
+      "issues_flagged": 5,
+      "issues_resolved": 0
+    },
+    "iteration_2": {
+      "verdict": "FIX_REQUIRED",
+      "issues_flagged": 6,
+      "issues_resolved": 0,
+      "new_findings": ["F-073-06"],
+      "notes": "Code state on disk identical to iteration 1 — no fixes applied. F-073-06 surfaced as root-cause LLD/plan divergence."
+    },
+    "iteration_3": {
+      "verdict": "ESCALATE",
+      "issues_flagged": 6,
+      "issues_resolved": 0,
+      "new_findings": [],
+      "notes": "Escalation forced by rule. Pre-staged snapshot at sprints/V2/execution/snapshots/T-073-escalation-3.json. Awaited PO decision."
+    },
+    "iteration_4": {
+      "verdict": "CLEAN",
+      "issues_flagged": 0,
+      "issues_resolved": 6,
+      "resolved_findings": ["F-073-01", "F-073-02", "F-073-03", "F-073-04", "F-073-05", "F-073-06"],
+      "notes": "PO Option A applied 2026-07-05: (a) T-073 output_files[] amended to include auth_service.py [scope_amendment_note in T-073-plan.json:9]; (b) LLD files[users.py] amended to 5 endpoints and files[auth_service.py] amended to 7 methods; (c) users.py:34 rewritten to 'return svc.get_user(user_id)' — HTTP-safe read; (d) users.py:53-54 rewritten to 'svc.deactivate_user(user_id); return None' — DS-008 canonical soft-delete; (e) 'Response' dropped from fastapi import list; (f) inline workaround comment removed; (g) AuthService.get_user + AuthService.deactivate_user added at auth_service.py:77-78 and 92-95 respectively. Iter4 fix snapshot at sprints/V2/execution/snapshots/T-073-fix-4.json."
+    }
+  },
+  "issues_remaining": 0,
+  "previous_issues_remaining": 6,
+  "escalation_check": "Not applicable — verdict CLEAN. Prior escalation resolved by PO Option A.",
+  "recommended_po_decision": null,
+  "next_action": "Update tasks.json T-073 status→complete, iteration_count=4, critique_verdict=CLEAN. Update .ases/context.json last_completed/completed_steps. V2 has no more in_progress tasks → /ases-sprint-close V2 unblocked. Non-blocking follow-up already logged for T-072: DS-024 (auth form-encoded wire format) to be added at /ases-sprint-close V2.",
+  "artifacts": {
+    "critique_json": "sprints/V2/execution/critique_T-073.json",
+    "critique_md": "sprints/V2/execution/critique_T-073.md",
+    "iter3_escalation_snapshot": "sprints/V2/execution/snapshots/T-073-escalation-3.json",
+    "iter4_fix_snapshot": "sprints/V2/execution/snapshots/T-073-fix-4.json"
+  }
+}

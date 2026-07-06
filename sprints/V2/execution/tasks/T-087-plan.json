@@ -1,0 +1,17 @@
+{
+  "task_id": "T-087",
+  "title": "services/report_export_service.py — ReportExportService",
+  "module_ref": "M-010",
+  "output_files": ["backend/src/application/services/report_export_service.py"],
+  "scope": "ReportExportService with export_sales(format, date_from, date_to, dealer_ids, places, design_ids) and export_inward(format, date_from, date_to, supplier_ids, places, design_ids). Both: (1) validate format in ['pdf','xlsx'] → HTTPException 400 if not; (2) call respective report service to get data; (3) route to PdfExporter or ExcelExporter based on format; (4) return tuple(BytesIO, content_type, filename). content_type: 'application/pdf' or XLSX MIME. filename: '{report}_report_{YYYY-MM-DD}.{ext}'.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-077", "T-085", "T-086"],
+  "test_case_refs": ["TC-200"],
+  "decisions_referenced": ["DS-007", "DS-021"],
+  "success_criteria": {
+    "manual": "from src.application.services.report_export_service import ReportExportService; print(hasattr(ReportExportService, 'export_sales'))",
+    "automated": "TC-200: export_sales(format='csv') → HTTPException 400.",
+    "definition_of_done": "ReportExportService exported with 2 methods. HTTPException 400 on unsupported format. Returns (BytesIO, content_type, filename) tuple. Filename includes today's date."
+  },
+  "checkout_prompt": "ReportExportService created. export_sales + export_inward. Format validation (400 on unsupported). Returns (BytesIO, content_type, filename). TC-200 covered. Ready for T-088 (router)."
+}

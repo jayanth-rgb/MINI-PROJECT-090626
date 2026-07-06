@@ -1,0 +1,17 @@
+{
+  "task_id": "T-092",
+  "title": "MODIFY main.py — mount 6 V2 routers + add auth dep to all V1 router mounts",
+  "module_ref": "M-008",
+  "output_files": ["backend/src/main.py"],
+  "scope": "MODIFY (not create). Read existing file first. (1) Add imports: Depends from fastapi, get_current_user from dependencies, 6 new routers (auth, users, report_export, inward_report, pricing, invoices). (2) Modify ALL existing V1 include_router calls: add dependencies=[Depends(get_current_user)] to each. (3) Append 6 new include_router calls: auth_router with NO global dep (login must be open); users_router, pricing_router, invoices_router with no extra dep (route-level deps handle auth); report_export_router then inward_report_router (ORDER MATTERS — export before inward to prevent /reports/inward/export matching inward router first).",
+  "do_not_touch": ["any other file", "existing route handlers, middleware, lifespan, CORS config in main.py"],
+  "depends_on": ["T-072", "T-073", "T-078", "T-088", "T-089", "T-090", "T-091"],
+  "test_case_refs": ["TC-213"],
+  "decisions_referenced": ["DS-007", "DS-018", "DS-019"],
+  "success_criteria": {
+    "manual": "uvicorn src.main:app --reload  # starts without import errors; GET /docs shows all V2 routes",
+    "automated": "TC-213 (any existing V1 endpoint without Authorization header -> 401 after modification).",
+    "definition_of_done": "main.py modified. 6 V2 routers mounted. All 11 V1 include_router calls have get_current_user dependency. report_export mounted before inward_report. App starts without errors."
+  },
+  "checkout_prompt": "main.py modified. 6 V2 routers mounted. V1 routers auth-gated. Prefix collision prevented (report_export before inward_report). TC-213 covered. Sprint V2 task decomposition complete — run /ases-validate T-067 V2."
+}

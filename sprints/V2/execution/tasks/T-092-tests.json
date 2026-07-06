@@ -1,0 +1,6 @@
+{
+  "task_id": "T-092",
+  "test_case_refs": ["TC-213"],
+  "priority": "critical",
+  "notes": "Integration/system test verifying main.py V2 modifications. TC-213: using FastAPI TestClient with the fully assembled app (all routers mounted), send GET to any existing V1 endpoint (e.g., GET /dashboard/summary or GET /sales/report) WITHOUT an Authorization header -> assert 401. Smoke test: POST /auth/login with valid admin credentials -> 200 (verifies auth router correctly mounted without global dep). Both assertions confirm: V1 routes are auth-gated, login remains open."
+}

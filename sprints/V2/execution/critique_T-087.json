@@ -1,0 +1,48 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "task_id": "T-087",
+  "sprint_id": "V2",
+  "module_ref": "M-010",
+  "target_files": [
+    "backend/src/application/services/report_export_service.py"
+  ],
+  "produced_by": "/ases-batch-critique",
+  "verdict": "CLEAN",
+  "summary": "ReportExportService correctly exposes export_sales + export_inward, validates format fail-fast (raising HTTPException 400 for non-pdf/xlsx), delegates to SalesReportService / InwardReportService, routes to PdfExporter / ExcelExporter, and returns (BytesIO, content_type, filename) 3-tuple with YYYY-MM-DD dated filenames. Import paths, dependency contracts, ADR alignment (DS-007 layering, DS-021 exporter stack), and TC-200 expected_output are all satisfied.",
+  "findings": [],
+  "lens_results": {
+    "spec": {
+      "passed": true,
+      "notes": "Signatures match LLD: export_sales(format, date_from, date_to, dealer_ids, places, design_ids) and export_inward(format, date_from, date_to, supplier_ids, places, design_ids). Return type tuple[BytesIO, str, str] matches. Filename formatted as {report}_report_{YYYY-MM-DD}.{ext} per plan. HTTPException 400 raised on unsupported format per LLD raises clause. Constructor takes db: Session per plan. Minor deviation from plan.md's use of Literal['pdf','xlsx']: implementation types 'format' as plain str and enforces set-membership at runtime — this is functionally equivalent, still raises HTTPException 400, and is a common FastAPI/service-layer pattern (Literal typing does not enforce runtime validation anyway). Not a defect."
+    },
+    "contract": {
+      "passed": true,
+      "notes": "Exports ReportExportService (matches LLD interfaces.exports). Imports satisfy depends_on[]: sales_report_service.SalesReportService (S3 existing, positional Session ctor — self._db works), inward_report_service.InwardReportService (T-077, sibling task), infrastructure.exporters.pdf_exporter.PdfExporter and excel_exporter.ExcelExporter (T-085/T-086 siblings). Both exporter methods called as export_sales_report(data, filters) / export_inward_report(data, filters) — matches PdfExporter/ExcelExporter LLD signatures. All imports are used. Import prefix 'src.' is consistent with the rest of the codebase (verified against inward_report_service.py and sales_report_service.py)."
+    },
+    "test": {
+      "passed": true,
+      "notes": "TC-200 (format='csv' → HTTPException 400): _validate_format checks 'format not in ('pdf','xlsx')' before any DB call and raises HTTPException(status_code=400). This will pass TC-200 without needing DB seeds. Fail-fast ordering (validation before SalesReportService construction) means the test does not require a live Session — an important robustness point. 'xlsx' and 'pdf' are the only accepted formats; anything else (csv, xls, json, empty string) triggers the 400."
+    },
+    "security": {
+      "passed": true,
+      "notes": "Input validation: format explicitly whitelisted against ('pdf','xlsx'); no injection surface — format value is only used in equality comparison and never interpolated into SQL. Filename uses today's date and a literal report name — no user-controlled string reaches the filename, mitigating any Content-Disposition injection risk (router will still need to guard, but that is T-088 scope). Detail message includes the invalid format string; low-risk reflected input, standard FastAPI pattern. No secrets exposed. No unsafe deserialization. DS-007 layering respected — no raw SQLAlchemy queries in this application-layer service."
+    },
+    "structural": {
+      "passed": true,
+      "notes": "graphify-out/graph.json not consulted (skipped per rule). Manual reachability: ReportExportService is intended to be wired via dependencies.get_report_export_service (T-089) and called from routers/report_export.py (T-088). No orphaned functions — _validate_format is invoked by both public methods."
+    }
+  },
+  "decisions_matched": [
+    {
+      "decision_id": "DS-007",
+      "note": "Four-layer architecture respected — application-layer service delegates to other application services + infrastructure exporters; no direct SQLAlchemy queries."
+    },
+    {
+      "decision_id": "DS-021",
+      "note": "PDF via reportlab (PdfExporter) and XLSX via openpyxl (ExcelExporter); BytesIO returned for StreamingResponse composition by the router layer."
+    }
+  ],
+  "iteration": 1,
+  "next_action": "proceed"
+}

@@ -1,0 +1,1 @@
+{"task_id": "T-076", "test_case_refs": [], "priority": "n/a", "notes": "test_required=false per LLD files[11]. Schema correctness verified transitively via T-077 (TC-195..TC-197: InwardReportService returns InwardReportResponse with correct field values and reconciliation invariant holds) and T-085/T-086 (pdf_exporter, excel_exporter accept InwardReportResponse as input)."}

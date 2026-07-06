@@ -1,0 +1,62 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-091",
+  "sprint_id": "V2",
+  "module_ref": "M-011",
+  "target_files": ["backend/src/presentation/api/routers/invoices.py"],
+  "verdict": "CLEAN",
+  "summary": "routers/invoices.py implements all 4 endpoints per the task plan and DS-023: list (any-auth), create-from-sales (SUPERVISOR, sales_header_id as Query param), get detail (any-auth), record-payment (SUPERVISOR). InvoiceService is wired via Depends(get_invoice_service). AC-069/TC-217 shape is fully supported.",
+  "lenses": {
+    "spec": {
+      "status": "pass",
+      "notes": "4 routes match plan; response_model, status_code, and auth gates match. sales_header_id is Query(...) per plan/DS-023. Signatures line up with InvoiceService methods list_invoices/create_from_sales/get_invoice/record_payment (record_payment receives the full PaymentCreate payload, matching the actual service signature — the plan's snippet showed payload.amount but the service expects PaymentCreate, so the implementation correctly reconciles this)."
+    },
+    "contract": {
+      "status": "pass",
+      "notes": "Imports resolve: InvoiceService (T-084), get_current_user + require_supervisor + get_invoice_service (T-089 dependencies.py), InvoiceRead/InvoiceSummary/PaymentCreate (T-082 schemas/pricing.py), UserModel (T-076 models/auth.py). No unused imports. router.prefix='/invoices' and tags=['invoices'] match expected mount in main.py."
+    },
+    "test": {
+      "status": "pass",
+      "notes": "TC-217 (integration): POST /invoices?sales_header_id=5 with SUPERVISOR JWT. Router returns 201 with InvoiceRead as required. invoice_number/total_amount/status/lines are produced by InvoiceService.create_from_sales — router path is a pure delegation. 404 (sales not found) and 409 (already invoiced) exceptions raised by the service propagate directly."
+    },
+    "security": {
+      "status": "pass",
+      "notes": "Auth enforced: GET endpoints require Depends(get_current_user); POST endpoints require Depends(require_supervisor) per DS-019. sales_header_id typed as int (FastAPI validation). status Query filter is regex-restricted to ^(PENDING|PARTIAL|PAID)$. PaymentCreate.amount validated gt=0 at schema level (T-082). No secrets exposed. No user-controlled string interpolation into SQL — all DB access flows through the service/repository layer."
+    },
+    "structural": {
+      "status": "skipped",
+      "notes": "graphify-out/graph.json not consulted (structural lens optional; router will be reachable from main.py via include_router per T-093)."
+    }
+  },
+  "findings": [
+    {
+      "id": "F-1",
+      "severity": "minor",
+      "lens": "spec",
+      "location": "backend/src/presentation/api/routers/invoices.py:35",
+      "category": "readability",
+      "description": "The list_invoices query-param `status: str | None = Query(...)` shadows the imported `fastapi.status` module inside the function scope. There is no runtime bug — the `@router.post(..., status_code=status.HTTP_201_CREATED)` decorators are evaluated at module load before the parameter exists, and the function body does not reference the status module. However, the shadowing is a mild readability trap for future editors who may add `raise HTTPException(status.HTTP_400_BAD_REQUEST, ...)` inside list_invoices and be surprised.",
+      "is_adr_tradeoff": false,
+      "fix_instruction": "Optional: rename the parameter to `status_filter` (matching the InvoiceService kwarg it forwards to) or import `from fastapi import status as http_status`. Leaving as-is is acceptable since the function body does not use the status module.",
+      "blocking": false
+    },
+    {
+      "id": "F-2",
+      "severity": "minor",
+      "lens": "spec",
+      "location": "sprints/V2/design/lld.json line 1150 vs sprints/V2/execution/tasks/T-091-plan.json",
+      "category": "spec-divergence",
+      "description": "The LLD entry for routers/invoices.py describes create_invoice's sales_header_id as `int (JSON body)`, but the task plan explicitly overrides this with `Query(...)` per DS-023 (on-demand pattern), and TC-217 in test_cases.json also shows the request body containing sales_header_id. The implementation follows the plan (Query param). This is a documented plan override, not an implementation defect — flagging so the audit trail records the LLD-vs-plan reconciliation. The test harness for TC-217 will need to submit sales_header_id as a query string, not a JSON body, to match the router.",
+      "is_adr_tradeoff": true,
+      "adr_ref": "DS-023",
+      "fix_instruction": "No code fix. Recommend the sprint-close/final-audit note the LLD text drift so a future LLD refresh can align the `(JSON body)` annotation with the implemented Query semantics.",
+      "blocking": false
+    }
+  ],
+  "decisions_matched": ["DS-018", "DS-019", "DS-022", "DS-023"],
+  "counts": {
+    "critical": 0,
+    "major": 0,
+    "minor": 2
+  }
+}

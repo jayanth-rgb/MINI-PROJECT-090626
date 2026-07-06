@@ -5,10 +5,10 @@
   "updated_by": "every_command",
   "project": "Jayanth Trading Tiles System",
   "sprint": "V2",
-  "phase": "SPRINT_DESIGN",
-  "stage": "released",
-  "last_completed": "/ases-release S3 (supplemental — UI track + PO SHIP APPROVED 2026-07-01; V1 FULLY COMPLETE)",
-  "next": "/ases-prd-update V2 or /ases-lld V2 (scope from roadmap.json deferred[])",
+  "phase": "SPRINT_SHIP",
+  "stage": "sprint_close_done",
+  "last_completed": "/ases-sprint-close V2 (2026-07-05 — 26/26 tasks complete, 0 deferred, 0 escalated. 2 new decisions logged: DS-024 (auth login form-encoded wire format — resolves T-072 iter3 documentation drift) and DS-025 (V2 non-auth routers use route-level Depends(get_current_user) instead of mount-level — resolves T-092 iter3 F-092-4 accepted-as-tradeoff). TD-008 closed by DS-020 at V2 LLD stage; TC-207 in Phase 3 will lock in the fix. sprint_summary.json + sprint_summary.md written to sprints/V2/ship/. 47 test cases queued for /ases-test-impl V2. Phase SPRINT_EXECUTION → SPRINT_SHIP.)",
+  "next": "/ases-test-impl V2 — Phase 3 begins. Implement 47 test cases (TC-171..TC-217): 46 task-mapped + TC-207 test-impl-only (DS-020 first-row insert race regression against existing domain/stock.py). Regression expectation: 178 tests from S1+S2+S3 must remain green; T-092's global auth guard on 11 V1 routers will require test-side auth-header injection.",
   "blockers": [],
   "prd_version": 1,
   "project_id": "jayanth-trading-tiles",
@@ -85,9 +85,24 @@
     "uat:S3:ui_track:APPROVED",
     "devops:S3:ui_track:committed:56bd4b7",
     "final_audit:S3:SHIP:ui_track_supplemental",
-    "release:S3:FINAL_SHIPPED:ui_track_complete:po_approved:2026-07-01"
+    "release:S3:FINAL_SHIPPED:ui_track_complete:po_approved:2026-07-01",
+    "lld:V2",
+    "schema:V2",
+    "test_spec:V2",
+    "sprint_gate:V2:FAIL",
+    "sprint_gate:V2:PASS",
+    "analyze:V2:READY",
+    "critique:T-073:V2:iter1:FIX_REQUIRED",
+    "critique:T-073:V2:iter2:FIX_REQUIRED",
+    "critique:T-073:V2:iter3:ESCALATE",
+    "critique:T-073:V2:iter4:CLEAN",
+    "sprint_close:V2"
   ],
   "open_issues": [
+    "SG-V2-001: RESOLVED — test_cases.json TC-171..TC-207 (37 TCs) framework='pytest' added. All 47 TCs now carry the field.",
+    "SG-V2-002: WARN — All 5 design doc schema files need sprint_id pattern updated from ^S\\d+$ to ^(S\\d+|V\\d+)$ to accommodate V2 naming. Non-blocking.",
+    "SG-V2-003: WARN — deps_manifest.schema.json format is narrower than V2 document format (packages need 'type' field; migrations must be string array per schema). Schema needs updating. Non-blocking.",
+    "SG-V2-004: RESOLVED — OI-V2-005 (TD-008 TC) is closed; TC-207 (AC-074) is present in test_cases.json.",
     "W1: deps_manifest missing jest + @testing-library/* (resolve before /ases-test-impl S1)",
     "W2: RESOLVED — T-009 delivered testcontainers-postgres conftest + 3 fixtures (pg_container, db_session, client); INFRA-001 closed",
     "W3: TD-003 Next.js 15.1.3 CVE carried into S1 — revisit at /ases-sprint-close S1",
@@ -117,12 +132,46 @@
     { "id": "TD-005", "description": "Migration 0002_master_tables.py hand-authored from ORM (no PG to --autogenerate against). DDL exactly mirrors Base.metadata. Closes when PO runs `alembic upgrade head` + `alembic check` (W5).", "severity": "minor", "source": "/ases-critique T-024 S1", "target_sprint": "S1" },
     { "id": "TD-006", "description": "T-025 seed-script runtime verification (33-insert / 0-reinsert) deferred until W5 closes. Static cross-check against TC expected_output is CLEAN.", "severity": "minor", "source": "/ases-critique T-025 S1", "target_sprint": "S1" },
     { "id": "TD-007", "description": "TimestampMixin emits plain TIMESTAMP; LLD prose mentions TIMESTAMPTZ. Migration mirrors ORM (DS-009). If TZ semantics needed: edit base.py + follow-up migration in S2.", "severity": "minor", "source": "/ases-critique T-024 S1", "target_sprint": "S2", "status": "closed_by_DS-014 (T-041 ORM + T-044 migration ALTER 4 S1 columns to TIMESTAMPTZ)" },
-    { "id": "TD-008", "description": "First-row insert race (theoretical): SELECT FOR UPDATE LIMIT 1 acquires no lock when WHERE matches 0 rows. Two concurrent sessions inserting the FIRST-EVER ledger row for the same (design, grade) can each succeed at running_balance=delta instead of [delta, 2·delta]. Spec-compliant with DS-002 + LLD; PRD silent; TC-087 assumes pre-existing row. V2 mitigation options: lock master row, advisory locks, unique+retry.", "severity": "minor", "source": "/ases-critique T-045 S2 (transparency note 1)", "target_sprint": "V2" },
+    { "id": "TD-008", "description": "First-row insert race (theoretical): SELECT FOR UPDATE LIMIT 1 acquires no lock when WHERE matches 0 rows. Two concurrent sessions inserting the FIRST-EVER ledger row for the same (design, grade) can each succeed at running_balance=delta instead of [delta, 2·delta]. Spec-compliant with DS-002 + LLD; PRD silent; TC-087 assumes pre-existing row. V2 mitigation options: lock master row, advisory locks, unique+retry.", "severity": "minor", "source": "/ases-critique T-045 S2 (transparency note 1)", "target_sprint": "V2", "status": "closed_by_DS-020 (V2 LLD stage) — pg_advisory_xact_lock(design_id, grade_id) mandated by DS-015 already handles first-row case in domain.stock._apply (S2 shipping). V2 adds TC-207 regression test for explicit coverage." },
     { "id": "TD-009", "description": "Frontend zod-only edge-case TCs (TC-090/091/094/096/098/100) deferred from /ases-ui-scaffold to /ases-test-impl S2. Pure validator assertions following consistent pattern; deferring kept scaffold tight.", "severity": "minor", "source": "/ases-ui-scaffold S2 (test_coverage.tcs_deferred_to_test_impl)", "target_sprint": "S2", "status": "closed_by_test_impl_S2 (6 TCs implemented as schema.safeParse() calls and passing in jest)" },
     { "id": "TD-010", "description": "Frontend tests TC-092/093/095/097/099/101/102 (7) cannot exercise Radix UI Select / Popover interactions in jsdom — portals + internal state machinery don't fully materialize. Matches the S1 pattern (TC-045 deferred for same root cause). 6 zod-direct sibling TCs in the same files pass cleanly. Resolution options: (a) mock @radix-ui/react-select with native <select> shim, (b) move to Playwright/Cypress E2E in S3+, (c) accept as scaffold-level coverage (backend tests cover the same ACs via API integration).", "severity": "minor", "source": "/ases-test-run S2 frontend", "target_sprint": "S3 or V2" },
     { "id": "TD-011", "description": "DS-002 race discovered + closed by /ases-system-test S2 ST-007. Root cause: PG SELECT ... LIMIT 1 ORDER BY ... FOR UPDATE does NOT re-resolve LIMIT after waiting on a row lock — the waiter re-reads the originally-identified row, missing the newly-inserted latest row from the holder. Fixed by adding pg_advisory_xact_lock(design_id, grade_id) BEFORE the FOR UPDATE in src/domain/stock.py::_apply. DS-002 spec text could be amended in S3 to mandate the advisory-lock-first pattern.", "severity": "documented", "source": "/ases-system-test S2 ST-007", "target_sprint": "S2", "status": "closed_by_advisory_lock_in_T-045 (one-line addition)" }
   ],
   "sprint_history": [
+    {
+      "sprint_id": "V2",
+      "closed_on": "2026-07-05",
+      "completed_count": 26,
+      "deferred_count": 0,
+      "escalated_count": 0,
+      "escalations_resolved_in_sprint": 2,
+      "escalations_resolved": [
+        {"task": "T-072", "resolution": "reinterpretation (TC bodies semantic, not JSON) — DS-024 logged"},
+        {"task": "T-073", "resolution": "PO Option A bounded scope amendment — output_files[] expanded to include auth_service.py; LLD amended (users.py 5 endpoints, auth_service.py 7 methods)"}
+      ],
+      "iteration_max": 4,
+      "iteration_avg": 1.58,
+      "iteration_distribution": {"0": 2, "1": 15, "2": 5, "3": 3, "4": 1},
+      "new_tech_debt": [],
+      "closed_tech_debt": ["TD-008"],
+      "new_decisions": ["DS-024", "DS-025"],
+      "decisions_referenced": ["DS-007", "DS-008", "DS-009", "DS-012", "DS-013", "DS-014", "DS-015", "DS-017", "DS-018", "DS-019", "DS-020", "DS-021", "DS-022", "DS-023"],
+      "carry_forward": [
+        "CF-V2-001 (LLD line 236 documentation drift — refresh at next LLD update per DS-024)",
+        "CF-V2-002 (LLD prose mount-level auth dep vs V2 route-level as-built — refresh at next LLD update per DS-025)",
+        "CF-001 (PG bring-up — still pending from S1)"
+      ],
+      "test_cases_to_verify_in_phase_3": 47,
+      "tcs_task_mapped": 46,
+      "tcs_test_impl_only": ["TC-207"],
+      "features_shipped": ["F-013", "F-014", "F-015", "F-016", "F-017"],
+      "modules_touched": ["M-008", "M-009", "M-010", "M-011"],
+      "ui_tracks_status": "V2 UI track not yet initiated — deferred to /ases-ui-design V2 → /ases-ui-review V2 → /ases-ui-scaffold V2. Backend API surface is complete and critiqued.",
+      "batch_exec_outcome": "not used — per-task /ases-validate → /ases-dev → /ases-critique loop across 6 parallel groups",
+      "graphify_refreshed_at_close": true,
+      "graphify_snapshot": {"nodes": 16323, "edges": 18161, "communities": 1466},
+      "summary_ref": "sprints/V2/ship/sprint_summary.json"
+    },
     {
       "sprint_id": "S3",
       "closed_on": "2026-06-26",
@@ -209,7 +258,7 @@
       "release_ref": "sprints/S1/ship/release.json"
     }
   ],
-  "decisions_count": 17,
-  "last_updated": "2026-07-01",
-  "last_updated_by": "/ases-release S3 (supplemental — PO SHIP APPROVED 2026-07-01)"
+  "decisions_count": 25,
+  "last_updated": "2026-07-05",
+  "last_updated_by": "/ases-sprint-close V2 (2026-07-05 — V2 closed. 26/26 backend tasks complete, 0 deferred, 0 escalated (T-072 + T-073 escalations resolved in-sprint). DS-024 + DS-025 appended to decisions.json. TD-008 flipped to closed_by_DS-020. sprint_summary.json + .md written. Phase SPRINT_EXECUTION → SPRINT_SHIP. Next: /ases-test-impl V2 covering 47 test cases (TC-171..TC-217, 46 task-mapped + TC-207 test-impl-only).)"
 }

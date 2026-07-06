@@ -1,0 +1,17 @@
+{
+  "task_id": "T-075",
+  "title": "scripts/seed_default_user.py — default admin seeder",
+  "module_ref": "M-008",
+  "output_files": ["backend/scripts/seed_default_user.py"],
+  "scope": "Idempotent one-shot script to insert the default SUPERVISOR (admin/admin123). Checks if username='admin' exists via direct DB query; if found, prints 'admin already exists — skipping' and exits. If not found: hashes 'admin123' via get_password_hash, inserts tbl_user_master row (username='admin', role='SUPERVISOR', is_active=True), commits, prints 'seeded admin user'. Prints warning to stderr: 'WARNING: Change admin password on first login.' Run once after alembic upgrade head.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-067", "T-068"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-018"],
+  "success_criteria": {
+    "manual": "cd backend && python scripts/seed_default_user.py → 'seeded admin user'. Second run → 'admin already exists — skipping'.",
+    "automated": "Implicitly verified by TC-208 (POST /auth/login with admin/admin123 returns 200) once PO runs the seed script before /ases-integration-test.",
+    "definition_of_done": "Script exits cleanly on both first-run and repeat-run. No exception raised on duplicate (idempotent). WARNING message printed to stderr."
+  },
+  "checkout_prompt": "scripts/seed_default_user.py created. Idempotent admin seeder. Prints WARNING to stderr on success. Ready for PO bring-up step."
+}

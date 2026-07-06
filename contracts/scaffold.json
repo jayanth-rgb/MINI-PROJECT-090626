@@ -363,5 +363,70 @@
       "NB-S3-002 (W5 / CF-001 PO PG bring-up — independent of S3 dev)",
       "NB-S3-003 (TD-001 + TD-010 UI-track tech-debt — surface at /ases-ui-scaffold S3)"
     ]
+  },
+  "sprint_V2": {
+    "ran_at": "2026-07-02",
+    "scaffold_spec_ref": "sprints/V2/design/scaffold_spec.json",
+    "files_created": [
+      { "path": "backend/src/domain/auth.py",                                  "type": "stub",           "hash": "" },
+      { "path": "backend/src/domain/invoice.py",                               "type": "stub",           "hash": "" },
+      { "path": "backend/src/infrastructure/db/models/auth.py",                "type": "stub",           "hash": "" },
+      { "path": "backend/src/infrastructure/db/models/pricing.py",             "type": "stub",           "hash": "" },
+      { "path": "backend/src/infrastructure/db/repositories/auth.py",          "type": "stub",           "hash": "" },
+      { "path": "backend/src/infrastructure/db/repositories/pricing.py",       "type": "stub",           "hash": "" },
+      { "path": "backend/src/infrastructure/exporters/__init__.py",            "type": "init",           "hash": "" },
+      { "path": "backend/src/infrastructure/exporters/pdf_exporter.py",        "type": "stub",           "hash": "" },
+      { "path": "backend/src/infrastructure/exporters/excel_exporter.py",      "type": "stub",           "hash": "" },
+      { "path": "backend/src/application/services/auth_service.py",            "type": "stub",           "hash": "" },
+      { "path": "backend/src/application/services/inward_report_service.py",   "type": "stub",           "hash": "" },
+      { "path": "backend/src/application/services/report_export_service.py",   "type": "stub",           "hash": "" },
+      { "path": "backend/src/application/services/pricing_service.py",         "type": "stub",           "hash": "" },
+      { "path": "backend/src/application/services/invoice_service.py",         "type": "stub",           "hash": "" },
+      { "path": "backend/src/presentation/schemas/auth.py",                    "type": "stub",           "hash": "" },
+      { "path": "backend/src/presentation/schemas/inward_report.py",           "type": "stub",           "hash": "" },
+      { "path": "backend/src/presentation/schemas/pricing.py",                 "type": "stub",           "hash": "" },
+      { "path": "backend/src/presentation/api/routers/auth.py",               "type": "stub",           "hash": "" },
+      { "path": "backend/src/presentation/api/routers/users.py",              "type": "stub",           "hash": "" },
+      { "path": "backend/src/presentation/api/routers/inward_report.py",      "type": "stub",           "hash": "" },
+      { "path": "backend/src/presentation/api/routers/report_export.py",      "type": "stub",           "hash": "" },
+      { "path": "backend/src/presentation/api/routers/pricing.py",            "type": "stub",           "hash": "" },
+      { "path": "backend/src/presentation/api/routers/invoices.py",           "type": "stub",           "hash": "" },
+      { "path": "backend/db/migrations/versions/0004_v2_auth_pricing_tables.py", "type": "migration_stub", "hash": "" },
+      { "path": "backend/scripts/seed_default_user.py",                        "type": "stub",           "hash": "" }
+    ],
+    "directories_created": [
+      "backend/src/infrastructure/exporters"
+    ],
+    "config_appended": [
+      { "file": "backend/requirements.txt", "lines_appended": 4, "packages": ["python-jose[cryptography]==3.3.0", "passlib[bcrypt]==1.7.4", "reportlab==4.4.1", "openpyxl==3.1.5"] }
+    ],
+    "added_packages": [
+      { "side": "backend", "name": "python-jose",   "version": "3.3.0",  "extras": "[cryptography]", "reason": "M-008 JWT (DS-018)" },
+      { "side": "backend", "name": "passlib",        "version": "1.7.4",  "extras": "[bcrypt]",       "reason": "M-008 bcrypt (DS-018)" },
+      { "side": "backend", "name": "reportlab",      "version": "4.4.1",  "extras": "",               "reason": "M-010 PDF export (DS-021)" },
+      { "side": "backend", "name": "openpyxl",       "version": "3.1.5",  "extras": "",               "reason": "M-010 Excel export (DS-021)" }
+    ],
+    "removed_packages": [],
+    "bumped_packages": [],
+    "pip_log_excerpt": "Downloading python_jose-3.3.0-py2.py3-none-any.whl (33 kB)\nDownloading passlib-1.7.4-py2.py3-none-any.whl (525 kB)\nDownloading reportlab-4.4.1-py3-none-any.whl (2.0 MB)\nDownloading openpyxl-3.1.5-py2.py3-none-any.whl (250 kB)\nDownloading bcrypt-5.0.0-cp39-abi3-win_amd64.whl (150 kB)\nDownloading cryptography-49.0.0-cp311-abi3-win_amd64.whl (3.8 MB)\nDownloading cffi-2.0.0-cp312-cp312-win_amd64.whl (183 kB)\nDownloading ecdsa-0.19.2-py2.py3-none-any.whl (150 kB)\nDownloading pillow-12.3.0-cp312-cp312-win_amd64.whl (7.2 MB)\nDownloading chardet-7.4.3-cp312-cp312-win_amd64.whl (943 kB)\nDownloading et_xmlfile-2.0.0-py3-none-any.whl (18 kB)\nDownloading pyasn1-0.6.3-py3-none-any.whl (83 kB)\nDownloading pycparser-3.0-py3-none-any.whl (48 kB)\nDownloading rsa-4.9.1-py3-none-any.whl (34 kB)\nInstalling collected packages: passlib, pycparser, pyasn1, pillow, et-xmlfile, ecdsa, chardet, bcrypt, rsa, reportlab, openpyxl, cffi, python-jose, cryptography\nSuccessfully installed bcrypt-5.0.0 cffi-2.0.0 chardet-7.4.3 cryptography-49.0.0 ecdsa-0.19.2 et-xmlfile-2.0.0 openpyxl-3.1.5 passlib-1.7.4 pillow-12.3.0 pyasn1-0.6.3 pycparser-3.0 python-jose-3.3.0 reportlab-4.4.1 rsa-4.9.1",
+    "npm_log_excerpt": "(no frontend deps added in V2 sprint-scaffold — V2 frontend ships via UI track)",
+    "migrations_applied": [],
+    "migrations_note": "0004_v2_auth_pricing_tables.py is a stub — DDL filled by /ases-dev and applied via /ases-dev Step 4.5",
+    "verify_passed": true,
+    "verify_output": "25 stub files created; 4 backend packages installed (python-jose, passlib, reportlab, openpyxl); pip exit 0",
+    "skipped_steps": [
+      { "step": "B.5 — Apply migrations", "reason": "0004_v2_auth_pricing_tables.py is a stub with no DDL body. Will be filled by /ases-dev and applied mid-sprint via Step 4.5." },
+      { "step": "B.6 — graphify update",  "reason": "Optional — context bracket is not DEPLETED/CRITICAL but graphify update deferred to post /ases-dev per project pattern." }
+    ],
+    "files_deferred_to_ases_dev": [
+      { "path": "backend/src/presentation/api/dependencies.py (MODIFY)", "reason": "Add auth DI factories + oauth2_scheme — implementation code." },
+      { "path": "backend/src/main.py (MODIFY)",                          "reason": "Mount 6 V2 routers; add auth dependency to all protected routers — implementation code." }
+    ],
+    "tech_debt_introduced": [],
+    "gaps_resolved": [],
+    "gaps_still_open": [
+      "NB-V2-001 (lld.json missing explicit new_dependencies[] field — deps inferred from interfaces.expects per DS-018/DS-021; architect should add new_dependencies[] to LLD template for future sprints)",
+      "NB-V2-002 (graphify graph stale — update recommended before /ases-critique V2)"
+    ]
   }
 }

@@ -1,0 +1,1 @@
+{"task_id": "T-067", "test_case_refs": [], "priority": "n/a", "notes": "test_required=false per LLD files[0]. UserModel correctness verified transitively via T-070 (TC-185, TC-186: UserRepository reads/writes UserModel rows) and T-074 (migration creates matching DDL). No standalone unit tests needed for a pure ORM data class."}

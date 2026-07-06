@@ -1,0 +1,46 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-083",
+  "sprint_id": "V2",
+  "iteration": 1,
+  "verdict": "CLEAN",
+  "critical_count": 0,
+  "major_count": 0,
+  "minor_count": 2,
+  "issues": [
+    {
+      "id": "I-001",
+      "lens": "contract",
+      "severity": "minor",
+      "file": "backend/src/application/services/pricing_service.py",
+      "line_ref": "25-31",
+      "description": "DS-012 technical deviation: `self._db.scalar(select(PriceMasterModel)...)` in create_price constructs a query directly in the service layer. DS-012 states 'Services depend on repositories — they never construct queries directly.' The canonical fix is a `PriceMasterRepository.find_duplicate(design_id, grade_id, effective_from)` method. However, T-083's output_files[] scope is limited to pricing_service.py and the plan.md pseudo-code explicitly specifies this pattern — adding a repo method requires modifying an out-of-scope file.",
+      "fix_instruction": "No in-scope fix possible. At T-090 or sprint-close, consider logging a TD entry to add PriceMasterRepository.find_duplicate() and replace the direct db.scalar() call. Accept as-is for this task iteration.",
+      "spec_ref": "T-083-plan.md (explicit self._db.scalar usage in pseudo-code)",
+      "adr_ref": "DS-012",
+      "is_adr_tradeoff": true
+    },
+    {
+      "id": "I-002",
+      "lens": "test",
+      "severity": "minor",
+      "file": "backend/src/application/services/pricing_service.py",
+      "line_ref": "33-36",
+      "description": "TC-201 specifies `should_raise: 'HTTPException(status_code=409)'` but the implementation raises ConflictError (not HTTPException). The plan.md pseudo-code used HTTPException directly; the developer correctly adapted to the codebase's domain-exception pattern (ConflictError → error handler → HTTP 409). Via TestClient (HTTP-level), response.status_code==409 is satisfied. However if /ases-test-impl implements TC-201 as a unit test with pytest.raises(HTTPException), it will fail — it should instead catch ConflictError or use TestClient.",
+      "fix_instruction": "No fix required in pricing_service.py — ConflictError is the correct codebase pattern. At /ases-test-impl, implement TC-201 using FastAPI TestClient and assert response.status_code == 409, NOT pytest.raises(HTTPException). Alternatively, catch ConflictError in the unit test.",
+      "spec_ref": "sprints/V2/design/test_cases.json TC-201",
+      "adr_ref": "DS-007",
+      "is_adr_tradeoff": true
+    }
+  ],
+  "positive_observations": [
+    "All 3 LLD function signatures match exactly (name, inputs, outputs, types).",
+    "SELECT-before-INSERT uniqueness check correctly implemented — ConflictError raised, not IntegrityError caught. DoD satisfied.",
+    "update_price uses model_dump(exclude_none=True) for correct partial-patch semantics.",
+    "No delete_price method — DS-008 soft-delete compliance confirmed.",
+    "ConflictError and NotFoundError used consistently with codebase pattern (design_grade_map_service.py).",
+    "self._db.commit() called after create and update — consistent with auth_service.py pattern.",
+    "All imports from correct layer (domain exceptions, infrastructure models/repositories, presentation schemas).",
+    "No raw SQL — all queries via SQLAlchemy ORM parameterized expressions."
+  ]
+}

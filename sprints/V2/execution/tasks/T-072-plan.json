@@ -1,0 +1,17 @@
+{
+  "task_id": "T-072",
+  "title": "routers/auth.py — POST /auth/login (open) + GET /auth/me (auth required)",
+  "module_ref": "M-008",
+  "output_files": ["backend/src/presentation/api/routers/auth.py"],
+  "scope": "FastAPI router with prefix='/auth', tags=['auth']. Two endpoints: (1) POST /login — open (NO get_current_user dep), accepts OAuth2PasswordRequestForm (form body), delegates to AuthService.authenticate, returns TokenResponse; (2) GET /me — route-level Depends(get_current_user), returns UserRead of the authenticated user.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-071", "T-089"],
+  "test_case_refs": ["TC-208", "TC-209", "TC-210"],
+  "decisions_referenced": ["DS-007", "DS-018"],
+  "success_criteria": {
+    "manual": "python -c \"from src.presentation.api.routers.auth import router; print([r.path for r in router.routes])\"",
+    "automated": "TC-208 (valid login -> 200 TokenResponse with bearer token), TC-209 (wrong password -> 401), TC-210 (GET /auth/me with valid token -> 200 UserRead).",
+    "definition_of_done": "auth.py with 2 routes. POST /login open (no auth dep on router). GET /me uses get_current_user at route level. AuthService.authenticate called on login."
+  },
+  "checkout_prompt": "routers/auth.py created. POST /auth/login (open, OAuth2PasswordRequestForm) + GET /auth/me (get_current_user dep). TC-208/209/210 covered."
+}

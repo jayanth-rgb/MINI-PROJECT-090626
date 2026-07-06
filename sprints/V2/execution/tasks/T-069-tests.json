@@ -1,0 +1,1 @@
+{"task_id": "T-069", "test_case_refs": [], "priority": "n/a", "notes": "test_required=false per LLD files[4]. Schema correctness verified transitively via T-071 (TC-190..TC-194) which uses TokenResponse+UserRead from AuthService responses, and T-072 (TC-208..TC-210) which asserts HTTP response body matches these schema shapes."}

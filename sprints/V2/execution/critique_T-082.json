@@ -1,0 +1,93 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "document": "critique",
+  "task_id": "T-082",
+  "sprint_id": "V2",
+  "iteration": 1,
+  "issues_remaining": 0,
+  "verdict": "CLEAN",
+  "produced_by": "/ases-critique T-082 V2",
+  "timestamp": "2026-07-03",
+
+  "decisions_read": ["DS-007", "DS-018", "DS-019", "DS-022", "DS-023"],
+  "adr_tradeoffs_noted": [],
+
+  "lenses": {
+    "spec": {
+      "status": "PASS",
+      "findings": [],
+      "checklist": {
+        "PriceMasterCreate": "design_id(int), grade_id(int), unit_price(Decimal ge=0 via Field), effective_from(date) — MATCH",
+        "PriceMasterRead": "9 fields: id, design_id, design_name, size, grade_id, grade_code, unit_price, effective_from, is_active — ConfigDict(from_attributes=True) — MATCH",
+        "PriceMasterUpdate": "unit_price(Decimal|None=None), is_active(bool|None=None) — partial PATCH — MATCH",
+        "InvoiceLineRead": "10 fields: id, sales_line_id, design_id, design_name, size, grade_id, grade_code, quantity, unit_price, line_total — ConfigDict(from_attributes=True) — MATCH",
+        "PaymentRead": "4 fields: id, payment_date, amount, notes(str|None) — ConfigDict(from_attributes=True) — MATCH",
+        "PaymentCreate": "payment_date(date), amount(Decimal gt=0 via Field), notes(str|None=None) — MATCH",
+        "InvoiceRead": "8 fields: id, invoice_number, sales_header_id, invoice_date, total_amount, status, lines, payments — ConfigDict(from_attributes=True) — MATCH",
+        "InvoiceSummary": "6 fields: id, invoice_number, invoice_date, total_amount, status, sales_header_id — ConfigDict(from_attributes=True) — MATCH",
+        "definition_of_done": {
+          "8_schemas_exported": true,
+          "from_attributes_on_4_read_schemas": true,
+          "PaymentCreate_amount_gt_0": true,
+          "PriceMasterCreate_unit_price_ge_0": true,
+          "InvoiceRead_field_count_8": true
+        }
+      }
+    },
+    "contract": {
+      "status": "PASS",
+      "findings": [],
+      "exports_verified": [
+        "PriceMasterCreate", "PriceMasterRead", "PriceMasterUpdate",
+        "InvoiceLineRead", "PaymentRead", "PaymentCreate",
+        "InvoiceRead", "InvoiceSummary"
+      ],
+      "imports_verified": {
+        "pydantic.BaseModel": true,
+        "pydantic.ConfigDict": true,
+        "pydantic.Field": true,
+        "decimal.Decimal": true,
+        "datetime.date": true
+      },
+      "note": "Field is correctly imported though LLD interfaces.expects omits it — Field is required by the plan spec validators (ge=0, gt=0). No project imports — correct per plan."
+    },
+    "test": {
+      "status": "PASS",
+      "findings": [],
+      "note": "T-082 carries test_case_refs: []. TC-201..TC-206 test pricing_service (T-083) and invoice_service (T-084) which consume these schemas as ORM serialization layers. Schema correctness verified by static analysis: from_attributes=True on all Read schemas enables ORM→Pydantic coercion; Decimal fields accept Numeric(12,2) ORM values; nested lists[InvoiceLineRead] and list[PaymentRead] on InvoiceRead satisfy TC-202 lines_count=2 and TC-205 payments_count=1 expectations.",
+      "tc_compatibility": [
+        { "tc": "TC-202", "check": "InvoiceRead.lines: list[InvoiceLineRead] — 2-element list ✓; unit_price: Decimal serializes '100.00' / '80.00' ✓; total_amount: Decimal = '1400.00' ✓" },
+        { "tc": "TC-203", "check": "InvoiceRead.invoice_number: str — '409 already exists' path; schema not invoked on 409 ✓" },
+        { "tc": "TC-205", "check": "InvoiceRead.status: str = 'PAID'; payments: list[PaymentRead] with amount Decimal ✓" },
+        { "tc": "TC-206", "check": "422 overpayment — schema not serialized on error path ✓" }
+      ]
+    },
+    "security": {
+      "status": "PASS",
+      "findings": [],
+      "analysis": "Pure Pydantic schema file — no I/O, no DB access, no subprocess calls, no secret handling. Validators: unit_price ge=0 prevents negative pricing; payment amount gt=0 prevents zero/negative payment injection. No injection vector surface."
+    },
+    "structural": {
+      "status": "SKIPPED",
+      "reason": "Pure schema file — 8 BaseModel classes with no call edges. No call graph reachability check applicable."
+    }
+  },
+
+  "issues": [],
+  "critical_count": 0,
+  "major_count": 0,
+  "minor_count": 0,
+
+  "summary": {
+    "total_findings": 0,
+    "blocking_findings": 0,
+    "observations": 0,
+    "all_tcs_pass": true,
+    "scope_violation": false,
+    "layer_violation": false,
+    "exports_match_lld": true,
+    "no_io": true,
+    "no_sqlalchemy": true,
+    "no_project_imports": true
+  }
+}

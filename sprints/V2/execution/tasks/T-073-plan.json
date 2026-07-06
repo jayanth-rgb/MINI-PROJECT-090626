@@ -1,0 +1,21 @@
+{
+  "task_id": "T-073",
+  "title": "routers/users.py — SUPERVISOR-only user CRUD (5 endpoints)",
+  "module_ref": "M-008",
+  "output_files": [
+    "backend/src/presentation/api/routers/users.py",
+    "backend/src/application/services/auth_service.py"
+  ],
+  "scope_amendment_note": "PO-authorized bounded scope amendment (2026-07-05) per Option A of critique_T-073.json. auth_service.py added to output_files[] solely to introduce AuthService.get_user (read-only, no commit) and AuthService.deactivate_user (BaseRepository.soft_delete per DS-008). No other AuthService methods may be modified in this scope. LLD amended in the same commit — sprints/V2/design/lld.json now declares 5 endpoints on users.py and 7 methods on AuthService.",
+  "scope": "FastAPI router with prefix='/users', tags=['users']. 5 endpoints, all protected by require_supervisor: GET '' (list active users via svc.list_users()); POST '' 201 (create user via svc.create_user(payload)); GET '/{user_id}' (get by ID via svc.get_user(user_id)); PATCH '/{user_id}' (partial update via svc.update_user(user_id, payload)); DELETE '/{user_id}' 204 no-body (soft-deactivate via svc.deactivate_user(user_id), DS-008). Also adds two AuthService methods: get_user(user_id) -> UserModel (read-only, self._repo.get(user_id)); deactivate_user(user_id) -> UserModel (self._repo.soft_delete(user_id); self._db.commit()).",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-071", "T-089"],
+  "test_case_refs": ["TC-211", "TC-212"],
+  "decisions_referenced": ["DS-007", "DS-008", "DS-019"],
+  "success_criteria": {
+    "manual": "python -c \"from src.presentation.api.routers.users import router; print(len(router.routes))\"  # expect 5",
+    "automated": "TC-211 (SUPERVISOR creates user -> 201), TC-212 (STAFF token -> 403 from require_supervisor).",
+    "definition_of_done": "users.py with 5 routes. All guarded by require_supervisor. POST returns 201. DELETE returns 204 (no body), soft-deactivates (DS-008). All wired to AuthService."
+  },
+  "checkout_prompt": "routers/users.py created. 5 SUPERVISOR-only endpoints (list, create, get, patch, soft-delete). DS-008 soft-delete + DS-019 RBAC enforced. TC-211/212 covered."
+}

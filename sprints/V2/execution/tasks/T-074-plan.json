@@ -1,0 +1,17 @@
+{
+  "task_id": "T-074",
+  "title": "Migration 0004 — V2 auth + pricing tables",
+  "module_ref": "M-008",
+  "output_files": ["backend/db/migrations/versions/0004_v2_auth_pricing_tables.py"],
+  "scope": "Alembic migration for all 5 V2 tables. upgrade(): CREATE TABLE tbl_user_master (6 columns + ix_user_master_username index). CREATE TABLE tbl_price_master (6 columns + uq_price_design_grade_effective unique constraint + unit_price CHECK >= 0). CREATE TABLE tbl_invoice_header (6 columns + UNIQUE sales_header_id + CHECK status IN PENDING/PARTIAL/PAID). CREATE TABLE tbl_invoice_line (8 columns + UNIQUE sales_line_id). CREATE TABLE tbl_payment (5 columns + CHECK amount > 0). downgrade(): DROP TABLE tbl_payment; DROP TABLE tbl_invoice_line; DROP TABLE tbl_invoice_header; DROP TABLE tbl_price_master; DROP TABLE tbl_user_master. Revision chain: down_revision = '0003'.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-067", "T-079"],
+  "test_case_refs": [],
+  "decisions_referenced": ["DS-009", "DS-014", "DS-022", "DS-023"],
+  "success_criteria": {
+    "manual": "cd backend && alembic upgrade head → no error. alembic current → shows 0004 as head.",
+    "automated": "testcontainers PG fixture in integration tests runs alembic upgrade head — succeeds implicitly when integration TCs pass.",
+    "definition_of_done": "Migration file exists with upgrade() and downgrade(). down_revision='0003'. Creates 5 tables with correct DDL including all UNIQUE constraints and CHECK constraints."
+  },
+  "checkout_prompt": "Migration 0004 created. 5 V2 tables in upgrade(), reverse in downgrade(). down_revision='0003'. Ready for DB bring-up."
+}

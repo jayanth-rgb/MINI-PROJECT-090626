@@ -1,0 +1,134 @@
+{
+  "$schema": "ases/v3.0/system_test_scenarios",
+  "sprint_id": "V2",
+  "produced_by": "/ases-system-test V2 Step A",
+  "designed_at": "2026-07-06",
+  "scope_modules": ["M-008", "M-009", "M-010", "M-011"],
+  "scope_features": ["F-013", "F-014", "F-015", "F-016", "F-017", "F-018", "F-019"],
+  "prd_non_functional_refs": [
+    "non_functional.performance — Dashboard sub-second; data-entry form save < 500 ms; Sales Report < 2s for 1 year unfiltered",
+    "non_functional.security — All inputs validated server-side (V2 layers JWT auth + RBAC + bcrypt hashing on top of V1 posture)"
+  ],
+  "hld_risks_covered": [
+    "R-001 severity=critical (stock ledger race) — regression via IS-018 concurrent invoice+payment path is out of V2 system scope; V2 tests focus on V2-introduced surface",
+    "R-004 severity=medium (V1 no-auth) — MITIGATED by V2 T-092 auth guard; ST-015..ST-020 verify the mitigation",
+    "RI-V2-001 informational (SECRET_KEY handling) — ST-016 (signature tamper) implicitly verifies signature verification is enforced",
+    "RI-V2-002 informational (zero-price fallback) — out of system-test scope; already covered by TC-181 unit path"
+  ],
+  "notes": [
+    "One scenario per critical NFR + one per relevant risk mitigation. Numeric thresholds are recorded as the target; the executed test records the actual median/p95 alongside.",
+    "Performance thresholds use median over 20 calls (matches S3 test_perf_dashboard.py style) rather than pytest-benchmark to avoid a new plugin dependency. Median is the load-representative statistic for a single-user internal deployment (PRD non_functional.scalability: single-digit concurrent).",
+    "Security scenarios exercise the JWT contract at the edge — expired token, tampered signature, alg=none header, SQL-injection in username, deactivated user, and role gating — all against real HTTP via TestClient.",
+    "Boundary scenarios use @pytest.mark.parametrize with mixed pass/fail inputs to bound the accepted-value surface (AC-066 export formats; AC-072/AC-073 payment overpayment).",
+    "Error-handling scenarios use direct calls with the conflicting payload asserting the exact HTTP code (AC-067 duplicate price, AC-070 duplicate invoice)."
+  ],
+  "scenarios": [
+    {
+      "id": "ST-013",
+      "type": "performance",
+      "nfr_ref": "non_functional.performance",
+      "description": "POST /auth/login round-trip latency (bcrypt verify + JWT sign + DB read). Verifies the auth path stays within the PRD 'form save < 500 ms' budget on the reference workstation.",
+      "threshold": "median < 500ms over 20 calls",
+      "how": "Seed one active SUPERVISOR user with a bcrypt-hashed password. Time 20 sequential POST /api/v1/auth/login calls with correct credentials via TestClient. Assert status 200 on every call and statistics.median(durations_ms) < 500."
+    },
+    {
+      "id": "ST-014",
+      "type": "performance",
+      "nfr_ref": "non_functional.performance (Sales Report < 2s analog for Inward Report)",
+      "description": "GET /reports/inward with no filters over ~120 inward transaction rows. Verifies the V2 inward-report read path stays within the 2s Sales-Report analog even with a year's worth of small-shop data.",
+      "threshold": "median < 2000ms over 10 calls",
+      "how": "Seed 3 designs × 2 grades = 6 pairs and 120 inward transactions distributed across dates. Time 10 sequential GET /api/v1/reports/inward via TestClient. Assert 200 + reconciliation invariant (sum txn nos == sum consolidation nos) on the first call, then median duration < 2000ms.",
+      "severity_if_failed": "major"
+    },
+    {
+      "id": "ST-015",
+      "type": "security",
+      "nfr_ref": "non_functional.security (V2 auth guard mitigation of R-004)",
+      "description": "Expired JWT (exp in the past) must be rejected by get_current_user with HTTP 401 on both a V1 and a V2 protected endpoint. Verifies python-jose exp claim enforcement.",
+      "threshold": "GET /suppliers and GET /invoices with an expired-token Bearer header both return 401",
+      "how": "Mint a token via create_access_token(..., expires_delta=timedelta(seconds=-1)). GET /api/v1/suppliers and GET /api/v1/invoices with that token. Assert both == 401.",
+      "severity_if_failed": "critical"
+    },
+    {
+      "id": "ST-016",
+      "type": "security",
+      "nfr_ref": "non_functional.security (SECRET_KEY signature integrity, RI-V2-001)",
+      "description": "JWT whose signature was signed with a different SECRET_KEY must be rejected with HTTP 401. Verifies HS256 signature is actually verified server-side (guards against dev-key leak → prod-token forgery).",
+      "threshold": "GET /suppliers with a foreign-signed Bearer token returns 401",
+      "how": "jwt.encode({sub: user, role: SUPERVISOR, exp: future}, 'ATTACKER-KEY', algorithm='HS256'). GET /api/v1/suppliers with that Bearer. Assert 401.",
+      "severity_if_failed": "critical"
+    },
+    {
+      "id": "ST-017",
+      "type": "security",
+      "nfr_ref": "non_functional.security (algorithm confusion attack)",
+      "description": "JWT with alg=none header (unsigned) must be rejected with HTTP 401. Verifies the decoder does not accept 'none' as a valid signature algorithm despite server default being HS256.",
+      "threshold": "GET /suppliers with an alg=none token returns 401",
+      "how": "Build a token manually: base64url({alg:'none', typ:'JWT'}) + '.' + base64url({sub:'X',role:'SUPERVISOR',exp:future}) + '.' (empty signature). GET /api/v1/suppliers. Assert 401.",
+      "severity_if_failed": "critical"
+    },
+    {
+      "id": "ST-018",
+      "type": "security",
+      "nfr_ref": "non_functional.security (SQL injection resistance)",
+      "description": "SQL injection payloads in POST /auth/login username field must return HTTP 401 (auth fail) and MUST NOT produce HTTP 500 (SQL error leak) or bypass authentication.",
+      "threshold": "All 4 injection payloads return 401 (never 200, never 500)",
+      "how": "@pytest.mark.parametrize over 4 canonical payloads: \"' OR '1'='1\", \"admin' --\", \"'; DROP TABLE tbl_user_master;--\", \"' UNION SELECT NULL,NULL,NULL--\". POST /api/v1/auth/login with each as username, random password. Assert every response.status_code == 401. Assert tbl_user_master row-count unchanged post-run.",
+      "severity_if_failed": "critical"
+    },
+    {
+      "id": "ST-019",
+      "type": "security",
+      "nfr_ref": "non_functional.security (DS-018 exposure window bound)",
+      "description": "A user deactivated (is_active=False) mid-token-life must be rejected on the next authenticated request with HTTP 401 even though the JWT itself is still valid (not expired, correct signature). Verifies is_active is checked on every request, not cached in the token.",
+      "threshold": "GET /suppliers with a still-valid Bearer for a deactivated user returns 401",
+      "how": "Seed active user U + mint valid token T. Flip U.is_active=False and commit. GET /api/v1/suppliers with Bearer T. Assert 401.",
+      "severity_if_failed": "critical"
+    },
+    {
+      "id": "ST-020",
+      "type": "security",
+      "nfr_ref": "non_functional.security (RBAC per DS-019)",
+      "description": "STAFF-role token must be rejected with HTTP 403 on SUPERVISOR-only endpoints. Verifies require_supervisor DI factory enforces the role gate (not just get_current_user).",
+      "threshold": "POST /users, POST /prices, POST /invoices with STAFF Bearer all return 403",
+      "how": "Seed one active STAFF user + mint STAFF token. Issue POST /api/v1/users (minimal valid body), POST /api/v1/prices (minimal valid body), POST /api/v1/invoices?sales_header_id=999 with that Bearer. Assert every response is 403.",
+      "severity_if_failed": "major"
+    },
+    {
+      "id": "ST-021",
+      "type": "boundary",
+      "nfr_ref": "AC-066 (F-016) — export format allowlist",
+      "description": "GET /reports/{sales,inward}/export accepts only format=pdf|xlsx and rejects every other format with HTTP 400.",
+      "threshold": "format=pdf|xlsx → 200; format=csv|xml|txt|json|'' → 400",
+      "how": "@pytest.mark.parametrize over accepted (pdf, xlsx) and rejected (csv, xml, txt, json, HTML, empty) values. GET /api/v1/reports/sales/export?format=X and /reports/inward/export?format=X. Assert accepted returns 200 with correct Content-Type; rejected returns 400.",
+      "severity_if_failed": "minor"
+    },
+    {
+      "id": "ST-022",
+      "type": "boundary",
+      "nfr_ref": "AC-072 / AC-073 (F-019) — payment status computation + overpayment guard",
+      "description": "Payment amounts near the invoice total must produce the correct status; any amount that would push cumulative payments strictly above total_amount must return HTTP 422.",
+      "threshold": "amount < total → PARTIAL, amount == total → PAID, amount > total → 422, second payment where cumulative > total → 422",
+      "how": "Seed a fresh sales+invoice with total_amount=1000.00. @pytest.mark.parametrize over (amount, expected_status, expected_state): (500.00, 201, 'PARTIAL'), (1000.00, 201, 'PAID'), (1000.01, 422, None), then a sequence test: pay 600 (PARTIAL) then attempt 401 (422 — cumulative 1001 > 1000).",
+      "severity_if_failed": "major"
+    },
+    {
+      "id": "ST-023",
+      "type": "error_handling",
+      "nfr_ref": "AC-067 (F-017) — duplicate price triple",
+      "description": "POST /prices with a (design_id, grade_id, effective_from) triple that already exists returns HTTP 409.",
+      "threshold": "second POST /prices with identical triple returns 409",
+      "how": "Seed masters (design=1, grade=1). POST /api/v1/prices {design_id:1, grade_id:1, effective_from:2026-01-01, unit_price:'100.00'} — expect 201. POST same body — assert 409. Body of second response must not contain a Python stack trace.",
+      "severity_if_failed": "major"
+    },
+    {
+      "id": "ST-024",
+      "type": "error_handling",
+      "nfr_ref": "AC-070 (F-018) — one invoice per sales_header_id",
+      "description": "POST /invoices?sales_header_id=N a second time for the same sales_header_id returns HTTP 409 (uq_invoice_header_sales_header_id).",
+      "threshold": "second POST /invoices for the same sale returns 409",
+      "how": "Seed 1 design + 1 grade + 1 dealer + 1 staff + 1 price. POST /api/v1/sales for that pair. POST /api/v1/invoices?sales_header_id={id} — expect 201. POST same URL — assert 409.",
+      "severity_if_failed": "major"
+    }
+  ]
+}

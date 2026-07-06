@@ -1,0 +1,62 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-092",
+  "sprint_id": "V2",
+  "module_ref": "M-008",
+  "iteration": 3,
+  "previous_verdict": "FIX_REQUIRED",
+  "verdict": "CLEAN",
+  "summary": "Iteration 3 re-audit after /ases-fix. All critical + major findings from iteration 2 are resolved: (F-092-1, F-092-2) the 6 V2 include_router calls now carry prefix='/api/v1' — auth/users/pricing/invoices/report_export/inward_report endpoints resolve at the paths DS-010 and TC-208..TC-217 expect, and oauth2_scheme.tokenUrl='/api/v1/auth/login' matches the live mount; (F-092-3) inward_report.py imports were repaired out-of-scope (src.-prefixed), consistent with the other 5 V2 routers and main.py's own import path. The sole residual (F-092-4) is a minor stylistic drift — the 5 non-auth V2 routers rely on route-level Depends(get_current_user) instead of mount-level dep — flagged as is_adr_tradeoff, behaviorally equivalent under FastAPI dep dedup, TC-213 unaffected. Accepted as-built; deviation is self-documented via comments on main.py lines 64 and 68-69.",
+  "findings_previously_open": [
+    {
+      "id": "F-092-1",
+      "prior_severity": "critical",
+      "status": "RESOLVED",
+      "evidence": "backend/src/main.py:59,65,66,70,71,72 — every V2 include_router now includes prefix=\"/api/v1\". auth_router mounts open (no dep, per DS-018); the other 5 mounts carry no mount-level dep by design (see F-092-4). Endpoints resolve at /api/v1/auth/login, /api/v1/users, /api/v1/prices, /api/v1/invoices, /api/v1/reports, /api/v1/reports/inward — matches DS-010 and TC-208..TC-217.",
+      "referenced_decisions": ["DS-010", "DS-018"],
+      "referenced_test_cases": ["TC-208", "TC-209", "TC-210", "TC-211", "TC-212", "TC-213", "TC-214", "TC-215", "TC-216", "TC-217"]
+    },
+    {
+      "id": "F-092-2",
+      "prior_severity": "critical",
+      "status": "RESOLVED",
+      "evidence": "backend/src/main.py:59 mounts auth_router with prefix='/api/v1'; combined with auth router's own '/auth' prefix, POST /api/v1/auth/login is now live and matches dependencies.py:oauth2_scheme tokenUrl. Swagger 'Authorize' will now succeed end-to-end.",
+      "referenced_decisions": ["DS-010", "DS-018"],
+      "referenced_test_cases": ["TC-208", "TC-209", "TC-210"]
+    },
+    {
+      "id": "F-092-3",
+      "prior_severity": "major",
+      "status": "RESOLVED",
+      "evidence": "backend/src/presentation/api/routers/inward_report.py:19-22 — all four imports now use src.-prefix (src.presentation.api.dependencies, src.application.services.inward_report_service, src.presentation.schemas.inward_report, src.infrastructure.db.models.auth). Consistent with the other 5 V2 routers. `python -m uvicorn src.main:app` now imports cleanly. Fix applied out-of-scope from T-092 (correct — T-092.do_not_touch forbade this file).",
+      "referenced_decisions": ["DS-007"],
+      "referenced_test_cases": ["TC-214"]
+    },
+    {
+      "id": "F-092-4",
+      "prior_severity": "minor",
+      "status": "ACCEPTED_AS_TRADEOFF",
+      "evidence": "backend/src/main.py:57-72 keeps mount-level Depends(get_current_user) off the 5 non-auth V2 routers, relying on per-route Depends declared in each router file. FastAPI dedupes identical Depends within a single request, so behavior is equivalent to the LLD-prose approach. TC-213 only exercises V1 mounts and passes. The intent is documented inline (comments on lines 64 and 68-69). Since severity is minor + is_adr_tradeoff and the previous critique explicitly listed 'Option B: accept as-is' as valid, this residual does not block CLEAN. RECOMMENDATION (non-blocking): consider adding a lightweight ADR (DS-024) at sprint-close capturing 'V2 non-auth routers use route-level auth deps only — LLD-prose drift, documented, behaviorally equivalent' so the deviation is discoverable outside main.py.",
+      "referenced_decisions": ["DS-018", "DS-019"],
+      "referenced_test_cases": []
+    }
+  ],
+  "new_findings": [],
+  "regression_checks": {
+    "v1_routers_still_guarded": "PASS — backend/src/main.py:45-55 all 11 V1 include_router calls retain dependencies=[Depends(get_current_user)]. TC-213 satisfied.",
+    "mount_order_preserved": "PASS — report_export_router (line 65) still mounted before inward_report_router (line 66); /api/v1/reports/inward/export cannot be swallowed by the /reports/inward router.",
+    "auth_router_open": "PASS — auth_router mounted with no mount-level dep (line 59); /api/v1/auth/login remains reachable without a token (DS-018).",
+    "cors_lifespan_health_untouched": "PASS — CORS middleware, register_error_handlers, and /health endpoint unchanged (do_not_touch honored).",
+    "scope_compliance": "PASS — only backend/src/main.py was modified by T-092. F-092-3 fix to inward_report.py was applied outside T-092's scope as recommended."
+  },
+  "structural_check_skipped": true,
+  "structural_check_reason": "graphify-out/graph.json not consulted — Lens 5 optional; scope is a single mount-config file.",
+  "counts": {
+    "critical": 0,
+    "major": 0,
+    "minor": 0,
+    "total": 0,
+    "residual_accepted_tradeoffs": 1
+  },
+  "next_action": "Update tasks.json — set T-092 status=complete, critique_verdict=CLEAN, iteration_count=3. Update context.json last_completed_task=T-092. T-092 is the final task in execution_order[] — proceed to /ases-sprint-close V2."
+}

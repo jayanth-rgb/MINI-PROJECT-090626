@@ -1,0 +1,17 @@
+{
+  "task_id": "T-088",
+  "title": "routers/report_export.py — GET /reports/sales/export + GET /reports/inward/export (StreamingResponse)",
+  "module_ref": "M-010",
+  "output_files": ["backend/src/presentation/api/routers/report_export.py"],
+  "scope": "FastAPI router with prefix='/reports', tags=['reports']. Two GET endpoints: /sales/export?format=pdf|xlsx (required query param, multi-value date/dealer/place/design filters); /inward/export?format=pdf|xlsx (same pattern with supplier_ids). Both: delegate to ReportExportService, wrap returned (BytesIO, content_type, filename) tuple in StreamingResponse with Content-Disposition attachment header. Auth: get_current_user at route level (any role). No response_model (binary response).",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-087", "T-089"],
+  "test_case_refs": ["TC-215", "TC-216"],
+  "decisions_referenced": ["DS-007", "DS-021"],
+  "success_criteria": {
+    "manual": "python -c \"from src.presentation.api.routers.report_export import router; print([r.path for r in router.routes])\"",
+    "automated": "TC-215 (GET /reports/sales/export?format=pdf -> StreamingResponse, Content-Type=application/pdf, first bytes=%PDF), TC-216 (GET /reports/inward/export?format=xlsx -> xlsx MIME, PK magic bytes).",
+    "definition_of_done": "report_export.py with 2 routes. StreamingResponse returned. Content-Disposition attachment set. Auth required. 400 on bad format handled by ReportExportService layer."
+  },
+  "checkout_prompt": "routers/report_export.py created. GET /reports/sales/export + /inward/export. StreamingResponse with Content-Disposition (DS-021). TC-215/216 covered. CRITICAL: mount BEFORE inward_report router in main.py (prefix collision prevention)."
+}

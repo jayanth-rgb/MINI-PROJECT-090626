@@ -1,0 +1,17 @@
+{
+  "task_id": "T-070",
+  "title": "repositories/auth.py — UserRepository",
+  "module_ref": "M-008",
+  "output_files": ["backend/src/infrastructure/db/repositories/auth.py"],
+  "scope": "UserRepository extending BaseRepository[UserModel]. Adds get_by_username(username: str) → UserModel | None: SELECT * WHERE username=:u LIMIT 1, case-sensitive, returns None if not found. Adds list_active() → list[UserModel]: SELECT * WHERE is_active=True ORDER BY username ASC. Inherits create/update/get/soft_delete from BaseRepository per DS-012.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-067"],
+  "test_case_refs": ["TC-185", "TC-186"],
+  "decisions_referenced": ["DS-007", "DS-012"],
+  "success_criteria": {
+    "manual": "python -c 'from src.infrastructure.db.repositories.auth import UserRepository; print(UserRepository.__bases__)' → includes BaseRepository.",
+    "automated": "TC-185 (get_by_username returns UserModel for existing user), TC-186 (returns None for unknown username).",
+    "definition_of_done": "File exports UserRepository with get_by_username + list_active methods on top of inherited BaseRepository methods."
+  },
+  "checkout_prompt": "UserRepository created. get_by_username + list_active. Inherits BaseRepository. Ready for T-071 (AuthService)."
+}

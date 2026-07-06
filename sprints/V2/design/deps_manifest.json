@@ -1,0 +1,163 @@
+{
+  "$schema": "ases/v3.0/deps_manifest",
+  "sprint_id": "V2",
+  "summary": "V2 adds 4 new Python backend packages (passlib[bcrypt], python-jose[cryptography], reportlab, openpyxl) and a new SECRET_KEY env var. 5 new DB tables are created via migration 0004. Zero new Node.js packages mandated at this stage — frontend auth + invoice UI ships via the V2 UI track and will declare its own npm additions. All V1 Docker / PostgreSQL / FastAPI / SQLAlchemy / Pydantic infrastructure is inherited unchanged.",
+
+  "packages": [
+    {
+      "name": "passlib[bcrypt]",
+      "version": ">=1.7.4",
+      "ecosystem": "python",
+      "purpose": "Bcrypt password hashing for tbl_user_master.password_hash. CryptContext provides constant-time comparison (domain/auth.py).",
+      "install": "pip install passlib[bcrypt]",
+      "used_in": ["backend/src/domain/auth.py", "backend/scripts/seed_default_user.py"],
+      "decision_ref": "DS-018"
+    },
+    {
+      "name": "python-jose[cryptography]",
+      "version": ">=3.3.0",
+      "ecosystem": "python",
+      "purpose": "JWT signing (HS256) and validation for access tokens. [cryptography] extra enables RS256 as a future upgrade path without package swap.",
+      "install": "pip install python-jose[cryptography]",
+      "used_in": ["backend/src/domain/auth.py"],
+      "decision_ref": "DS-018"
+    },
+    {
+      "name": "reportlab",
+      "version": ">=4.0",
+      "ecosystem": "python",
+      "purpose": "PDF generation for Sales Report and Inward Report exports. Uses SimpleDocTemplate + Table + Paragraph primitives. No external binary dependencies.",
+      "install": "pip install reportlab",
+      "used_in": ["backend/src/infrastructure/exporters/pdf_exporter.py"],
+      "decision_ref": "DS-021"
+    },
+    {
+      "name": "openpyxl",
+      "version": ">=3.1",
+      "ecosystem": "python",
+      "purpose": "XLSX generation for Sales Report and Inward Report exports. Two-worksheet layout (Consolidation + Transactions). Pure Python, no LibreOffice dependency.",
+      "install": "pip install openpyxl",
+      "used_in": ["backend/src/infrastructure/exporters/excel_exporter.py"],
+      "decision_ref": "DS-021"
+    }
+  ],
+
+  "services": [
+    {
+      "name": "PostgreSQL 16",
+      "setup_notes": "Inherits from S1 docker-compose. Requires `alembic upgrade head` to apply migration 0004 (5 new tables) then `python scripts/seed_default_user.py` to create the default admin user."
+    },
+    {
+      "name": "Docker (testcontainers)",
+      "setup_notes": "Test execution dependency only — inherits from S1. No new test infrastructure needed."
+    }
+  ],
+
+  "env_vars": [
+    {
+      "name": "DATABASE_URL",
+      "required": true,
+      "description": "Inherits from S1. PostgreSQL DSN. Backend cannot start without it.",
+      "example": "postgresql+psycopg://trading_app:<pwd>@localhost:5432/jayanth_trading"
+    },
+    {
+      "name": "NEXT_PUBLIC_API_URL",
+      "required": true,
+      "description": "Inherits from S1. Backend API base URL consumed by the Next.js frontend.",
+      "example": "http://localhost:8000/api/v1"
+    },
+    {
+      "name": "SECRET_KEY",
+      "required": true,
+      "description": "NEW in V2. Cryptographic secret for signing JWT access tokens (HS256). Must be at least 32 random bytes. Never reuse across environments. Backend cannot start without it.",
+      "example": "openssl rand -hex 32  # generates a suitable value",
+      "used_in": ["backend/src/domain/auth.py — create_access_token", "backend/src/config.py"]
+    },
+    {
+      "name": "ACCESS_TOKEN_EXPIRE_HOURS",
+      "required": false,
+      "description": "NEW in V2. JWT access token TTL in hours. Defaults to 8 (one trading day) if not set. Override to lower for tighter security.",
+      "default": "8",
+      "used_in": ["backend/src/domain/auth.py — create_access_token"]
+    }
+  ],
+
+  "migrations": [
+    {
+      "file": "backend/db/migrations/versions/0004_v2_auth_pricing_tables.py",
+      "tables_created": [
+        "tbl_user_master",
+        "tbl_price_master",
+        "tbl_invoice_header",
+        "tbl_invoice_line",
+        "tbl_payment"
+      ],
+      "tables_modified": [],
+      "indexes_created": ["ix_user_master_username"],
+      "constraints_added": [
+        "uq_price_design_grade_effective (tbl_price_master)",
+        "uq_invoice_header_invoice_number (tbl_invoice_header)",
+        "uq_invoice_header_sales_header_id (tbl_invoice_header)",
+        "uq_invoice_line_sales_line_id (tbl_invoice_line)",
+        "ck_price_unit_price_nonneg (tbl_price_master)",
+        "ck_payment_amount_positive (tbl_payment)",
+        "ck_invoice_status (tbl_invoice_header)"
+      ],
+      "run_order": "After 0003_transaction_and_ledger_tables.py",
+      "reversible": true,
+      "notes": "ORM-first per DS-009. Generated from Base.metadata targeting only V2 models. Review DDL before applying to confirm autogenerate captured all constraints."
+    }
+  ],
+
+  "post_migration_scripts": [
+    {
+      "script": "backend/scripts/seed_default_user.py",
+      "purpose": "Creates default SUPERVISOR account (admin / admin123). Idempotent.",
+      "when": "Once after alembic upgrade head on a fresh database.",
+      "warning": "Change the admin password immediately after first login."
+    }
+  ],
+
+  "no_breaking_changes_to": [
+    "S1 master CRUD (read-only dependency — auth guard added via main.py include_router, not inside router files)",
+    "S2 transaction forms (same read-only dependency pattern)",
+    "S2 stock ledger writes (advisory lock + FOR UPDATE intact per DS-015)",
+    "S3 dashboard + sales report (SalesReportService reused by ReportExportService — no modification)"
+  ],
+
+  "frontend_deps_note": "TBD at /ases-ui-design V2. Anticipated additions: an HTTP interceptor that attaches the Bearer token from localStorage to every fetch (or axios instance), a login page component, and possibly a JWT-decode library (jwt-decode or similar) for reading role from the token client-side. Invoice and pricing pages are new and may need a numeric-input library for Decimal fields. All frontend packages will be declared in the V2 UI track deps manifest.",
+
+  "decisions_referenced": [
+    "DS-001 (stack)", "DS-005 (V1 no-auth — superseded in V2)", "DS-007 (layering)", "DS-008 (soft-delete)",
+    "DS-009 (ORM-first migrations)", "DS-010 (API versioning /api/v1)", "DS-012 (BaseRepository pattern)",
+    "DS-013 (place snapshot — reused by InwardReportService)", "DS-015 (advisory lock — TD-008 closed per DS-020)",
+    "DS-017 (shared filter predicate — replicated in InwardReportService)",
+    "DS-018", "DS-019", "DS-020", "DS-021", "DS-022", "DS-023"
+  ],
+
+  "modules_touched": [
+    "M-008 (new — Auth)",
+    "M-009 (new — Inward Report)",
+    "M-010 (new — Report Export)",
+    "M-011 (new — Pricing & Invoicing)",
+    "M-002 (modify — dependencies.py + main.py only; individual V1 routers untouched)"
+  ],
+
+  "tech_debt_resolved": [
+    {
+      "id": "TD-008",
+      "resolution": "Closed by DS-020 — DS-015 advisory lock already serializes first-row inserts. V2 adds integration test TC for explicit coverage.",
+      "resolution_type": "test-only (no code change)"
+    }
+  ],
+
+  "open_items": [
+    "OI-V2-001: SECRET_KEY must be provisioned in .env before first run. Document in README.",
+    "OI-V2-002: pip requirements.txt / pyproject.toml must add the 4 new packages before /ases-dev.",
+    "OI-V2-003: Frontend auth token storage (localStorage vs httpOnly cookie) deferred to /ases-ui-design V2.",
+    "OI-V2-004: GET /invoices filter for uninvoiced sales (LEFT JOIN IS NULL) is a V3 convenience — not in V2 scope.",
+    "OI-V2-005: TD-008 integration test TC to be authored at /ases-test-spec V2 as an edge-case concurrent scenario."
+  ],
+
+  "next": "/ases-schema V2"
+}

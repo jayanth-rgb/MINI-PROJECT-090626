@@ -1,0 +1,32 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-077",
+  "sprint_id": "V2",
+  "iteration": 1,
+  "file_reviewed": "backend/src/application/services/inward_report_service.py",
+  "issues": [],
+  "verdict": "CLEAN",
+  "critical_count": 0,
+  "major_count": 0,
+  "minor_count": 0,
+  "lens_summaries": {
+    "spec": "PASS — generate() signature matches plan.json and LLD exactly (5 Optional params). All 4 plan steps implemented: shared predicate via _build_filters(), consolidation query (GROUP BY design+grade, SUM(nos), ORDER BY design_name ASC, grade_code ASC), transactions query (per-line, ORDER BY purchase_date ASC, header_id ASC), reconciliation assert before return. Returns InwardReportResponse.",
+    "contract": "PASS — All 4 imports from depends_on[] (InwardHeaderModel, InwardLineModel from transactions.py; GradeModel, SupplierModel, TradingDesignModel from master.py; InwardReportResponse schemas from inward_report.py) are present and used correctly. ORM column names verified against actual model definitions: InwardHeaderModel.header_id, InwardHeaderModel.purchase_date, InwardHeaderModel.supplier_id, InwardHeaderModel.place; InwardLineModel.header_id, InwardLineModel.design_id, InwardLineModel.grade_id, InwardLineModel.nos; SupplierModel.supplier_id, SupplierModel.supplier_name; TradingDesignModel.design_id, TradingDesignModel.design_name, TradingDesignModel.size; GradeModel.grade_id, GradeModel.grade_code — all match master.py and transactions.py definitions. InwardReportService exported. T-087 (ReportExportService) can call InwardReportService(db).generate() without friction; T-078 (router) can delegate to generate() directly.",
+    "test": "PASS — TC-195 (full dataset reconciliation with 3 lines / 3 consolidation groups / 225 total nos): shared predicate with no filters returns full dataset; both consolidation GROUP BY and transactions SELECT cover all rows; assert passes. TC-196 (date filter narrows both sections): _build_filters() appends InwardHeaderModel.purchase_date >= date_from and <= date_to; both queries share this predicate via the same WHERE *filters application; only the July-2 row (nos=75) passes, reconciliation holds. TC-197 (ordering): consolidation ORDER BY TradingDesignModel.design_name ASC, GradeModel.grade_code ASC correctly places '12X8 Ridges' before '16X10 Ridges'; transactions ORDER BY InwardHeaderModel.purchase_date ASC correctly places 2026-07-01 before 2026-07-02.",
+    "security": "PASS — All WHERE predicates use SQLAlchemy parameterized ORM expressions (Column.in_(list), Column >= value); no raw SQL string interpolation. No secrets exposed. DS-013 compliance confirmed: place filter applied against InwardHeaderModel.place (denormalized snapshot), NOT against SupplierModel.place. The assert-based reconciliation check is an ADR-mandated pattern per DS-017 (is_adr_tradeoff: true) and mirrors the already-validated SalesReportService implementation. Note: assert is disabled by Python -O flag, but this is the DS-017 design intent (defense-in-depth for future refactors, not primary validation).",
+    "structural": "N/A — graph.json predates T-077 output file (InwardReportService is a new file not yet in graph). Router mount is T-078 (pending); reachability from API entry points will be verifiable after T-078 and T-092 complete."
+  },
+  "adr_tradeoffs_noted": [
+    {
+      "adr_ref": "DS-017",
+      "note": "assert consol_total == txn_total is disabled by Python -O flag. Accepted: DS-017 explicitly designates this as defense-in-depth for future refactors, not as a primary runtime invariant. Same pattern used in SalesReportService (previously validated CLEAN). No fix required."
+    }
+  ],
+  "positive_observations": [
+    "Faithful DS-017 implementation: _build_filters() is the single WHERE source for both queries; _query_consolidation() and _query_transactions() accept only a pre-built filters list and add no inline predicates — enforces reconciliation by construction.",
+    "DS-013 compliance explicit: InwardHeaderModel.place used in both the place filter and the SELECT projection; SupplierModel joined only for supplier_name display. Docstring calls this out clearly.",
+    "Join root selection is correct: consolidation query roots from tbl_inward_line (design/grade aggregation); transactions query roots from tbl_inward_header (chronological per-line view). Both are semantically appropriate and match the SalesReportService mirror pattern.",
+    "Secondary sort InwardHeaderModel.header_id ASC on the transactions query provides deterministic ordering when multiple inward lines share the same purchase_date — correct extension beyond the minimum spec."
+  ],
+  "produced_at": "2026-07-03"
+}

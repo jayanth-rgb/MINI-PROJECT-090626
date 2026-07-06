@@ -1,0 +1,6 @@
+{
+  "task_id": "T-072",
+  "test_case_refs": ["TC-208", "TC-209", "TC-210"],
+  "priority": "critical",
+  "notes": "Integration tests using FastAPI TestClient + testcontainers PostgreSQL. TC-208: POST /auth/login with form {username: 'admin', password: 'admin123'} (seeded by T-075 seed_default_user.py) -> 200; response has access_token (non-empty str), token_type='bearer', role='SUPERVISOR'. TC-209: POST /auth/login with form {username: 'admin', password: 'wrongpassword'} -> 401. TC-210: GET /auth/me with Authorization: Bearer <token from TC-208> -> 200; response body has username='admin', role='SUPERVISOR', is_active=True."
+}

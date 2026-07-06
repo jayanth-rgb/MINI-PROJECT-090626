@@ -1,0 +1,17 @@
+{
+  "task_id": "T-077",
+  "title": "services/inward_report_service.py — InwardReportService",
+  "module_ref": "M-009",
+  "output_files": ["backend/src/application/services/inward_report_service.py"],
+  "scope": "InwardReportService.generate(date_from, date_to, supplier_ids, places, design_ids — all Optional). Mirrors SalesReportService (DS-017 shared filter predicate). Steps: (1) Build shared filter predicate list from optional params (purchase_date>=date_from, purchase_date<=date_to, supplier_id IN supplier_ids, place IN places, design_id IN design_ids). (2) Consolidation query: GROUP BY design+grade, SUM(nos), ORDER BY design_name ASC, grade_code ASC. (3) Transactions query: per-line with all joins, ORDER BY purchase_date ASC. (4) Assert sum(transactions.nos)==sum(consolidation.total_nos) before return. Returns InwardReportResponse.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-076"],
+  "test_case_refs": ["TC-195", "TC-196", "TC-197"],
+  "decisions_referenced": ["DS-007", "DS-013", "DS-017"],
+  "success_criteria": {
+    "manual": "python -c 'from src.application.services.inward_report_service import InwardReportService; print(hasattr(InwardReportService, \"generate\"))'",
+    "automated": "TC-195 (full dataset reconciliation), TC-196 (date filter narrows both sections), TC-197 (ordering: design_name ASC consolidation, purchase_date ASC transactions).",
+    "definition_of_done": "InwardReportService exported with generate() method. Shared predicate used for both queries. Reconciliation assert before return. Returns InwardReportResponse with correct ordering."
+  },
+  "checkout_prompt": "InwardReportService created. generate() with shared predicate for consolidation+transactions. Reconciliation assert. TC-195..TC-197 covered. Ready for T-078 (router) and T-087 (export service)."
+}

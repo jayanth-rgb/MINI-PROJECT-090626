@@ -1,0 +1,17 @@
+{
+  "task_id": "T-080",
+  "title": "repositories/pricing.py — PriceMasterRepository, InvoiceRepository, PaymentRepository",
+  "module_ref": "M-011",
+  "output_files": ["backend/src/infrastructure/db/repositories/pricing.py"],
+  "scope": "Three repositories extending BaseRepository per DS-012. PriceMasterRepository: get_active_price(design_id, grade_id) → PriceMasterModel | None (WHERE is_active=True AND effective_from<=today() ORDER BY effective_from DESC LIMIT 1); list_all() → all rows ordered by design_id, grade_id, effective_from DESC. InvoiceRepository: create_with_lines(header_data, lines_data) → InvoiceHeaderModel (atomic flush, auto-generates invoice_number in header_data); get(id) with joinedload(lines, payments) → InvoiceHeaderModel | None; list(dealer_id, date_from, date_to, status all optional) → list[InvoiceHeaderModel]. PaymentRepository: create(invoice_header_id, data) → PaymentModel.",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-079"],
+  "test_case_refs": ["TC-187", "TC-188", "TC-189"],
+  "decisions_referenced": ["DS-007", "DS-012", "DS-022"],
+  "success_criteria": {
+    "manual": "from src.infrastructure.db.repositories.pricing import PriceMasterRepository, InvoiceRepository, PaymentRepository; print('ok')",
+    "automated": "TC-187 (get_active_price picks latest effective_from), TC-188 (inactive price returns None), TC-189 (create_with_lines inserts header+line in one flush).",
+    "definition_of_done": "3 repositories exported. PriceMasterRepository.get_active_price uses ORDER BY effective_from DESC LIMIT 1. InvoiceRepository.create_with_lines is atomic (single flush). All extend BaseRepository per DS-012."
+  },
+  "checkout_prompt": "repositories/pricing.py created. 3 repositories: PriceMasterRepository, InvoiceRepository, PaymentRepository. TC-187..TC-189 covered. Ready for T-083 (PricingService) and T-084 (InvoiceService)."
+}

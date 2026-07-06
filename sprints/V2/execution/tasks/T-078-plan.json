@@ -1,0 +1,17 @@
+{
+  "task_id": "T-078",
+  "title": "routers/inward_report.py — GET /reports/inward with multi-select filters",
+  "module_ref": "M-009",
+  "output_files": ["backend/src/presentation/api/routers/inward_report.py"],
+  "scope": "FastAPI router with prefix='/reports/inward', tags=['reports']. Single endpoint: GET '' (resolves to GET /reports/inward). Query params: date_from (date|None), date_to (date|None), supplier_ids (list[int] multi-value via Query(default=[])), places (list[str] via Query(default=[])), design_ids (list[int] via Query(default=[])). Auth: get_current_user at route level (any role). Returns InwardReportResponse. Empty list params passed as None to service (None = no filter).",
+  "do_not_touch": ["any other file"],
+  "depends_on": ["T-077", "T-089"],
+  "test_case_refs": ["TC-214"],
+  "decisions_referenced": ["DS-007", "DS-017"],
+  "success_criteria": {
+    "manual": "python -c \"from src.presentation.api.routers.inward_report import router; print(router.prefix)\"  # '/reports/inward'",
+    "automated": "TC-214 (GET /reports/inward with valid auth and filters -> 200 InwardReportResponse with consolidation rows).",
+    "definition_of_done": "inward_report.py with 1 GET route. Auth required (any role). Multi-value query params for supplier_ids, places, design_ids. InwardReportResponse returned."
+  },
+  "checkout_prompt": "routers/inward_report.py created. GET /reports/inward, multi-select filters, get_current_user guard. TC-214 covered. NOTE: must be mounted AFTER report_export router in main.py to avoid prefix collision."
+}

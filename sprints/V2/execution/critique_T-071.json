@@ -1,0 +1,44 @@
+{
+  "$schema": "ases/v3.0/critique",
+  "task_id": "T-071",
+  "sprint_id": "V2",
+  "iteration": 1,
+  "file_reviewed": "backend/src/application/services/auth_service.py",
+  "decisions_read": ["DS-007", "DS-018", "DS-019"],
+  "issues": [
+    {
+      "id": "I-001",
+      "lens": "security",
+      "severity": "minor",
+      "file": "backend/src/application/services/auth_service.py",
+      "line_ref": "24-29",
+      "description": "Timing side-channel in authenticate: the combined `if not user or not user.is_active:` guard returns a 401 without invoking bcrypt (~0ms), while a wrong-password path invokes bcrypt (~100ms). An external observer can infer whether a username exists or is active by measuring response latency.",
+      "fix_instruction": "Acceptable at V2 internal scale — DS-018 does not mandate constant-time login. No code change required. Document as a known limitation if a future public-facing release occurs. Mark closed.",
+      "spec_ref": "DS-018",
+      "is_adr_tradeoff": true
+    },
+    {
+      "id": "I-002",
+      "lens": "spec",
+      "severity": "minor",
+      "file": "sprints/V2/design/lld.json",
+      "line_ref": "authenticate.raises[1]",
+      "description": "LLD authenticate.raises includes 'HTTPException 403 account deactivated' but plan.json scope ('401 if not found or inactive') and TC-192 (should_raise: HTTPException(status_code=401)) both specify 401. Implementation correctly follows plan.json and TC-192. The LLD raises[] field is a documentation error — not an implementation defect.",
+      "fix_instruction": "No change to auth_service.py needed. Update lld.json authenticate.raises[1] from 'HTTPException 403 account deactivated' to 'HTTPException 401 inactive account' at next /ases-prd-update or schema maintenance pass.",
+      "spec_ref": "TC-192",
+      "is_adr_tradeoff": false
+    }
+  ],
+  "verdict": "CLEAN",
+  "critical_count": 0,
+  "major_count": 0,
+  "minor_count": 2,
+  "notes": [
+    "All 5 methods match plan.json spec and LLD signatures.",
+    "commit() at service layer is consistent with the established S1 pattern (e.g. SupplierService.create_supplier).",
+    "NotFoundError from BaseRepository.update propagates to the global handler (errors.py register_error_handlers → 404) — correct by architecture.",
+    "Password hashed before persist; no JWT details in error messages; no raw SQL.",
+    "TC-190..TC-194 all correctly handled.",
+    "UserUpdate.role: str|None (no Pydantic literal constraint) is a schemas/auth.py (T-069) issue, out of scope for T-071."
+  ]
+}
